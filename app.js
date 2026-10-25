@@ -1032,89 +1032,292 @@
   }
 
   // =========================================================================
-  // 6. BALANCESCORE POR ESTACIONES (INTERCONECTADO CON VENTAS)
+  // 6. BALANCESCORE POR ESTACIONES Y CURSOS (METAS QUINCENALES Y RANGOS FLEXIBLES)
   // =========================================================================
-  const STATIONS_METAS = [
-    { id: 'Cabello', name: 'Cabello & Colorimetría', icon: '💇‍♀️', meta: 2500, clientesMeta: 6 },
-    { id: 'Uñas', name: 'Uñas & Manicure', icon: '💅', meta: 1800, clientesMeta: 6 },
-    { id: 'Maquillaje', name: 'Maquillaje Profesional', icon: '💄', meta: 1200, clientesMeta: 3 },
-    { id: 'Pestañas', name: 'Lash & Brow (Pestañas/Cejas)', icon: '👁️', meta: 1000, clientesMeta: 4 },
-    { id: 'Pedicure', name: 'Pedicure & Spa', icon: '🦶', meta: 900, clientesMeta: 4 },
-    { id: 'Facial', name: 'Cabina Facial', icon: '✨', meta: 900, clientesMeta: 3 }
+  const DEFAULT_METAS_QUINCENALES = [
+    { id: 'Cabello', nombre: 'Cabello & Colorimetría', icono: '💇‍♀️', metaQuincenal: 18750, clientesMeta: 45 },
+    { id: 'Uñas', nombre: 'Uñas & Manicure', icono: '💅', metaQuincenal: 13500, clientesMeta: 45 },
+    { id: 'Maquillaje', nombre: 'Maquillaje Profesional', icono: '💄', metaQuincenal: 9000, clientesMeta: 22 },
+    { id: 'Pestañas', nombre: 'Lash & Brow (Pestañas/Cejas)', icono: '👁️', metaQuincenal: 7500, clientesMeta: 30 },
+    { id: 'Pedicure', nombre: 'Pedicure & Spa', icono: '🦶', metaQuincenal: 6750, clientesMeta: 30 },
+    { id: 'Facial', nombre: 'Cabina Facial', icono: '✨', metaQuincenal: 6750, clientesMeta: 22 },
+    { id: 'Cursos', nombre: 'Cursos & Talleres Academia', icono: '🎓', metaQuincenal: 25000, clientesMeta: 10 },
+    { id: 'Retail', nombre: 'Venta de Productos / Retail', icono: '🛍️', metaQuincenal: 7500, clientesMeta: 35 }
   ];
 
-  function getActiveStationMetas() {
-    if (catEstaciones && catEstaciones.length > 0) {
-      return catEstaciones.map(e => ({
-        id: e.nombre,
-        name: e.nombre,
-        icon: e.icono || '💈',
-        meta: parseFloat(e.meta) || 2000,
-        clientesMeta: parseInt(e.metaClientes, 10) || 5
-      }));
+  let bsPeriodoModo = 'dia'; // 'dia', 'semana', 'quincena', 'mes', 'rango'
+  let catMetas = [];
+
+  function switchBsPeriodMode(mode) {
+    bsPeriodoModo = mode;
+    document.querySelectorAll('.bs-period-pill').forEach(btn => {
+      if (btn.dataset.period === mode) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+
+    // Mostrar el contenedor de controles correspondiente
+    ['dia', 'semana', 'quincena', 'mes', 'rango'].forEach(m => {
+      const el = document.getElementById(`bs-ctrl-${m}`);
+      if (el) el.style.display = (m === mode) ? 'flex' : 'none';
+    });
+
+    renderBalanceScoreStations();
+  }
+
+  function getMonthName(monthNumber) {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return meses[monthNumber - 1] || '';
+  }
+
+  function formatDateDisplay(yyyy_mm_dd) {
+    if (!yyyy_mm_dd) return '--/--/----';
+    const parts = yyyy_mm_dd.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return yyyy_mm_dd;
+  }
+
+  function getBsActivePeriodRange() {
+    const today = new Date().toISOString().split('T')[0];
+    let fechaInicio = today;
+    let fechaFin = today;
+    let diasPeriodo = 1;
+    let factorPeriodo = 1 / 15;
+    let periodoTexto = `Día: ${formatDateDisplay(today)}`;
+    let esAvanceMes = false;
+
+    if (bsPeriodoModo === 'dia') {
+      const el = document.getElementById('bs_fecha_dia');
+      const f = (el && el.value) ? el.value : today;
+      fechaInicio = f;
+      fechaFin = f;
+      diasPeriodo = 1;
+      factorPeriodo = 1 / 15;
+      periodoTexto = `Día: ${formatDateDisplay(f)}`;
+    } else if (bsPeriodoModo === 'semana') {
+      const el = document.getElementById('bs_fecha_semana');
+      const f = (el && el.value) ? el.value : today;
+      const dEnd = new Date(f + 'T00:00:00');
+      const dStart = new Date(dEnd);
+      dStart.setDate(dEnd.getDate() - 6);
+      fechaInicio = dStart.toISOString().split('T')[0];
+      fechaFin = f;
+      diasPeriodo = 7;
+      factorPeriodo = 7 / 15;
+      periodoTexto = `Semana: Del ${formatDateDisplay(fechaInicio)} al ${formatDateDisplay(fechaFin)} (7 días)`;
+    } else if (bsPeriodoModo === 'quincena') {
+      const mEl = document.getElementById('bs_quin_mes');
+      const mesVal = (mEl && mEl.value) ? mEl.value : today.substring(0, 7);
+      const tEl = document.getElementById('bs_quin_tipo');
+      const tipo = (tEl && tEl.value) ? tEl.value : '1';
+      const [y, m] = mesVal.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+
+      if (tipo === '1') {
+        fechaInicio = `${mesVal}-01`;
+        fechaFin = `${mesVal}-15`;
+        diasPeriodo = 15;
+        factorPeriodo = 1.0;
+        periodoTexto = `1ª Quincena (Días 1 al 15) de ${getMonthName(m)} ${y}`;
+      } else {
+        fechaInicio = `${mesVal}-16`;
+        fechaFin = `${mesVal}-${String(lastDay).padStart(2, '0')}`;
+        diasPeriodo = lastDay - 15;
+        factorPeriodo = 1.0;
+        periodoTexto = `2ª Quincena (Días 16 al ${lastDay}) de ${getMonthName(m)} ${y}`;
+      }
+    } else if (bsPeriodoModo === 'mes') {
+      const mEl = document.getElementById('bs_mes_val');
+      const mesVal = (mEl && mEl.value) ? mEl.value : today.substring(0, 7);
+      const chk = document.getElementById('bs_mes_hasta_hoy');
+      const hastaHoy = chk ? chk.checked : true;
+      const [y, m] = mesVal.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+
+      const isCurrentMonth = (mesVal === today.substring(0, 7));
+      const todayDay = parseInt(today.substring(8, 10), 10);
+
+      if (hastaHoy && isCurrentMonth) {
+        fechaInicio = `${mesVal}-01`;
+        fechaFin = today;
+        diasPeriodo = todayDay;
+        factorPeriodo = todayDay / 15;
+        esAvanceMes = true;
+        periodoTexto = `Mes de ${getMonthName(m)} ${y}: Avance del día 1 al ${todayDay} (${todayDay} de ${lastDay} días transcurridos)`;
+      } else {
+        fechaInicio = `${mesVal}-01`;
+        fechaFin = `${mesVal}-${String(lastDay).padStart(2, '0')}`;
+        diasPeriodo = lastDay;
+        factorPeriodo = 2.0; // Mes completo = 2 quincenas
+        periodoTexto = `Mes completo de ${getMonthName(m)} ${y} (Día 1 al ${lastDay})`;
+      }
+    } else if (bsPeriodoModo === 'rango') {
+      const d1El = document.getElementById('bs_rango_desde');
+      const d2El = document.getElementById('bs_rango_hasta');
+      const d1 = (d1El && d1El.value) ? d1El.value : today;
+      const d2 = (d2El && d2El.value) ? d2El.value : today;
+
+      fechaInicio = d1 <= d2 ? d1 : d2;
+      fechaFin = d1 <= d2 ? d2 : d1;
+
+      const dt1 = new Date(fechaInicio + 'T00:00:00');
+      const dt2 = new Date(fechaFin + 'T00:00:00');
+      const diffTime = Math.abs(dt2 - dt1);
+      diasPeriodo = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      factorPeriodo = diasPeriodo / 15;
+      periodoTexto = `Rango de Días: Del ${formatDateDisplay(fechaInicio)} al ${formatDateDisplay(fechaFin)} (${diasPeriodo} días)`;
     }
-    return STATIONS_METAS;
+
+    return { fechaInicio, fechaFin, diasPeriodo, factorPeriodo, periodoTexto, esAvanceMes };
+  }
+
+  function getActiveStationMetas() {
+    // Si catMetas está vacío, usar DEFAULT_METAS_QUINCENALES
+    if (!catMetas || catMetas.length === 0) {
+      return DEFAULT_METAS_QUINCENALES;
+    }
+    return catMetas;
   }
 
   async function renderBalanceScoreStations() {
     const container = document.getElementById('stations-grid-container');
+    if (!container) return;
+    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--muted);">Cargando BalanceScore y ventas acumuladas...</div>';
+
+    const { fechaInicio, fechaFin, diasPeriodo, factorPeriodo, periodoTexto, esAvanceMes } = getBsActivePeriodRange();
+
+    const lblPeriodo = document.getElementById('bs-periodo-texto');
+    if (lblPeriodo) lblPeriodo.textContent = periodoTexto;
+
+    // Obtener todas las ventas registradas en el período consultado
+    const ventas = await TB_FIREBASE.getVentasByRango(fechaInicio, fechaFin);
+    const activeMetas = getActiveStationMetas();
+
     container.innerHTML = '';
-    const fEl = document.getElementById('bs_fecha');
-    if (!fEl.value) fEl.value = new Date().toISOString().split('T')[0];
-    const fecha = fEl.value;
-
-    // Obtener ventas reales para calcular la recaudación exacta por estación
-    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
-    const activeStations = getActiveStationMetas();
-
     let totalScore = 0;
-    activeStations.forEach(st => {
-      // Filtrar ventas de esta estación
-      const ventasSt = ventas.filter(v => (v.estacion || '').toLowerCase().includes(st.id.toLowerCase()));
+    let granTotalVentas = 0;
+    let granTotalMeta = 0;
+    let granTotalClientes = 0;
+
+    activeMetas.forEach(st => {
+      const isCursos = st.id === 'Cursos' || (st.nombre || '').toLowerCase().includes('curso');
+
+      // Filtrar ventas de esta estación o de cursos
+      let ventasSt = [];
+      if (isCursos) {
+        ventasSt = ventas.filter(v => {
+          const est = (v.estacion || '').toLowerCase();
+          const serv = (v.servicio || '').toLowerCase();
+          return est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller') || v.tipo === 'Curso';
+        });
+      } else {
+        ventasSt = ventas.filter(v => {
+          const est = (v.estacion || '').toLowerCase();
+          const serv = (v.servicio || '').toLowerCase();
+          const matchEst = est.includes(st.id.toLowerCase()) || est.includes((st.nombre || '').toLowerCase());
+          // Evitar que cursos se cuenten en estaciones de servicio estándar
+          const esCurso = est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller');
+          return matchEst && !esCurso;
+        });
+      }
+
       const lograda = ventasSt.reduce((sum, v) => sum + (parseFloat(v.totalCobrado) || 0), 0);
       const clientesReales = ventasSt.length;
-      const ticket = clientesReales > 0 ? lograda / clientesReales : 0;
+      const ticket = clientesReales > 0 ? (lograda / clientesReales) : 0;
 
-      const pct = Math.min(100, Math.round((lograda / st.meta) * 100));
-      // Calificación: 60% por ventas + 40% por estándares
-      const score = Math.round((pct * 0.6) + 40);
+      // Calcular meta proporcional al período seleccionado
+      const metaQuincenalBase = parseFloat(st.metaQuincenal) || 15000;
+      const metaPeriodo = Math.round(metaQuincenalBase * factorPeriodo);
+      const clientesMetaPeriodo = Math.max(1, Math.round((parseInt(st.clientesMeta, 10) || 15) * factorPeriodo));
+
+      granTotalVentas += lograda;
+      granTotalMeta += metaPeriodo;
+      granTotalClientes += clientesReales;
+
+      const pct = metaPeriodo > 0 ? Math.round((lograda / metaPeriodo) * 100) : (lograda > 0 ? 100 : 0);
+      const score = Math.min(100, Math.round((Math.min(100, pct) * 0.6) + 40));
       totalScore += score;
+
+      // Barra de progreso y colores
+      let barColor = '#ef4444'; // Rojo < 75%
+      if (pct >= 100) barColor = '#10b981'; // Verde >= 100%
+      else if (pct >= 75) barColor = '#f59e0b'; // Ámbar 75-99%
+
+      // Avance respecto al mes completo si aplica
+      let avanceMensualHtml = '';
+      if (esAvanceMes) {
+        const metaMensualCompleta = metaQuincenalBase * 2;
+        const pctMesCompleto = Math.round((lograda / metaMensualCompleta) * 100);
+        avanceMensualHtml = `
+          <div style="font-size:0.72rem; color:var(--muted); margin-top:2px; display:flex; justify-content:space-between;">
+            <span>Avance vs Meta Mensual ($${formatCurrency(metaMensualCompleta)}):</span>
+            <strong>${pctMesCompleto}%</strong>
+          </div>
+        `;
+      }
 
       const card = document.createElement('div');
       card.className = 'station-card';
       card.innerHTML = `
-        <div class="station-card-header">
-          <div class="station-title"><span>${st.icon}</span><span>${st.name}</span></div>
+        <div class="station-card-header" style="background:${isCursos ? 'linear-gradient(135deg, #065f46, #047857)' : 'linear-gradient(135deg, #1e293b, #0f172a)'}">
+          <div class="station-title">
+            <span>${st.icono || '💈'}</span>
+            <span>${st.nombre}</span>
+          </div>
           <span class="station-score-badge">${score}%</span>
         </div>
         <div class="station-card-body">
           <div class="station-progress-wrap">
-            <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;">
-              <span>Cumplimiento: ${pct}%</span>
-              <span>${formatCurrency(lograda)} / ${formatCurrency(st.meta)}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:700;">
+              <span>Avance del Período: ${pct}%</span>
+              <span>${formatCurrency(lograda)} / ${formatCurrency(metaPeriodo)}</span>
             </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" style="width:${pct}%; background:${pct >= 100 ? '#10b981' : (pct >= 80 ? '#f59e0b' : '#ef4444')}"></div>
+            <div class="progress-bar-bg" style="margin-top:4px;">
+              <div class="progress-bar-fill" style="width:${Math.min(100, pct)}%; background:${barColor}"></div>
             </div>
+            ${avanceMensualHtml}
+            ${pct >= 100 ? '<div style="margin-top:4px;"><span class="badge-meta-superada">🏆 ¡Meta del Período Superada!</span></div>' : ''}
           </div>
+
           <div class="station-metrics-row">
-            <div class="history-metric-box"><div class="label">Clientes Reales</div><div class="val">${clientesReales} / Meta: ${st.clientesMeta}</div></div>
-            <div class="history-metric-box"><div class="label">Ticket Promedio</div><div class="val">${formatCurrency(ticket)}</div></div>
+            <div class="history-metric-box">
+              <div class="label">${isCursos ? 'Alumnas Reales' : 'Clientes Reales'}</div>
+              <div class="val">${clientesReales} / Meta: ${clientesMetaPeriodo}</div>
+            </div>
+            <div class="history-metric-box">
+              <div class="label">Ticket Promedio</div>
+              <div class="val">${formatCurrency(ticket)}</div>
+            </div>
           </div>
+
           <div class="checklist-group">
-            <label class="checklist-item"><input type="checkbox" checked> Limpieza y desinfección</label>
-            <label class="checklist-item"><input type="checkbox" checked> Puntualidad en citas</label>
-            <label class="checklist-item"><input type="checkbox" checked> Experiencia Total Beauty</label>
-            <label class="checklist-item"><input type="checkbox" checked> Sugerencia de producto / venta cruzada</label>
+            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Inscripciones y temarios vigentes' : 'Limpieza y desinfección de estación'}</label>
+            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Asistencia y seguimiento académico' : 'Puntualidad en citas programadas'}</label>
+            <label class="checklist-item"><input type="checkbox" checked> Experiencia Total Beauty de calidad</label>
+            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Venta de kits y cursos avanzados' : 'Sugerencia de producto y venta cruzada'}</label>
           </div>
         </div>
       `;
       container.appendChild(card);
     });
 
-    const overall = activeStations.length > 0 ? Math.round(totalScore / activeStations.length) : 0;
-    const badge = document.getElementById('bs-overall-badge');
-    if (badge) badge.textContent = `Score Salón: ${overall}%`;
+    // Actualizar KPIs de resumen global
+    const overallScore = activeMetas.length > 0 ? Math.round(totalScore / activeMetas.length) : 0;
+    const pctGlobal = granTotalMeta > 0 ? Math.round((granTotalVentas / granTotalMeta) * 100) : 0;
+
+    const bBadge = document.getElementById('bs-overall-badge');
+    if (bBadge) bBadge.textContent = `Score Salón & Cursos: ${overallScore}%`;
+
+    const kv = document.getElementById('kpi-bs-ventas-total');
+    if (kv) kv.textContent = formatCurrency(granTotalVentas);
+
+    const km = document.getElementById('kpi-bs-meta-total');
+    if (km) km.textContent = formatCurrency(granTotalMeta);
+
+    const kp = document.getElementById('kpi-bs-pct-total');
+    if (kp) kp.textContent = `${pctGlobal}%`;
+
+    const kc = document.getElementById('kpi-bs-clientes-total');
+    if (kc) kc.textContent = `${granTotalClientes}`;
   }
 
   // =========================================================================
@@ -1538,19 +1741,49 @@
       else btn.classList.remove('active');
     });
 
-    ['servicios', 'estaciones', 'especialistas'].forEach(k => {
+    ['servicios', 'estaciones', 'especialistas', 'metas'].forEach(k => {
       const el = document.getElementById(`config-subview-${k}`);
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
+    if (tabKey === 'metas') renderCatMetasTable();
   }
 
   async function loadCatalogsData() {
     catEstaciones = await TB_FIREBASE.getCatalogo('estaciones', DEFAULT_ESTACIONES);
     catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas', DEFAULT_ESPECIALISTAS);
     catServicios = await TB_FIREBASE.getCatalogo('servicios', DEFAULT_SERVICIOS);
+    catMetas = await TB_FIREBASE.getCatalogo('metas', DEFAULT_METAS_QUINCENALES);
+
+    // Asegurar que todas las estaciones activas + Cursos estén en catMetas
+    syncMetasWithStations();
 
     populateSalesDropdowns();
     populateConfigStationDropdowns();
+  }
+
+  function syncMetasWithStations() {
+    if (!catMetas || catMetas.length === 0) {
+      catMetas = [...DEFAULT_METAS_QUINCENALES];
+    }
+
+    // Asegurar Cursos
+    if (!catMetas.some(m => m.id === 'Cursos')) {
+      catMetas.push({ id: 'Cursos', nombre: 'Cursos & Talleres Academia', icono: '🎓', metaQuincenal: 25000, clientesMeta: 10 });
+    }
+
+    // Asegurar que cada estación de catEstaciones exista en catMetas
+    catEstaciones.forEach(est => {
+      const exists = catMetas.find(m => m.id === est.nombre || m.nombre === est.nombre);
+      if (!exists) {
+        catMetas.push({
+          id: est.nombre,
+          nombre: est.nombre,
+          icono: est.icono || '💈',
+          metaQuincenal: parseFloat(est.meta) || 15000,
+          clientesMeta: (parseInt(est.metaClientes, 10) || 5) * 6
+        });
+      }
+    });
   }
 
   function populateSalesDropdowns() {
@@ -1635,6 +1868,55 @@
     renderCatServiciosTable();
     renderCatEstacionesTable();
     renderCatEspecialistasTable();
+    renderCatMetasTable();
+  }
+
+  function renderCatMetasTable() {
+    const tbody = document.getElementById('tbody-cat-metas');
+    const badge = document.getElementById('badge-total-metas');
+    if (badge) badge.textContent = `${catMetas.length} Estaciones y Cursos`;
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    catMetas.forEach(m => {
+      const tr = document.createElement('tr');
+      const metaQ = parseFloat(m.metaQuincenal) || 0;
+      const metaM = metaQ * 2;
+      const metaD = Math.round(metaQ / 15);
+      const isCurso = m.id === 'Cursos' || (m.nombre || '').toLowerCase().includes('curso');
+
+      tr.innerHTML = `
+        <td style="font-size:1.25rem; text-align:center;">${m.icono || '💈'}</td>
+        <td>
+          <strong>${m.nombre}</strong>
+          ${isCurso ? '<span class="cat-badge-tipo cat-badge-curso" style="margin-left:6px;">Academia</span>' : ''}
+        </td>
+        <td>
+          <div class="currency-input-wrap">
+            <span class="currency-prefix">$</span>
+            <input type="number" step="100" min="0" class="input-currency input-meta-quincenal" data-id="${m.id}" value="${metaQ}">
+          </div>
+        </td>
+        <td>
+          <input type="number" min="1" class="table-input-meta input-meta-clientes" data-id="${m.id}" value="${m.clientesMeta || 15}">
+        </td>
+        <td class="text-right" style="font-weight:700; color:var(--primary);" id="meta-mensual-${m.id}">$${metaM.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right" style="font-weight:600; color:var(--dark);" id="meta-diaria-${m.id}">$${metaD.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Escuchar cambios en los inputs para actualizar los cálculos en vivo
+    tbody.querySelectorAll('.input-meta-quincenal').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const id = e.target.dataset.id;
+        const val = parseFloat(e.target.value) || 0;
+        const elM = document.getElementById(`meta-mensual-${id}`);
+        const elD = document.getElementById(`meta-diaria-${id}`);
+        if (elM) elM.textContent = `$${(val * 2).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        if (elD) elD.textContent = `$${Math.round(val / 15).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+      });
+    });
   }
 
   function renderCatServiciosTable() {
@@ -2338,16 +2620,89 @@
       }
     });
 
-    // Guardado manual de BalanceScore e Ingresos
-    document.getElementById('btn-save-balancescore')?.addEventListener('click', async () => {
-      const fecha = document.getElementById('bs_fecha').value;
-      await TB_FIREBASE.saveBalanceScore(fecha, STATIONS_METAS);
-      showToast('BalanceScore guardado en Firebase', 'success');
+    // -----------------------------------------------------------------------
+    // EVENTOS: BALANCESCORE POR PERÍODOS (DÍA, SEMANA, QUINCENA, MES, RANGO)
+    // -----------------------------------------------------------------------
+    document.querySelectorAll('.bs-period-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.period;
+        if (p) switchBsPeriodMode(p);
+      });
     });
 
-    document.getElementById('bs_fecha')?.addEventListener('change', () => {
+    // Botón Hoy en BalanceScore
+    document.getElementById('btn-bs-dia-hoy')?.addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const el = document.getElementById('bs_fecha_dia');
+      if (el) el.value = today;
       renderBalanceScoreStations();
     });
+
+    // Cambios en los controles de períodos
+    document.getElementById('bs_fecha_dia')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_fecha_semana')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_quin_mes')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_quin_tipo')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_mes_val')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_mes_hasta_hoy')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_rango_desde')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('bs_rango_hasta')?.addEventListener('change', () => renderBalanceScoreStations());
+    document.getElementById('btn-bs-consultar')?.addEventListener('click', () => {
+      renderBalanceScoreStations();
+      showToast('BalanceScore actualizado con ventas en tiempo real', 'info');
+    });
+
+    // Enlace a configuración de metas
+    document.getElementById('btn-bs-config-metas')?.addEventListener('click', () => {
+      switchModule('configuracion');
+      switchConfigTab('metas');
+    });
+
+    // Guardar metas quincenales (botones arriba y abajo)
+    const guardarMetasFn = async () => {
+      const inputsQ = document.querySelectorAll('#tbody-cat-metas .input-meta-quincenal');
+      const inputsC = document.querySelectorAll('#tbody-cat-metas .input-meta-clientes');
+
+      inputsQ.forEach(inp => {
+        const id = inp.dataset.id;
+        const val = parseFloat(inp.value) || 0;
+        const m = catMetas.find(item => item.id === id);
+        if (m) m.metaQuincenal = val;
+      });
+
+      inputsC.forEach(inp => {
+        const id = inp.dataset.id;
+        const val = parseInt(inp.value, 10) || 15;
+        const m = catMetas.find(item => item.id === id);
+        if (m) m.clientesMeta = val;
+      });
+
+      await TB_FIREBASE.saveCatalogo('metas', catMetas);
+      showToast('✅ Metas Quincenales guardadas en Firebase y actualizadas en BalanceScore', 'success');
+      renderBalanceScoreStations();
+    };
+
+    document.getElementById('btn-guardar-metas-todas')?.addEventListener('click', guardarMetasFn);
+    document.getElementById('btn-guardar-metas-todas-bottom')?.addEventListener('click', guardarMetasFn);
+
+    // Guardado manual de BalanceScore
+    document.getElementById('btn-save-balancescore')?.addEventListener('click', async () => {
+      const { fechaInicio, fechaFin, periodoTexto } = getBsActivePeriodRange();
+      const payload = {
+        periodo: periodoTexto,
+        fechaInicio,
+        fechaFin,
+        metas: catMetas,
+        scoreGlobal: document.getElementById('bs-overall-badge')?.textContent || '',
+        totalVentas: document.getElementById('kpi-bs-ventas-total')?.textContent || '$0.00',
+        metaTotal: document.getElementById('kpi-bs-meta-total')?.textContent || '$0.00',
+        pctAvance: document.getElementById('kpi-bs-pct-total')?.textContent || '0%',
+        savedAt: new Date().toISOString()
+      };
+      await TB_FIREBASE.saveBalanceScore(`${fechaInicio}_a_${fechaFin}`, payload);
+      showToast(`BalanceScore (${periodoTexto}) guardado en Firebase`, 'success');
+    });
+
 
     document.getElementById('rep_ingresos_fecha')?.addEventListener('change', () => {
       renderIngresosReport();
@@ -2461,9 +2816,17 @@
     if (document.getElementById('ventas_filtro_fecha')) document.getElementById('ventas_filtro_fecha').value = dStr;
     if (document.getElementById('venta_fecha')) document.getElementById('venta_fecha').value = dStr;
     if (document.getElementById('lead_reg_fecha')) document.getElementById('lead_reg_fecha').value = dStr;
-    if (document.getElementById('bs_fecha')) document.getElementById('bs_fecha').value = dStr;
     if (document.getElementById('rep_ingresos_fecha')) document.getElementById('rep_ingresos_fecha').value = dStr;
     if (document.getElementById('ev_fecha')) document.getElementById('ev_fecha').value = dStr;
+
+    // Inicializar controles de período de BalanceScore
+    if (document.getElementById('bs_fecha_dia')) document.getElementById('bs_fecha_dia').value = dStr;
+    if (document.getElementById('bs_fecha_semana')) document.getElementById('bs_fecha_semana').value = dStr;
+    const curMes = dStr.substring(0, 7);
+    if (document.getElementById('bs_quin_mes')) document.getElementById('bs_quin_mes').value = curMes;
+    if (document.getElementById('bs_mes_val')) document.getElementById('bs_mes_val').value = curMes;
+    if (document.getElementById('bs_rango_desde')) document.getElementById('bs_rango_desde').value = `${curMes}-01`;
+    if (document.getElementById('bs_rango_hasta')) document.getElementById('bs_rango_hasta').value = dStr;
 
     recalculatePrincipal();
     recalculateChica();

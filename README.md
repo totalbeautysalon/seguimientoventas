@@ -65,19 +65,22 @@ Módulo para capturar cada venta u operación cobrada en recepción:
 - Filtro por fecha específica o visualización de todo el historial.
 - Muestra estatus de cuadratura, ingresos, salidas y diferencias.
 
-#### 5. 💈 BalanceScore por Estaciones
-- Medición en tiempo real de las estaciones de trabajo activas:
-  1. **Cabello**
-  2. **Uñas**
-  3. **Maquillaje**
-  4. **Pestañas**
-  5. **Pedicure**
-  6. **Facial**
-  7. **Academia**
-  8. **Retail**
-- Toma las ventas registradas del día y calcula automáticamente el ingreso logrado vs. meta de la estación, clientes atendidos y ticket promedio.
-- Checklists de estándares operativos (limpieza, puntualidad, hospitalidad, venta cruzada).
-- Score general ponderado del salón.
+#### 5. 💈 BalanceScore por Estaciones y Cursos
+- **Estaciones Dinámicas + Cursos**:
+  - Obtiene todas las estaciones de trabajo de la configuración general e integra de forma nativa la dimensión de **🎓 Cursos & Talleres Academia**.
+  - Separa y contabiliza automáticamente las ventas de cursos (inscripciones, talleres, diplomados) en su propia tarjeta y métricas.
+- **Consultas y Filtros de Búsqueda Flexibles**:
+  - 📅 **Por Día**: Evaluación de una fecha específica con meta prorrateada diaria.
+  - 📆 **Por Semana**: Ventas acumuladas de los últimos 7 días con meta semanal.
+  - 🌓 **Por Quincena**: Selección de 1ª Quincena (Días 1 al 15) o 2ª Quincena (Días 16 al 30/31) con meta quincenal base.
+  - 🗓️ **Por Mes**: Visualización del mes completo (1 al 30/31) con meta mensual (2 quincenas), o **avance del día 1 a la fecha de hoy** para monitorear el progreso acumulado en tiempo real.
+  - 🎯 **Rango Personalizado de Días**: Permite consultar cualquier lapso entre una fecha `Desde` y una fecha `Hasta` con cálculo exacto de días y metas proporcionales.
+- **Actualización de Porcentajes Conforme el Avance**:
+  - Barra de progreso interactiva con cambio dinámico de color (Verde $\ge 100\%$, Ámbar $75\%-99\%$, Rojo $< 75\%$).
+  - Badge de *"🏆 ¡Meta Superada!"* al sobrepasar el 100%.
+  - Comparativa de Clientes/Alumnas reales vs. Meta del período y cálculo del Ticket Promedio.
+  - KPIs globales de período: Total de Ventas Acumuladas, Meta Global, % de Avance y Score ponderado.
+  - Botón para guardar el snapshot del BalanceScore en Firebase.
 
 #### 6. 📊 Reporte Diario de Ingresos
 - Desglose porcentual y monetario por método de pago (Efectivo, Tarjeta, Transferencia).
@@ -106,8 +109,13 @@ Módulo administrativo para gestionar los catálogos del negocio sincronizados c
   - Alta y administración con nombre, tipo (*Servicio Salón, Producto Retail, Curso Academia*), estación asignada y precio base sugerido.
   - Alimenta dinámicamente el selector del Registro Diario de Ventas.
 - **Estaciones de Trabajo**:
-  - Configuración de áreas del salón y academia con icono/emoji, meta diaria de ingresos ($) y meta de clientes.
-  - Vinculado dinámicamente al BalanceScore por Estaciones.
+  - Configuración de áreas del salón y academia con icono/emoji y nombre.
+- **Especialistas**:
+  - Directorio del equipo operativo con nombre completo, especialidad/estación y teléfono.
+- **🎯 Configuración de Metas Quincenales**:
+  - Sección dedicada para introducir y ajustar las **Metas Quincenales en Ventas ($)** y **Metas Quincenales de Clientes / Alumnas** por cada estación y para **Cursos**.
+  - Calcula automáticamente en vivo el **Equivalente Mensual ($)** ($2 \times \text{Quincena}$) y el **Equivalente Diario ($)** ($\text{Quincena} / 15$).
+  - Botón de guardado masivo en Firebase Cloud (`/configuracion/metas`) con actualización instantánea en el BalanceScore.
 - **Especialistas**:
   - Directorio del equipo operativo con nombre completo, especialidad/estación y teléfono.
   - Alimenta dinámicamente el selector de especialista en ventas.

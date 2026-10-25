@@ -1259,16 +1259,127 @@
            MÓDULO 4: BALANCESCORE POR ESTACIONES
            ================================================================ -->
       <section class="module-view" id="view-balancescore">
-        <div class="filter-bar">
-          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label for="bs_fecha" style="font-weight:700; color:var(--dark);">Fecha de Evaluación:</label>
-            <input type="date" id="bs_fecha" class="input-date" style="max-width:200px;">
-            <span class="kpi-status-badge badge-cuadrada" id="bs-overall-badge">Score Salón: 95%</span>
+
+        <!-- Barra de Modos de Consulta de Período -->
+        <div class="filter-bar" style="margin-bottom:14px; flex-direction:column; align-items:stretch; gap:12px;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="option-pills-bar" style="margin-bottom:0;" id="bs-periodo-pills">
+              <button type="button" class="option-pill bs-period-pill active" data-period="dia">
+                <span>📅</span> 1. Por Día
+              </button>
+              <button type="button" class="option-pill bs-period-pill" data-period="semana">
+                <span>📆</span> 2. Por Semana
+              </button>
+              <button type="button" class="option-pill bs-period-pill" data-period="quincena">
+                <span>🌓</span> 3. Por Quincena
+              </button>
+              <button type="button" class="option-pill bs-period-pill" data-period="mes">
+                <span>🗓️</span> 4. Por Mes (1 al 30/31)
+              </button>
+              <button type="button" class="option-pill bs-period-pill" data-period="rango">
+                <span>🎯</span> 5. Rango de Días
+              </button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-bs-config-metas">
+                <span>⚙️</span> Configurar Metas Quincenales
+              </button>
+              <button type="button" class="btn btn-firebase btn-sm" id="btn-save-balancescore">
+                <span>💾</span> Guardar BalanceScore
+              </button>
+            </div>
           </div>
-          <button type="button" class="btn btn-firebase btn-sm" id="btn-save-balancescore">
-            <span>💾</span> Guardar en Firebase
-          </button>
+
+          <!-- Controles Dinámicos según el Período Seleccionado -->
+          <div id="bs-controls-container" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:#f8fafc; padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            
+            <!-- Selector para Día -->
+            <div class="bs-control-group" id="bs-ctrl-dia" style="display:flex; align-items:center; gap:8px;">
+              <label for="bs_fecha_dia" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Seleccionar Día:</label>
+              <input type="date" id="bs_fecha_dia" class="input-date" style="max-width:160px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-bs-dia-hoy">Hoy</button>
+            </div>
+
+            <!-- Selector para Semana -->
+            <div class="bs-control-group" id="bs-ctrl-semana" style="display:none; align-items:center; gap:8px;">
+              <label for="bs_fecha_semana" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Semana de (fecha referencia):</label>
+              <input type="date" id="bs_fecha_semana" class="input-date" style="max-width:160px;">
+              <span style="font-size:0.8rem; color:var(--muted);">(Últimos 7 días)</span>
+            </div>
+
+            <!-- Selector para Quincena -->
+            <div class="bs-control-group" id="bs-ctrl-quincena" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label for="bs_quin_mes" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Mes:</label>
+              <input type="month" id="bs_quin_mes" class="input-text" style="max-width:150px;">
+              <label for="bs_quin_tipo" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Quincena:</label>
+              <select id="bs_quin_tipo" class="input-text" style="max-width:210px;">
+                <option value="1" selected>1ª Quincena (Días 1 al 15)</option>
+                <option value="2">2ª Quincena (Días 16 al fin de mes)</option>
+              </select>
+            </div>
+
+            <!-- Selector para Mes -->
+            <div class="bs-control-group" id="bs-ctrl-mes" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label for="bs_mes_val" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Mes:</label>
+              <input type="month" id="bs_mes_val" class="input-text" style="max-width:150px;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="bs_mes_hasta_hoy" checked>
+                <span>Avance del día 1 a la fecha de hoy</span>
+              </label>
+            </div>
+
+            <!-- Selector para Rango Personalizado -->
+            <div class="bs-control-group" id="bs-ctrl-rango" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label for="bs_rango_desde" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Desde:</label>
+              <input type="date" id="bs_rango_desde" class="input-date" style="max-width:150px;">
+              <label for="bs_rango_hasta" style="font-weight:700; font-size:0.85rem; color:var(--dark);">Hasta:</label>
+              <input type="date" id="bs_rango_hasta" class="input-date" style="max-width:150px;">
+            </div>
+
+            <!-- Botón de consultar -->
+            <div>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-bs-consultar">
+                <span>🔄</span> Consultar Avance
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Resumen del Período Consultado -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-top:4px;">
+            <div id="bs-periodo-indicador" style="font-size:0.88rem; font-weight:700; color:var(--primary); display:flex; align-items:center; gap:6px;">
+              <span>📅</span> <span id="bs-periodo-texto">Cargando período...</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <span class="kpi-status-badge badge-cuadrada" id="bs-overall-badge">Score Salón & Cursos: 100%</span>
+            </div>
+          </div>
+
         </div>
+
+        <!-- KPIs Resumen del BalanceScore en el Período -->
+        <div class="kpi-grid" style="margin-bottom:20px;">
+          <div class="kpi-card">
+            <span class="kpi-label">Ventas Reales Acumuladas</span>
+            <span class="kpi-value" id="kpi-bs-ventas-total">$0.00</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Meta Global del Período</span>
+            <span class="kpi-value" id="kpi-bs-meta-total">$0.00</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">% Avance de Meta</span>
+            <span class="kpi-value" id="kpi-bs-pct-total">0%</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Clientes / Alumnos Atendidos</span>
+            <span class="kpi-value" id="kpi-bs-clientes-total">0</span>
+          </div>
+        </div>
+
+        <!-- Cuadrícula de Estaciones y Cursos -->
         <div class="stations-grid" id="stations-grid-container"></div>
       </section>
 
@@ -1866,6 +1977,10 @@
               <span class="pill-icon">👩‍🎨</span>
               <span>3. Especialistas</span>
             </button>
+            <button type="button" class="option-pill config-nav-pill" data-cfgtab="metas">
+              <span class="pill-icon">🎯</span>
+              <span>4. Metas Quincenales</span>
+            </button>
           </div>
           <div>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-config">
@@ -2086,6 +2201,51 @@
                   <!-- Llenado dinámicamente -->
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBPESTAÑA 4: CONFIGURACIÓN DE METAS QUINCENALES -->
+        <div class="config-subview" id="config-subview-metas" style="display:none;">
+          <div class="ventas-form-card" style="margin-bottom:20px;">
+            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>🎯</span> Configuración de Metas Quincenales por Estación y Cursos
+              </h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
+                Las metas se introducen en base <strong>Quincenal (15 días)</strong>. El BalanceScore calcula automáticamente las metas y porcentajes de avance correspondientes para consultas por <strong>día, semana, quincena, mes completo (1 al 30/31) o rangos personalizados de fechas</strong>.
+              </p>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+              <span class="kpi-status-badge badge-cuadrada" id="badge-total-metas">8 Estaciones y Cursos</span>
+              <button type="button" class="btn btn-primary" id="btn-guardar-metas-todas">
+                <span>💾</span> Guardar Todas las Metas Quincenales
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table" id="tabla-config-metas">
+                <thead>
+                  <tr>
+                    <th style="width:50px;">Icono</th>
+                    <th>Estación / Área</th>
+                    <th style="width:200px;">Meta Quincenal ($) <span class="required">*</span></th>
+                    <th style="width:160px;">Meta Quincenal Clientes/Alumnos</th>
+                    <th class="text-right" style="width:140px;">Eq. Mensual ($)</th>
+                    <th class="text-right" style="width:130px;">Eq. Diario ($)</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-cat-metas">
+                  <!-- Llenado dinámicamente con inputs para cada estación y cursos -->
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+              <button type="button" class="btn btn-primary" id="btn-guardar-metas-todas-bottom">
+                <span>💾</span> Guardar Todas las Metas Quincenales
+              </button>
             </div>
           </div>
         </div>

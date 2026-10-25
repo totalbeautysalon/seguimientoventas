@@ -1659,5 +1659,37 @@ body {
   border: 1px solid #bbf7d0;
 }
 
+.table-input-meta {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s ease;
+}
+
+.table-input-meta:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.1);
+}
+
+.badge-meta-superada {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #065f46;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+}
+
+
 
 

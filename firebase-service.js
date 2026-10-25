@@ -411,6 +411,34 @@ const TB_FIREBASE = (function () {
     return { success: true };
   }
 
+  async function getVentasByRango(fechaInicio, fechaFin) {
+    const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
+    let allVentas = { ...localVentas };
+
+    try {
+      const res = await fetch(getDbUrl('ventas_diarias'));
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          Object.keys(cloud).forEach(f => {
+            allVentas[f] = { ...(allVentas[f] || {}), ...cloud[f] };
+          });
+          localStorage.setItem('tb_ventas_db', JSON.stringify(allVentas));
+        }
+      }
+    } catch (e) {}
+
+    const resultado = [];
+    Object.keys(allVentas).sort().forEach(f => {
+      if (f >= fechaInicio && f <= fechaFin) {
+        const diaVentas = Object.values(allVentas[f] || {});
+        resultado.push(...diaVentas);
+      }
+    });
+
+    return resultado;
+  }
+
   // =========================================================================
   // 2. ARQUEOS DE CAJA PRINCIPAL Y CAJA CHICA
   // =========================================================================
@@ -785,6 +813,7 @@ const TB_FIREBASE = (function () {
     // CRUD Módulos
     saveVenta,
     getVentasByFecha,
+    getVentasByRango,
     deleteVenta,
     saveArqueo: saveArqueoPrincipal,
     saveArqueoPrincipal,
