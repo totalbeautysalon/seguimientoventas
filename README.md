@@ -110,16 +110,16 @@ Módulo administrativo para gestionar los catálogos del negocio sincronizados c
   - Alta y administración con nombre, tipo (*Servicio Salón, Producto Retail, Curso Academia*), estación asignada y precio base sugerido.
   - Alimenta dinámicamente el selector del Registro Diario de Ventas.
 - **Estaciones de Trabajo**:
-  - Configuración de áreas del salón y academia con icono/emoji y nombre.
-- **Especialistas**:
-  - Directorio del equipo operativo con nombre completo, especialidad/estación y teléfono.
-- **🎯 Configuración de Metas Quincenales**:
-  - Sección dedicada para introducir y ajustar las **Metas Quincenales en Ventas ($)** y **Metas Quincenales de Clientes / Alumnas** por cada estación y para **Cursos**.
-  - Calcula automáticamente en vivo el **Equivalente Mensual ($)** ($2 \times \text{Quincena}$) y el **Equivalente Diario ($)** ($\text{Quincena} / 15$).
-  - Botón de guardado masivo en Firebase Cloud (`/configuracion/metas`) con actualización instantánea en el BalanceScore.
+  - Configuración de áreas operativas con nombre, icono/emoji, meta quincenal de ingresos ($) y meta quincenal de clientes.
+  - Alimenta dinámicamente las estaciones del salón y los selectores de ventas.
 - **Especialistas**:
   - Directorio del equipo operativo con nombre completo, especialidad/estación y teléfono.
   - Alimenta dinámicamente el selector de especialista en ventas.
+- **🎯 Configuración de Metas Quincenales por Estación y Cursos**:
+  - Toma directamente los datos de las **Estaciones de Trabajo** activas más la categoría de **Cursos**.
+  - Permite ajustar las **Metas Quincenales en Ventas ($)** y **Metas Quincenales de Clientes / Alumnos**.
+  - Calcula automáticamente en vivo el **Equivalente Mensual ($)** ($2 \times \text{Quincena}$) y el **Equivalente Diario ($)** ($\text{Quincena} / 15$).
+  - **Auto-guardado Automático en Firebase**: Cada cambio realizado se guarda automáticamente en Firebase Cloud sin requerir botones manuales de sincronización.
 - **Acceso Rápido**: Enlaces directos `⚙️ Configurar` junto a cada selector del formulario de ventas.
 
 ---

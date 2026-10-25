@@ -1171,11 +1171,17 @@
   }
 
   function getActiveStationMetas() {
-    // Si catMetas está vacío, usar DEFAULT_METAS_QUINCENALES
-    if (!catMetas || catMetas.length === 0) {
-      return DEFAULT_METAS_QUINCENALES;
-    }
-    return catMetas;
+    // Toma directamente los datos de Estaciones de Trabajo + la dimensión de Cursos
+    const estacionesList = (catEstaciones && catEstaciones.length > 0) ? catEstaciones.map(e => ({
+      id: e.nombre,
+      nombre: e.nombre,
+      icono: e.icono || '💈',
+      metaQuincenal: parseFloat(e.metaQuincenal || e.meta || 15000),
+      clientesMeta: parseInt(e.clientesMeta || e.metaClientes || 45, 10)
+    })) : DEFAULT_ESTACIONES;
+
+    const cursosItem = catCursosMeta || DEFAULT_CURSOS_META;
+    return [...estacionesList, cursosItem];
   }
 
   async function renderBalanceScoreStations() {
@@ -1698,15 +1704,24 @@
   // 10. CONFIGURACIÓN GENERAL (CATÁLOGOS: SERVICIOS, ESTACIONES, ESPECIALISTAS)
   // =========================================================================
   const DEFAULT_ESTACIONES = [
-    { id: 'est_1', nombre: 'Cabello', icono: '💇‍♀️', meta: 2500, metaClientes: 6 },
-    { id: 'est_2', nombre: 'Uñas', icono: '💅', meta: 1800, metaClientes: 6 },
-    { id: 'est_3', nombre: 'Maquillaje', icono: '💄', meta: 1200, metaClientes: 3 },
-    { id: 'est_4', nombre: 'Pestañas', icono: '👁️', meta: 1000, metaClientes: 4 },
-    { id: 'est_5', nombre: 'Pedicure', icono: '🦶', meta: 900, metaClientes: 4 },
-    { id: 'est_6', nombre: 'Facial', icono: '✨', meta: 900, metaClientes: 3 },
-    { id: 'est_7', nombre: 'Academia', icono: '🎓', meta: 3500, metaClientes: 2 },
-    { id: 'est_8', nombre: 'Retail', icono: '🛍️', meta: 1000, metaClientes: 5 }
+    { id: 'est_1', nombre: 'Cabello', icono: '💇‍♀️', metaQuincenal: 18750, clientesMeta: 45 },
+    { id: 'est_2', nombre: 'Uñas', icono: '💅', metaQuincenal: 13500, clientesMeta: 45 },
+    { id: 'est_3', nombre: 'Maquillaje', icono: '💄', metaQuincenal: 9000, clientesMeta: 22 },
+    { id: 'est_4', nombre: 'Pestañas', icono: '👁️', metaQuincenal: 7500, clientesMeta: 30 },
+    { id: 'est_5', nombre: 'Pedicure', icono: '🦶', metaQuincenal: 6750, clientesMeta: 30 },
+    { id: 'est_6', nombre: 'Facial', icono: '✨', metaQuincenal: 6750, clientesMeta: 22 },
+    { id: 'est_7', nombre: 'Retail', icono: '🛍️', metaQuincenal: 7500, clientesMeta: 35 }
   ];
+
+  const DEFAULT_CURSOS_META = {
+    id: 'Cursos',
+    nombre: 'Cursos & Talleres Academia',
+    icono: '🎓',
+    metaQuincenal: 25000,
+    clientesMeta: 10,
+    isCurso: true
+  };
+  let catCursosMeta = { ...DEFAULT_CURSOS_META };
 
   const DEFAULT_ESPECIALISTAS = [
     { id: 'esp_1', nombre: 'Marbella Ríos', estacion: 'Cabello', telefono: '5512345678' },
@@ -1752,38 +1767,20 @@
     catEstaciones = await TB_FIREBASE.getCatalogo('estaciones', DEFAULT_ESTACIONES);
     catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas', DEFAULT_ESPECIALISTAS);
     catServicios = await TB_FIREBASE.getCatalogo('servicios', DEFAULT_SERVICIOS);
-    catMetas = await TB_FIREBASE.getCatalogo('metas', DEFAULT_METAS_QUINCENALES);
+    
+    // Normalizar estaciones para asegurar metaQuincenal y clientesMeta
+    catEstaciones.forEach(est => {
+      if (!est.metaQuincenal) est.metaQuincenal = parseFloat(est.meta) ? parseFloat(est.meta) * 15 : 15000;
+      if (!est.clientesMeta) est.clientesMeta = parseInt(est.metaClientes, 10) ? parseInt(est.metaClientes, 10) * 9 : 45;
+    });
 
-    // Asegurar que todas las estaciones activas + Cursos estén en catMetas
-    syncMetasWithStations();
+    const cursosStored = await TB_FIREBASE.getCatalogo('metas_cursos', [DEFAULT_CURSOS_META]);
+    if (cursosStored && cursosStored.length > 0) {
+      catCursosMeta = { ...DEFAULT_CURSOS_META, ...cursosStored[0] };
+    }
 
     populateSalesDropdowns();
     populateConfigStationDropdowns();
-  }
-
-  function syncMetasWithStations() {
-    if (!catMetas || catMetas.length === 0) {
-      catMetas = [...DEFAULT_METAS_QUINCENALES];
-    }
-
-    // Asegurar Cursos
-    if (!catMetas.some(m => m.id === 'Cursos')) {
-      catMetas.push({ id: 'Cursos', nombre: 'Cursos & Talleres Academia', icono: '🎓', metaQuincenal: 25000, clientesMeta: 10 });
-    }
-
-    // Asegurar que cada estación de catEstaciones exista en catMetas
-    catEstaciones.forEach(est => {
-      const exists = catMetas.find(m => m.id === est.nombre || m.nombre === est.nombre);
-      if (!exists) {
-        catMetas.push({
-          id: est.nombre,
-          nombre: est.nombre,
-          icono: est.icono || '💈',
-          metaQuincenal: parseFloat(est.meta) || 15000,
-          clientesMeta: (parseInt(est.metaClientes, 10) || 5) * 6
-        });
-      }
-    });
   }
 
   function populateSalesDropdowns() {
@@ -1871,14 +1868,44 @@
     renderCatMetasTable();
   }
 
+  let autosaveMetasDebounceTimer = null;
+
+  function autoSaveMetasToFirebase() {
+    const badge = document.getElementById('badge-autosave-metas');
+    if (badge) {
+      badge.textContent = '⏳ Guardando automáticamente en Firebase...';
+      badge.style.color = '#b45309';
+      badge.style.background = '#fef3c7';
+      badge.style.borderColor = '#fde68a';
+    }
+
+    clearTimeout(autosaveMetasDebounceTimer);
+    autosaveMetasDebounceTimer = setTimeout(async () => {
+      await TB_FIREBASE.saveCatalogo('estaciones', catEstaciones);
+      await TB_FIREBASE.saveCatalogo('metas_cursos', [catCursosMeta]);
+      await TB_FIREBASE.saveCatalogo('metas', getActiveStationMetas());
+
+      if (badge) {
+        badge.textContent = '⚡ Auto-guardado en Firebase: Cada cambio se guarda automáticamente';
+        badge.style.color = '#065f46';
+        badge.style.background = '#ecfdf5';
+        badge.style.borderColor = '#a7f3d0';
+      }
+
+      renderCatEstacionesTable();
+      renderBalanceScoreStations();
+    }, 350);
+  }
+
   function renderCatMetasTable() {
     const tbody = document.getElementById('tbody-cat-metas');
-    const badge = document.getElementById('badge-total-metas');
-    if (badge) badge.textContent = `${catMetas.length} Estaciones y Cursos`;
+    const badgeCount = document.getElementById('badge-total-metas');
+    const allMetas = getActiveStationMetas();
+    if (badgeCount) badgeCount.textContent = `${allMetas.length} Estaciones y Cursos`;
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    catMetas.forEach(m => {
+    allMetas.forEach(m => {
       const tr = document.createElement('tr');
       const metaQ = parseFloat(m.metaQuincenal) || 0;
       const metaM = metaQ * 2;
@@ -1889,7 +1916,7 @@
         <td style="font-size:1.25rem; text-align:center;">${m.icono || '💈'}</td>
         <td>
           <strong>${m.nombre}</strong>
-          ${isCurso ? '<span class="cat-badge-tipo cat-badge-curso" style="margin-left:6px;">Academia</span>' : ''}
+          ${isCurso ? '<span class="cat-badge-tipo cat-badge-curso" style="margin-left:6px;">Academia</span>' : '<span style="font-size:0.75rem; color:var(--muted); margin-left:6px;">(Estación de Trabajo)</span>'}
         </td>
         <td>
           <div class="currency-input-wrap">
@@ -1906,7 +1933,7 @@
       tbody.appendChild(tr);
     });
 
-    // Escuchar cambios en los inputs para actualizar los cálculos en vivo
+    // Escuchar cambios en los inputs para actualizar los cálculos en vivo y auto-guardar automáticamente
     tbody.querySelectorAll('.input-meta-quincenal').forEach(input => {
       input.addEventListener('input', (e) => {
         const id = e.target.dataset.id;
@@ -1915,6 +1942,29 @@
         const elD = document.getElementById(`meta-diaria-${id}`);
         if (elM) elM.textContent = `$${(val * 2).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
         if (elD) elD.textContent = `$${Math.round(val / 15).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+        // Actualizar directamente en la estación o en Cursos
+        if (id === 'Cursos') {
+          catCursosMeta.metaQuincenal = val;
+        } else {
+          const est = catEstaciones.find(item => item.id === id || item.nombre === id);
+          if (est) est.metaQuincenal = val;
+        }
+        autoSaveMetasToFirebase();
+      });
+    });
+
+    tbody.querySelectorAll('.input-meta-clientes').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const id = e.target.dataset.id;
+        const val = parseInt(e.target.value, 10) || 15;
+        if (id === 'Cursos') {
+          catCursosMeta.clientesMeta = val;
+        } else {
+          const est = catEstaciones.find(item => item.id === id || item.nombre === id);
+          if (est) est.clientesMeta = val;
+        }
+        autoSaveMetasToFirebase();
       });
     });
   }
@@ -1958,17 +2008,22 @@
 
     tbody.innerHTML = '';
     if (catEstaciones.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="table-empty-notice"><span>💈</span>No hay estaciones configuradas.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty-notice"><span>💈</span>No hay estaciones configuradas. Agregue una arriba.</td></tr>';
       return;
     }
 
     catEstaciones.forEach(est => {
       const tr = document.createElement('tr');
+      const metaQ = parseFloat(est.metaQuincenal || est.meta || 15000);
+      const clientesQ = parseInt(est.clientesMeta || est.metaClientes || 45, 10);
+      const metaD = Math.round(metaQ / 15);
+
       tr.innerHTML = `
         <td style="font-size:1.2rem; text-align:center;">${est.icono || '✨'}</td>
         <td><strong>${est.nombre}</strong></td>
-        <td class="text-right" style="font-weight:700;">$${parseFloat(est.meta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-        <td class="text-right">${est.metaClientes || 5} clientes</td>
+        <td class="text-right" style="font-weight:700;">$${metaQ.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${clientesQ} clientes</td>
+        <td class="text-right" style="color:var(--muted);">$${metaD.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
         <td class="text-center">
           <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-est" data-id="${est.id}" title="Eliminar estación">✕</button>
         </td>
@@ -2323,29 +2378,33 @@
       showToast(`✅ Servicio/Producto "${nombre}" guardado en Firebase`, 'success');
     });
 
-    // Alta de Estación
+    // Alta de Estación (toma en cuenta meta quincenal)
     document.getElementById('form-nueva-estacion')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nombre = document.getElementById('cfg_est_nombre').value.trim();
       const icono = document.getElementById('cfg_est_icono').value.trim() || '💈';
-      const meta = parseFloat(document.getElementById('cfg_est_meta').value) || 0;
-      const metaClientes = parseInt(document.getElementById('cfg_est_meta_clientes').value, 10) || 5;
+      const metaQuincenal = parseFloat(document.getElementById('cfg_est_meta').value) || 0;
+      const clientesMeta = parseInt(document.getElementById('cfg_est_meta_clientes').value, 10) || 45;
 
-      if (!nombre || meta <= 0) {
-        showToast('Ingrese un nombre de estación y una meta diaria válida', 'warning');
+      if (!nombre || metaQuincenal <= 0) {
+        showToast('Ingrese el nombre de la estación y una meta quincenal válida', 'warning');
         return;
       }
 
-      const item = { id: `est_${Date.now()}`, nombre, icono, meta, metaClientes };
+      const item = { id: `est_${Date.now()}`, nombre, icono, metaQuincenal, clientesMeta };
       catEstaciones.push(item);
       await TB_FIREBASE.saveCatalogo('estaciones', catEstaciones);
+      await TB_FIREBASE.saveCatalogo('metas', getActiveStationMetas());
       renderCatEstacionesTable();
+      renderCatMetasTable();
       populateSalesDropdowns();
       populateConfigStationDropdowns();
+      renderBalanceScoreStations();
+
       document.getElementById('form-nueva-estacion').reset();
       document.getElementById('cfg_est_icono').value = '✨';
-      document.getElementById('cfg_est_meta_clientes').value = '5';
-      showToast(`✅ Estación "${nombre}" guardada e integrada al BalanceScore`, 'success');
+      document.getElementById('cfg_est_meta_clientes').value = '45';
+      showToast(`✅ Estación "${nombre}" guardada e integrada a Metas y BalanceScore`, 'success');
     });
 
     // Alta de Especialista
@@ -2383,13 +2442,16 @@
       }
       if (e.target.matches('.btn-del-cfg-est')) {
         const id = e.target.dataset.id;
-        if (confirm('¿Está seguro de eliminar esta estación de trabajo?')) {
-          catEstaciones = catEstaciones.filter(st => st.id !== id);
+        if (confirm('¿Está seguro de eliminar esta estación de trabajo? Se actualizarán las metas y el BalanceScore.')) {
+          catEstaciones = catEstaciones.filter(st => st.id !== id && st.nombre !== id);
           await TB_FIREBASE.saveCatalogo('estaciones', catEstaciones);
+          await TB_FIREBASE.saveCatalogo('metas', getActiveStationMetas());
           renderCatEstacionesTable();
+          renderCatMetasTable();
           populateSalesDropdowns();
           populateConfigStationDropdowns();
-          showToast('Estación eliminada', 'info');
+          renderBalanceScoreStations();
+          showToast('Estación eliminada y sincronizada automáticamente', 'info');
         }
       }
       if (e.target.matches('.btn-del-cfg-esp')) {
@@ -2404,12 +2466,7 @@
       }
     });
 
-    // Botón de sincronizar catálogo
-    document.getElementById('btn-sync-config')?.addEventListener('click', async () => {
-      showToast('Sincronizando catálogos desde Firebase...', 'info');
-      await loadAndRenderConfiguracion();
-      showToast('Catálogos sincronizados con éxito', 'success');
-    });
+
 
     document.getElementById('ventas_filtro_fecha')?.addEventListener('change', (e) => {
       renderVentas(e.target.value);
@@ -2658,32 +2715,7 @@
       switchConfigTab('metas');
     });
 
-    // Guardar metas quincenales (botones arriba y abajo)
-    const guardarMetasFn = async () => {
-      const inputsQ = document.querySelectorAll('#tbody-cat-metas .input-meta-quincenal');
-      const inputsC = document.querySelectorAll('#tbody-cat-metas .input-meta-clientes');
 
-      inputsQ.forEach(inp => {
-        const id = inp.dataset.id;
-        const val = parseFloat(inp.value) || 0;
-        const m = catMetas.find(item => item.id === id);
-        if (m) m.metaQuincenal = val;
-      });
-
-      inputsC.forEach(inp => {
-        const id = inp.dataset.id;
-        const val = parseInt(inp.value, 10) || 15;
-        const m = catMetas.find(item => item.id === id);
-        if (m) m.clientesMeta = val;
-      });
-
-      await TB_FIREBASE.saveCatalogo('metas', catMetas);
-      showToast('✅ Metas Quincenales guardadas en Firebase y actualizadas en BalanceScore', 'success');
-      renderBalanceScoreStations();
-    };
-
-    document.getElementById('btn-guardar-metas-todas')?.addEventListener('click', guardarMetasFn);
-    document.getElementById('btn-guardar-metas-todas-bottom')?.addEventListener('click', guardarMetasFn);
 
     // Guardado manual de BalanceScore
     document.getElementById('btn-save-balancescore')?.addEventListener('click', async () => {
