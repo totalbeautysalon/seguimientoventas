@@ -40,33 +40,34 @@ const TB_FIREBASE = (function () {
         return true;
       }
     } catch (e) {
-      // Ignorar error y marcar offline
+      // Offline fallback
     }
     notifyStatus(false, 'Modo Local / Sin Conexión');
     return false;
   }
 
-  // --- 1. ARQUEOS DE CAJA ---
-  async function saveArqueo(data, pdfBase64 = null) {
+  // --- 1. ARQUEO DE CAJA PRINCIPAL ---
+  async function saveArqueoPrincipal(data, pdfBase64 = null) {
     const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
     const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     const payload = {
+      tipo: 'caja_principal',
       ...data,
       pdfBase64: pdfBase64 || null,
       savedAt: new Date().toISOString()
     };
 
-    // Guardar en localStorage siempre como respaldo inmediato
+    // Respaldo en localStorage
     try {
       const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
       localHistory[key] = payload;
       localStorage.setItem('tb_arqueos_history', JSON.stringify(localHistory));
     } catch (e) {
-      console.warn('Error guardando en localStorage', e);
+      console.warn('Error en localStorage', e);
     }
 
-    // Intentar guardar en Firebase Realtime DB
+    // Sincronizar en Firebase
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -83,7 +84,7 @@ const TB_FIREBASE = (function () {
         return { success: true, key, source: 'firebase' };
       }
     } catch (err) {
-      console.warn('Firebase no respondió a tiempo, guardado localmente:', err);
+      console.warn('Firebase offline, guardado localmente:', err);
       notifyStatus(false, 'Guardado localmente (Offline)');
     }
 
@@ -103,26 +104,85 @@ const TB_FIREBASE = (function () {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
           notifyStatus(true, 'Sincronizado');
-          // Combinar datos locales y de la nube
           const combined = { ...localHistory, ...cloudData };
-          // Actualizar caché local
           localStorage.setItem('tb_arqueos_history', JSON.stringify(combined));
           return combined;
         }
       }
     } catch (err) {
-      notifyStatus(false, 'Cargando historial local');
+      notifyStatus(false, 'Historial local');
     }
 
     return localHistory;
   }
 
-  async function getArqueoByKey(key) {
-    const list = await getArqueosList();
-    return list[key] || null;
+  // --- 2. ARQUEO DE CAJA CHICA ---
+  async function saveArqueoCajaChica(data, pdfBase64 = null) {
+    const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
+    const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    const payload = {
+      tipo: 'caja_chica',
+      ...data,
+      pdfBase64: pdfBase64 || null,
+      savedAt: new Date().toISOString()
+    };
+
+    // Respaldo en localStorage
+    try {
+      const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
+      localHistory[key] = payload;
+      localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(localHistory));
+    } catch (e) {
+      console.warn('Error en localStorage', e);
+    }
+
+    // Sincronizar en Firebase
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica/${key}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        notifyStatus(true, 'Guardado en Firebase');
+        return { success: true, key, source: 'firebase' };
+      }
+    } catch (err) {
+      notifyStatus(false, 'Guardado localmente (Offline)');
+    }
+
+    return { success: true, key, source: 'local' };
   }
 
-  // --- 2. BALANCESCORE POR ESTACIONES ---
+  async function getArqueosChicaList() {
+    const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica.json`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && typeof cloudData === 'object') {
+          const combined = { ...localHistory, ...cloudData };
+          localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(combined));
+          return combined;
+        }
+      }
+    } catch (err) {}
+
+    return localHistory;
+  }
+
+  // --- 3. BALANCESCORE POR ESTACIONES ---
   async function saveBalanceScore(fecha, stationsData) {
     const key = fecha || new Date().toISOString().split('T')[0];
     const payload = {
@@ -131,7 +191,6 @@ const TB_FIREBASE = (function () {
       updatedAt: new Date().toISOString()
     };
 
-    // Respaldo local
     const localScores = JSON.parse(localStorage.getItem('tb_balancescore') || '{}');
     localScores[key] = payload;
     localStorage.setItem('tb_balancescore', JSON.stringify(localScores));
@@ -142,33 +201,12 @@ const TB_FIREBASE = (function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) {
-        notifyStatus(true, 'BalanceScore guardado en Firebase');
-        return { success: true, source: 'firebase' };
-      }
-    } catch (e) {
-      notifyStatus(false, 'BalanceScore guardado localmente');
-    }
+      if (res.ok) return { success: true, source: 'firebase' };
+    } catch (e) {}
     return { success: true, source: 'local' };
   }
 
-  async function getBalanceScore(fecha) {
-    const key = fecha || new Date().toISOString().split('T')[0];
-    const localScores = JSON.parse(localStorage.getItem('tb_balancescore') || '{}');
-
-    try {
-      const res = await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`);
-      if (res.ok) {
-        const cloud = await res.json();
-        if (cloud) return cloud;
-      }
-    } catch (e) {
-      // Usar local
-    }
-    return localScores[key] || null;
-  }
-
-  // --- 3. REPORTE DIARIO DE INGRESOS ---
+  // --- 4. REPORTE DIARIO DE INGRESOS ---
   async function saveIngresosReport(fecha, reportData) {
     const key = fecha || new Date().toISOString().split('T')[0];
     const payload = {
@@ -187,13 +225,8 @@ const TB_FIREBASE = (function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) {
-        notifyStatus(true, 'Reporte de ingresos guardado');
-        return { success: true, source: 'firebase' };
-      }
-    } catch (e) {
-      notifyStatus(false, 'Reporte guardado localmente');
-    }
+      if (res.ok) return { success: true, source: 'firebase' };
+    } catch (e) {}
     return { success: true, source: 'local' };
   }
 
@@ -212,9 +245,8 @@ const TB_FIREBASE = (function () {
     return local[key] || null;
   }
 
-  // --- 4. REPORTE DE INTERESADAS, SOLO PREGUNTAN Y CIERRES ---
+  // --- 5. INTERESADAS Y CIERRES ---
   async function saveInteresadas(fecha, type, data) {
-    // type: 'salon' o 'academia'
     const key = fecha || new Date().toISOString().split('T')[0];
     const local = JSON.parse(localStorage.getItem('tb_interesadas_cierres') || '{}');
     if (!local[key]) local[key] = {};
@@ -236,22 +268,7 @@ const TB_FIREBASE = (function () {
     return { success: true, source: 'local' };
   }
 
-  async function getInteresadas(fecha, type) {
-    const key = fecha || new Date().toISOString().split('T')[0];
-    const local = JSON.parse(localStorage.getItem('tb_interesadas_cierres') || '{}');
-
-    try {
-      const res = await fetch(`${CONFIG.databaseURL}/interesadas_cierres/${key}/${type}.json`);
-      if (res.ok) {
-        const cloud = await res.json();
-        if (cloud) return cloud;
-      }
-    } catch (e) {}
-
-    return (local[key] && local[key][type]) ? local[key][type] : null;
-  }
-
-  // --- 5. CAMPAÑA DEL MES Y EVENTOS ---
+  // --- 6. CAMPAÑA DEL MES Y EVENTOS ---
   async function saveCampanaEventos(periodKey, payload) {
     const key = periodKey || '2026-10';
     const local = JSON.parse(localStorage.getItem('tb_campanas_eventos') || '{}');
@@ -273,38 +290,21 @@ const TB_FIREBASE = (function () {
     return { success: true, source: 'local' };
   }
 
-  async function getCampanaEventos(periodKey) {
-    const key = periodKey || '2026-10';
-    const local = JSON.parse(localStorage.getItem('tb_campanas_eventos') || '{}');
-
-    try {
-      const res = await fetch(`${CONFIG.databaseURL}/campanas_eventos/${key}.json`);
-      if (res.ok) {
-        const cloud = await res.json();
-        if (cloud) return cloud;
-      }
-    } catch (e) {}
-
-    return local[key] || null;
-  }
-
-  // Inicializar prueba de conexión al cargar
   setTimeout(testConnection, 500);
 
   return {
     CONFIG,
     testConnection,
     onConnectionChange,
-    saveArqueo,
+    saveArqueo: saveArqueoPrincipal,
+    saveArqueoPrincipal,
     getArqueosList,
-    getArqueoByKey,
+    saveArqueoCajaChica,
+    getArqueosChicaList,
     saveBalanceScore,
-    getBalanceScore,
     saveIngresosReport,
     getIngresosReport,
     saveInteresadas,
-    getInteresadas,
-    saveCampanaEventos,
-    getCampanaEventos
+    saveCampanaEventos
   };
 })();
