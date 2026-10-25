@@ -2067,6 +2067,152 @@
 
     recalculatePrincipal();
     recalculateChica();
+
+    // Inicializar Sistema de Autenticación Firebase Auth
+    initAuthSystem();
   });
+
+  // =========================================================================
+  // SISTEMA DE AUTENTICACIÓN FIREBASE AUTH (CORREO / CONTRASEÑA)
+  // =========================================================================
+  function initAuthSystem() {
+    const authOverlay = document.getElementById('auth-overlay');
+    const authForm = document.getElementById('form-auth-login');
+    const authEmail = document.getElementById('auth_email');
+    const authPassword = document.getElementById('auth_password');
+    const authRemember = document.getElementById('auth_remember');
+    const authErrorBox = document.getElementById('auth-error-box');
+    const authSuccessBox = document.getElementById('auth-success-box');
+    const authSubmitBtn = document.getElementById('btn-auth-submit');
+    const authSpinner = document.getElementById('btn-auth-spinner');
+    const authText = document.getElementById('btn-auth-text');
+    const btnTogglePwd = document.getElementById('btn-toggle-pwd');
+    const linkForgotPwd = document.getElementById('link-forgot-pwd');
+
+    const topbarUserBadge = document.getElementById('topbar-user-badge');
+    const topbarUserEmail = document.getElementById('topbar-user-email');
+    const sidebarUserCard = document.getElementById('sidebar-user-card');
+    const sidebarUserEmail = document.getElementById('sidebar-user-email');
+
+    function showError(msg) {
+      if (authErrorBox) {
+        authErrorBox.textContent = msg;
+        authErrorBox.style.display = 'block';
+      }
+      if (authSuccessBox) authSuccessBox.style.display = 'none';
+    }
+
+    function showSuccess(msg) {
+      if (authSuccessBox) {
+        authSuccessBox.textContent = msg;
+        authSuccessBox.style.display = 'block';
+      }
+      if (authErrorBox) authErrorBox.style.display = 'none';
+    }
+
+    function onLoginSuccess(user) {
+      if (authOverlay) authOverlay.classList.add('hidden');
+      if (topbarUserBadge) topbarUserBadge.style.display = 'inline-flex';
+      if (topbarUserEmail) topbarUserEmail.textContent = user.email;
+      if (sidebarUserCard) sidebarUserCard.style.display = 'block';
+      if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+
+      showToast(`Bienvenido(a) ${user.email}`, 'success');
+
+      // Si no hay responsable escrito, sugerir nombre derivado del correo
+      const respEl = document.getElementById('header_responsable');
+      if (respEl && !respEl.value) {
+        const username = user.email.split('@')[0].replace(/[._-]/g, ' ');
+        const cap = username.charAt(0).toUpperCase() + username.slice(1);
+        respEl.value = cap;
+      }
+      const respChica = document.getElementById('chica_responsable');
+      if (respChica && !respChica.value) {
+        const username = user.email.split('@')[0].replace(/[._-]/g, ' ');
+        const cap = username.charAt(0).toUpperCase() + username.slice(1);
+        respChica.value = cap;
+      }
+    }
+
+    function onLogoutSuccess() {
+      if (authOverlay) authOverlay.classList.remove('hidden');
+      if (topbarUserBadge) topbarUserBadge.style.display = 'none';
+      if (sidebarUserCard) sidebarUserCard.style.display = 'none';
+      if (authForm) authForm.reset();
+      if (authErrorBox) authErrorBox.style.display = 'none';
+      if (authSuccessBox) authSuccessBox.style.display = 'none';
+    }
+
+    // Toggle ver contraseña
+    btnTogglePwd?.addEventListener('click', () => {
+      const isPwd = authPassword.type === 'password';
+      authPassword.type = isPwd ? 'text' : 'password';
+      btnTogglePwd.textContent = isPwd ? '🙈' : '👁️';
+    });
+
+    // Olvidé mi contraseña
+    linkForgotPwd?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = authEmail?.value?.trim() || prompt('Ingrese su correo para restablecer contraseña:');
+      if (!email) return;
+      showToast('Enviando enlace de restablecimiento...', 'info');
+      const res = await TB_FIREBASE.sendPasswordReset(email);
+      if (res.success) {
+        showSuccess(res.message);
+      } else {
+        showError(res.error);
+      }
+    });
+
+    // Envío del formulario de Login
+    authForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+      const remember = authRemember ? authRemember.checked : true;
+
+      if (!email || !password) {
+        showError('Por favor complete su correo y contraseña.');
+        return;
+      }
+
+      if (authSpinner) authSpinner.style.display = 'inline-block';
+      if (authText) authText.textContent = 'Verificando con Firebase...';
+      if (authSubmitBtn) authSubmitBtn.disabled = true;
+      if (authErrorBox) authErrorBox.style.display = 'none';
+
+      const res = await TB_FIREBASE.login(email, password, remember);
+
+      if (authSpinner) authSpinner.style.display = 'none';
+      if (authText) authText.textContent = 'Iniciar Sesión';
+      if (authSubmitBtn) authSubmitBtn.disabled = false;
+
+      if (res.success) {
+        onLoginSuccess(res.user);
+      } else {
+        showError(res.error);
+      }
+    });
+
+    // Botones de Cerrar Sesión
+    document.querySelectorAll('.btn-logout').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('¿Está seguro de cerrar sesión en Total Beauty?')) {
+          TB_FIREBASE.logout();
+          onLogoutSuccess();
+          showToast('Sesión cerrada correctamente', 'info');
+        }
+      });
+    });
+
+    // Verificar si hay sesión previa activa
+    TB_FIREBASE.checkSession().then(user => {
+      if (user) {
+        onLoginSuccess(user);
+      } else {
+        onLogoutSuccess();
+      }
+    });
+  }
 
 })();

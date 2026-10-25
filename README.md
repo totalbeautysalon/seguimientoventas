@@ -3,7 +3,17 @@
 
 Sistema web integral desarrollado específicamente para la operación diaria, conciliación de caja, auditoría y análisis de desempeño de **TOTAL BEAUTY SALÓN Y ACADEMIA**.
 
-Conectado 100% a la nube de **Firebase Realtime Database** (`total-beauty-crm`), con exportación automática en PDF oficial y control de versiones en **GitHub**.
+Conectado 100% a la nube de **Firebase Authentication** y **Firebase Realtime Database** (`totalbregis`), con exportación automática en PDF oficial y control de versiones en **GitHub**.
+
+---
+
+### 🔐 Inicio de Sesión Seguro (Firebase Authentication)
+El sistema cuenta con una pantalla de inicio de sesión (*login barrier*) conectada directamente a Firebase Auth:
+- **Método**: Correo electrónico y contraseña.
+- **Seguridad**: Tokens seguros de sesión (`idToken`), persistencia de sesión ("Recordar sesión") y actualización automática de token (`refreshToken`).
+- **Recuperación**: Opción para enviar enlace oficial de restablecimiento de contraseña a la bandeja de entrada del usuario.
+- **Perfil Activo**: El correo del usuario autenticado se muestra en la barra superior (*topbar*) y en el pie del menú lateral (*sidebar*), con botón para **Cerrar Sesión** en cualquier momento.
+- **Protección**: Si el usuario no ha iniciado sesión, el portal permanece bloqueado. Todas las consultas y guardados en Realtime Database se envían autenticados.
 
 ---
 
@@ -95,9 +105,10 @@ El sistema inicia sin datos mock ni registros falsos. Todo inicia en blanco, lis
 
 ---
 
-### 🔥 Conexión Firebase Cloud
-- **Proyecto**: `total-beauty-crm`
-- **Base de Datos**: `https://total-beauty-crm-default-rtdb.firebaseio.com/`
+### 🔥 Conexión Firebase Cloud (totalbregis)
+- **Proyecto**: `totalbregis`
+- **Base de Datos**: `https://totalbregis-default-rtdb.firebaseio.com/`
+- **Autenticación**: Firebase Authentication (Email / Password)
 - **Nodos RTDB**:
   - `/ventas_diarias/{fecha}/{id}`: Registro diario de ventas.
   - `/arqueos_caja/{key}`: Arqueos de Caja Principal.

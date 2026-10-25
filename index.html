@@ -12,7 +12,59 @@
 </head>
 <body>
 
-  <div class="layout-wrapper">
+  <!-- ====================================================================
+       PANTALLA DE INICIO DE SESIÓN CON FIREBASE AUTH (CORREO / CONTRASEÑA)
+       ==================================================================== -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-header">
+        <img src="assets/logoheader.png" alt="Logo" class="auth-logo" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+        <h2>TOTAL BEAUTY</h2>
+        <p>Salón &bull; Academia</p>
+        <span class="auth-badge">Acceso Seguro &bull; Firebase Authentication</span>
+      </div>
+
+      <div id="auth-error-box" class="auth-error-box" style="display:none;"></div>
+      <div id="auth-success-box" class="auth-success-box" style="display:none;"></div>
+
+      <form id="form-auth-login" autocomplete="on">
+        <div class="form-group" style="margin-bottom:14px;">
+          <label for="auth_email">Correo Electrónico <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="auth_email" class="input-text auth-input" placeholder="correo@totalbeauty.com" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label for="auth_password">Contraseña <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="auth_password" class="input-text auth-input" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="btn-toggle-pwd" id="btn-toggle-pwd" title="Mostrar u ocultar contraseña">👁️</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; font-size:0.82rem;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--slate);">
+            <input type="checkbox" id="auth_remember" checked> Recordar sesión
+          </label>
+          <a href="#" id="link-forgot-pwd" style="color:var(--primary); text-decoration:none; font-weight:600;">¿Olvidó su contraseña?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary auth-btn-submit" id="btn-auth-submit">
+          <span id="btn-auth-spinner" style="display:none;">⏳</span>
+          <span id="btn-auth-text">Iniciar Sesión</span>
+        </button>
+      </form>
+
+      <div class="auth-footer-notice">
+        Base de Datos: <strong>totalbregis</strong> &bull; Total Beauty Portal Oficial
+      </div>
+    </div>
+  </div>
+
+  <div class="layout-wrapper" id="app-layout-wrapper">
 
     <!-- ====================================================================
          BARRA LATERAL DE NAVEGACIÓN (SIDEBAR MENU)
@@ -90,7 +142,15 @@
           <span id="fb-status-text">Conectando a Firebase...</span>
         </div>
         <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">
-          BD: total-beauty-crm
+          BD: totalbregis
+        </div>
+
+        <div class="sidebar-user-card" id="sidebar-user-card" style="display:none;">
+          <div class="user-title">Sesión iniciada:</div>
+          <div class="user-email" id="sidebar-user-email">admin@totalbeauty.com</div>
+          <button type="button" class="btn btn-outline-danger btn-sm btn-logout" id="btn-logout-sidebar" style="width:100%; margin-top:8px; font-size:0.75rem; padding:4px 8px;">
+            <span>🚪</span> Cerrar Sesión
+          </button>
         </div>
       </div>
     </aside>
@@ -110,6 +170,13 @@
           </div>
         </div>
         <div class="topbar-right">
+          <!-- Insignia de usuario autenticado -->
+          <div class="user-profile-badge" id="topbar-user-badge" style="display:none;">
+            <span>👤</span>
+            <span class="user-email" id="topbar-user-email">admin@totalbeauty.com</span>
+            <button type="button" class="btn btn-outline-danger btn-sm btn-logout" id="btn-logout-top" style="padding:2px 8px; font-size:0.72rem;">Salir</button>
+          </div>
+
           <button type="button" class="btn btn-secondary btn-sm" id="btn-example-data">
             <span>⚡</span> Ejemplo
           </button>

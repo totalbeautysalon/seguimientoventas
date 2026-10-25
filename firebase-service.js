@@ -1,41 +1,254 @@
 /**
- * Total Beauty Salón y Academia - Servicio de Firebase y Persistencia Local
- * Interconexión 100% de Ventas, Arqueos, Caja Chica, Leads/Tipificación y Campañas.
+ * Total Beauty Salón y Academia - Servicio de Firebase Authentication y Persistencia Realtime Database
+ * Proyecto Oficial: totalbregis (https://totalbregis-default-rtdb.firebaseio.com/)
+ * Autenticación mediante correo y contraseña con Firebase Auth REST API y persistencia de sesión.
  */
 
 const TB_FIREBASE = (function () {
   'use strict';
 
+  // Configuración oficial de Firebase del proyecto totalbregis
   const CONFIG = {
-    apiKey: "AIzaSyBlOxvGvw3-KddRfK63EOKhrM4MjA1wpNY",
-    authDomain: "total-beauty-crm.firebaseapp.com",
-    databaseURL: "https://total-beauty-crm-default-rtdb.firebaseio.com",
-    projectId: "total-beauty-crm",
-    storageBucket: "total-beauty-crm.firebasestorage.app",
-    messagingSenderId: "790991554884",
-    appId: "1:790991554884:web:7d52bbc3e4fd1e442d6f11"
+    apiKey: "AIzaSyAcQRVT7DUGeJs63yWejuxGGaX9Hnv15xI",
+    authDomain: "totalbregis.firebaseapp.com",
+    databaseURL: "https://totalbregis-default-rtdb.firebaseio.com",
+    projectId: "totalbregis",
+    storageBucket: "totalbregis.firebasestorage.app",
+    messagingSenderId: "630616601479",
+    appId: "1:630616601479:web:3cf47df60bdc3aca165922",
+    measurementId: "G-4RY5X8R11B"
   };
 
   let isOnline = false;
   let statusListeners = [];
+  let authListeners = [];
+  let currentUser = null;
 
   function notifyStatus(status, detail = '') {
     isOnline = status;
-    statusListeners.forEach(fn => fn(status, detail));
+    statusListeners.forEach(fn => {
+      try { fn(status, detail); } catch (e) { console.error(e); }
+    });
   }
 
   function onConnectionChange(fn) {
     statusListeners.push(fn);
   }
 
+  function notifyAuth(user) {
+    currentUser = user;
+    authListeners.forEach(fn => {
+      try { fn(user); } catch (e) { console.error(e); }
+    });
+  }
+
+  function onAuthChange(fn) {
+    authListeners.push(fn);
+  }
+
+  function getCurrentUser() {
+    return currentUser;
+  }
+
+  // =========================================================================
+  // AUTENTICACIÓN CON FIREBASE AUTH (CORREO / CONTRASEÑA)
+  // =========================================================================
+
+  /**
+   * Traducir códigos de error comunes de Firebase Auth a mensajes claros en español
+   */
+  function translateAuthError(errCode) {
+    switch (errCode) {
+      case 'INVALID_LOGIN_CREDENTIALS':
+      case 'INVALID_PASSWORD':
+      case 'EMAIL_NOT_FOUND':
+        return 'El correo o la contraseña son incorrectos. Por favor verifique sus datos.';
+      case 'INVALID_EMAIL':
+        return 'El formato del correo electrónico ingresado no es válido.';
+      case 'USER_DISABLED':
+        return 'Esta cuenta de usuario ha sido inhabilitada por administración.';
+      case 'TOO_MANY_ATTEMPTS_TRY_LATER':
+        return 'Demasiados intentos fallidos. Por seguridad, intente de nuevo en unos minutos.';
+      case 'OPERATION_NOT_ALLOWED':
+        return 'El inicio de sesión con correo y contraseña no está activado en Firebase Console.';
+      default:
+        return 'Error de autenticación: ' + (errCode || 'No se pudo conectar con el servicio.');
+    }
+  }
+
+  /**
+   * Iniciar sesión con correo y contraseña
+   */
+  async function login(email, password, remember = true) {
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${CONFIG.apiKey}`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+          returnSecureToken: true
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        const errMsg = data.error?.message || 'ERROR_UNKNOWN';
+        return { success: false, error: translateAuthError(errMsg) };
+      }
+
+      // Usuario autenticado exitosamente
+      const user = {
+        email: data.email,
+        localId: data.localId,
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
+        expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000)
+      };
+
+      if (remember) {
+        localStorage.setItem('tb_auth_user', JSON.stringify(user));
+      } else {
+        sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
+      }
+
+      notifyAuth(user);
+      notifyStatus(true, `Sesión iniciada: ${user.email}`);
+      return { success: true, user };
+    } catch (err) {
+      console.error('Error al iniciar sesión:', err);
+      return {
+        success: false,
+        error: 'No se pudo conectar con los servidores de Firebase. Verifique su conexión a internet.'
+      };
+    }
+  }
+
+  /**
+   * Refrescar el idToken usando el refreshToken
+   */
+  async function refreshAuthToken(refreshToken) {
+    try {
+      const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${CONFIG.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (currentUser) {
+          currentUser.idToken = data.id_token;
+          currentUser.refreshToken = data.refresh_token;
+          currentUser.expiresAt = Date.now() + ((parseInt(data.expires_in, 10) || 3600) * 1000);
+          if (localStorage.getItem('tb_auth_user')) {
+            localStorage.setItem('tb_auth_user', JSON.stringify(currentUser));
+          }
+        }
+        return data.id_token;
+      }
+    } catch (e) {
+      console.warn('No se pudo refrescar token:', e);
+    }
+    return null;
+  }
+
+  /**
+   * Verificar sesión guardada al abrir la aplicación
+   */
+  async function checkSession() {
+    const raw = localStorage.getItem('tb_auth_user') || sessionStorage.getItem('tb_auth_user');
+    if (!raw) return null;
+
+    try {
+      const user = JSON.parse(raw);
+      if (user && user.refreshToken) {
+        // Si el token está por expirar en menos de 5 minutos, refrescarlo
+        if (Date.now() > (user.expiresAt - 300000)) {
+          const newToken = await refreshAuthToken(user.refreshToken);
+          if (!newToken) {
+            // Sesión caducada
+            logout();
+            return null;
+          }
+        }
+        notifyAuth(user);
+        notifyStatus(true, `Sesión activa: ${user.email}`);
+        return user;
+      }
+    } catch (e) {
+      console.error('Error verificando sesión:', e);
+    }
+    return null;
+  }
+
+  /**
+   * Cerrar sesión del usuario
+   */
+  function logout() {
+    currentUser = null;
+    localStorage.removeItem('tb_auth_user');
+    sessionStorage.removeItem('tb_auth_user');
+    notifyAuth(null);
+    notifyStatus(false, 'Sesión cerrada');
+    return { success: true };
+  }
+
+  /**
+   * Enviar enlace de restablecimiento de contraseña
+   */
+  async function sendPasswordReset(email) {
+    if (!email || !email.includes('@')) {
+      return { success: false, error: 'Por favor ingrese un correo válido.' };
+    }
+
+    try {
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${CONFIG.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestType: 'PASSWORD_RESET',
+          email: email.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        return { success: false, error: translateAuthError(data.error?.message) };
+      }
+
+      return {
+        success: true,
+        message: `Se ha enviado un enlace para restablecer su contraseña al correo ${email}. Revise su bandeja de entrada.`
+      };
+    } catch (e) {
+      return { success: false, error: 'Error de conexión al solicitar restablecimiento.' };
+    }
+  }
+
+  // =========================================================================
+  // HELPER PARA URLs DE REALTIME DATABASE CON AUTENTICACIÓN
+  // =========================================================================
+  function getDbUrl(path) {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    let base = `${CONFIG.databaseURL}${cleanPath}.json`;
+    if (currentUser && currentUser.idToken) {
+      base += `?auth=${currentUser.idToken}`;
+    }
+    return base;
+  }
+
   async function testConnection() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`${CONFIG.databaseURL}/.info/connected.json`, { signal: controller.signal });
+      const res = await fetch(getDbUrl('.info/connected'), { signal: controller.signal });
       clearTimeout(timeoutId);
       if (res.ok) {
-        notifyStatus(true, 'Conectado a Firebase CRM');
+        notifyStatus(true, 'Conectado a Firebase (totalbregis)');
         return true;
       }
     } catch (e) {}
@@ -52,15 +265,15 @@ const TB_FIREBASE = (function () {
     }
     const fecha = venta.fecha || new Date().toISOString().split('T')[0];
 
-    // LocalStorage
+    // LocalStorage redundante
     const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
     if (!localVentas[fecha]) localVentas[fecha] = {};
     localVentas[fecha][venta.id] = venta;
     localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
 
-    // Firebase
+    // Firebase Realtime Database
     try {
-      await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}/${venta.id}.json`, {
+      await fetch(getDbUrl(`ventas_diarias/${fecha}/${venta.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(venta)
@@ -78,7 +291,7 @@ const TB_FIREBASE = (function () {
     const local = localVentas[fecha] || {};
 
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}.json`);
+      const res = await fetch(getDbUrl(`ventas_diarias/${fecha}`));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && typeof cloud === 'object') {
@@ -101,7 +314,7 @@ const TB_FIREBASE = (function () {
     }
 
     try {
-      await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}/${id}.json`, {
+      await fetch(getDbUrl(`ventas_diarias/${fecha}/${id}`), {
         method: 'DELETE'
       });
     } catch (e) {}
@@ -119,7 +332,8 @@ const TB_FIREBASE = (function () {
       tipo: 'caja_principal',
       ...data,
       pdfBase64: pdfBase64 || null,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
+      userEmail: currentUser?.email || 'admin'
     };
 
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
@@ -127,7 +341,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_arqueos_history', JSON.stringify(localHistory));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/arqueos_caja/${key}.json`, {
+      await fetch(getDbUrl(`arqueos_caja/${key}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -143,7 +357,7 @@ const TB_FIREBASE = (function () {
   async function getArqueosList() {
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja.json`);
+      const res = await fetch(getDbUrl('arqueos_caja'));
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
@@ -164,7 +378,8 @@ const TB_FIREBASE = (function () {
       tipo: 'caja_chica',
       ...data,
       pdfBase64: pdfBase64 || null,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
+      userEmail: currentUser?.email || 'admin'
     };
 
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
@@ -172,7 +387,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(localHistory));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica/${key}.json`, {
+      await fetch(getDbUrl(`arqueos_caja_chica/${key}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -188,7 +403,7 @@ const TB_FIREBASE = (function () {
   async function getArqueosChicaList() {
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica.json`);
+      const res = await fetch(getDbUrl('arqueos_caja_chica'));
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
@@ -217,7 +432,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_balancescore', JSON.stringify(localScores));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`, {
+      await fetch(getDbUrl(`balancescore/${key}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -231,7 +446,7 @@ const TB_FIREBASE = (function () {
     const key = fecha || new Date().toISOString().split('T')[0];
     const localScores = JSON.parse(localStorage.getItem('tb_balancescore') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`);
+      const res = await fetch(getDbUrl(`balancescore/${key}`));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud) return cloud;
@@ -256,7 +471,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_ingresos_reportes', JSON.stringify(localIngresos));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/reportes_ingresos/${key}.json`, {
+      await fetch(getDbUrl(`reportes_ingresos/${key}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -270,7 +485,7 @@ const TB_FIREBASE = (function () {
     const key = fecha || new Date().toISOString().split('T')[0];
     const local = JSON.parse(localStorage.getItem('tb_ingresos_reportes') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/reportes_ingresos/${key}.json`);
+      const res = await fetch(getDbUrl(`reportes_ingresos/${key}`));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud) return cloud;
@@ -291,7 +506,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_leads_db', JSON.stringify(localLeads));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/leads_seguimiento/${lead.id}.json`, {
+      await fetch(getDbUrl(`leads_seguimiento/${lead.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(lead)
@@ -305,7 +520,7 @@ const TB_FIREBASE = (function () {
   async function getLeadsAll() {
     const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/leads_seguimiento.json`);
+      const res = await fetch(getDbUrl('leads_seguimiento'));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && typeof cloud === 'object') {
@@ -336,7 +551,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_leads_db', JSON.stringify(localLeads));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/leads_seguimiento/${leadId}.json`, {
+      await fetch(getDbUrl(`leads_seguimiento/${leadId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(lead)
@@ -352,7 +567,7 @@ const TB_FIREBASE = (function () {
   async function saveCampanaActiva(campana) {
     localStorage.setItem('tb_campana_activa', JSON.stringify(campana));
     try {
-      await fetch(`${CONFIG.databaseURL}/campana_activa.json`, {
+      await fetch(getDbUrl('campana_activa'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(campana)
@@ -365,7 +580,7 @@ const TB_FIREBASE = (function () {
   async function getCampanaActiva() {
     const local = JSON.parse(localStorage.getItem('tb_campana_activa') || 'null');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/campana_activa.json`);
+      const res = await fetch(getDbUrl('campana_activa'));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud) {
@@ -386,7 +601,7 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_eventos_db', JSON.stringify(localEventos));
 
     try {
-      await fetch(`${CONFIG.databaseURL}/eventos_mes/${evento.id}.json`, {
+      await fetch(getDbUrl(`eventos_mes/${evento.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(evento)
@@ -398,7 +613,7 @@ const TB_FIREBASE = (function () {
   async function getEventosAll() {
     const local = JSON.parse(localStorage.getItem('tb_eventos_db') || '{}');
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/eventos_mes.json`);
+      const res = await fetch(getDbUrl('eventos_mes'));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && typeof cloud === 'object') {
@@ -411,12 +626,21 @@ const TB_FIREBASE = (function () {
     return Object.values(local);
   }
 
+  // Inicializar conexión
   setTimeout(testConnection, 500);
 
   return {
     CONFIG,
     testConnection,
     onConnectionChange,
+    // Autenticación
+    login,
+    logout,
+    checkSession,
+    getCurrentUser,
+    onAuthChange,
+    sendPasswordReset,
+    // CRUD Módulos
     saveVenta,
     getVentasByFecha,
     deleteVenta,
