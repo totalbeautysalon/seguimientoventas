@@ -2088,15 +2088,56 @@
     const authText = document.getElementById('btn-auth-text');
     const btnTogglePwd = document.getElementById('btn-toggle-pwd');
     const linkForgotPwd = document.getElementById('link-forgot-pwd');
+    const tabLogin = document.getElementById('tab-auth-login');
+    const tabRegister = document.getElementById('tab-auth-register');
+    const registerInfo = document.getElementById('auth-register-info');
+    const btnLoginOffline = document.getElementById('btn-login-offline');
 
     const topbarUserBadge = document.getElementById('topbar-user-badge');
     const topbarUserEmail = document.getElementById('topbar-user-email');
     const sidebarUserCard = document.getElementById('sidebar-user-card');
     const sidebarUserEmail = document.getElementById('sidebar-user-email');
 
-    function showError(msg) {
+    let currentAuthMode = 'login'; // 'login' o 'register'
+
+    function setAuthMode(mode) {
+      currentAuthMode = mode;
+      if (mode === 'register') {
+        if (tabRegister) tabRegister.classList.add('active');
+        if (tabLogin) tabLogin.classList.remove('active');
+        if (registerInfo) registerInfo.style.display = 'block';
+        if (authText) authText.textContent = 'Crear Cuenta en Firebase';
+      } else {
+        if (tabLogin) tabLogin.classList.add('active');
+        if (tabRegister) tabRegister.classList.remove('active');
+        if (registerInfo) registerInfo.style.display = 'none';
+        if (authText) authText.textContent = 'Iniciar Sesión';
+      }
+      if (authErrorBox) authErrorBox.style.display = 'none';
+      if (authSuccessBox) authSuccessBox.style.display = 'none';
+    }
+
+    tabLogin?.addEventListener('click', () => setAuthMode('login'));
+    tabRegister?.addEventListener('click', () => setAuthMode('register'));
+
+    function showError(msg, showRegisterHint = false) {
       if (authErrorBox) {
-        authErrorBox.textContent = msg;
+        if (showRegisterHint) {
+          authErrorBox.innerHTML = `
+            <div>${msg}</div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(185,28,28,0.3);">
+              ¿Es un usuario nuevo o no está dado de alta en <strong>totalbregis</strong>?
+              <button type="button" id="btn-quick-switch-register" style="background:none; border:none; color:#b91c1c; font-weight:800; text-decoration:underline; cursor:pointer; padding:0; margin-left:4px;">
+                Haga clic aquí para Registrar su Cuenta
+              </button>
+            </div>
+          `;
+          document.getElementById('btn-quick-switch-register')?.addEventListener('click', () => {
+            setAuthMode('register');
+          });
+        } else {
+          authErrorBox.textContent = msg;
+        }
         authErrorBox.style.display = 'block';
       }
       if (authSuccessBox) authSuccessBox.style.display = 'none';
@@ -2141,6 +2182,7 @@
       if (authForm) authForm.reset();
       if (authErrorBox) authErrorBox.style.display = 'none';
       if (authSuccessBox) authSuccessBox.style.display = 'none';
+      setAuthMode('login');
     }
 
     // Toggle ver contraseña
@@ -2164,7 +2206,15 @@
       }
     });
 
-    // Envío del formulario de Login
+    // Entrar en Modo Local / Offline
+    btnLoginOffline?.addEventListener('click', () => {
+      const email = authEmail?.value?.trim() || 'operador.local@totalbeauty.com';
+      TB_FIREBASE.loginOffline(email);
+      onLoginSuccess({ email, isOffline: true });
+      showToast('Ingresó en Modo Local / Trabajo Sin Conexión', 'warning');
+    });
+
+    // Envío del formulario (Login o Register)
     authForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = authEmail.value.trim();
@@ -2177,20 +2227,26 @@
       }
 
       if (authSpinner) authSpinner.style.display = 'inline-block';
-      if (authText) authText.textContent = 'Verificando con Firebase...';
+      if (authText) authText.textContent = (currentAuthMode === 'register') ? 'Registrando en Firebase...' : 'Verificando con Firebase...';
       if (authSubmitBtn) authSubmitBtn.disabled = true;
       if (authErrorBox) authErrorBox.style.display = 'none';
 
-      const res = await TB_FIREBASE.login(email, password, remember);
+      let res;
+      if (currentAuthMode === 'register') {
+        res = await TB_FIREBASE.register(email, password);
+      } else {
+        res = await TB_FIREBASE.login(email, password, remember);
+      }
 
       if (authSpinner) authSpinner.style.display = 'none';
-      if (authText) authText.textContent = 'Iniciar Sesión';
+      if (authText) authText.textContent = (currentAuthMode === 'register') ? 'Crear Cuenta en Firebase' : 'Iniciar Sesión';
       if (authSubmitBtn) authSubmitBtn.disabled = false;
 
       if (res.success) {
         onLoginSuccess(res.user);
       } else {
-        showError(res.error);
+        const isCredentialErr = res.rawError === 'INVALID_LOGIN_CREDENTIALS' || res.rawError === 'EMAIL_NOT_FOUND' || res.rawError === 'INVALID_PASSWORD';
+        showError(res.error, isCredentialErr && currentAuthMode === 'login');
       }
     });
 

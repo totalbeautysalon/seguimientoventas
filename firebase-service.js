@@ -62,13 +62,18 @@ const TB_FIREBASE = (function () {
       case 'INVALID_LOGIN_CREDENTIALS':
       case 'INVALID_PASSWORD':
       case 'EMAIL_NOT_FOUND':
-        return 'El correo o la contraseña son incorrectos. Por favor verifique sus datos.';
+        return 'El correo o la contraseña no coinciden en el proyecto totalbregis. Si aún no ha creado este usuario en totalbregis, use la pestaña "Registrar Cuenta" arriba para darlo de alta.';
+      case 'EMAIL_EXISTS':
+        return 'Este correo ya está registrado en totalbregis. Si no recuerda su contraseña, use el enlace "¿Olvidó su contraseña?".';
+      case 'WEAK_PASSWORD : Password should be at least 6 characters':
+      case 'WEAK_PASSWORD':
+        return 'La contraseña debe contener al menos 6 caracteres.';
       case 'INVALID_EMAIL':
         return 'El formato del correo electrónico ingresado no es válido.';
       case 'USER_DISABLED':
-        return 'Esta cuenta de usuario ha sido inhabilitada por administración.';
+        return 'Esta cuenta de usuario ha sido inhabilitada en Firebase Console.';
       case 'TOO_MANY_ATTEMPTS_TRY_LATER':
-        return 'Demasiados intentos fallidos. Por seguridad, intente de nuevo en unos minutos.';
+        return 'Demasiados intentos fallidos. Por seguridad, intente de nuevo en unos minutos o restablezca su contraseña.';
       case 'OPERATION_NOT_ALLOWED':
         return 'El inicio de sesión con correo y contraseña no está activado en Firebase Console.';
       default:
@@ -81,13 +86,85 @@ const TB_FIREBASE = (function () {
    */
   async function login(email, password, remember = true) {
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${CONFIG.apiKey}`;
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    // Intentar primero con la contraseña tal como fue escrita
+    const passwordsToTry = [password];
+    if (password && password.trim() !== password) {
+      passwordsToTry.push(password.trim());
+    }
+
+    let lastError = null;
+
+    for (const pwd of passwordsToTry) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            password: pwd,
+            returnSecureToken: true
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && !data.error) {
+          const user = {
+            email: data.email || cleanEmail,
+            localId: data.localId,
+            idToken: data.idToken,
+            refreshToken: data.refreshToken,
+            expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000),
+            isOffline: false
+          };
+
+          if (remember) {
+            localStorage.setItem('tb_auth_user', JSON.stringify(user));
+          } else {
+            sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
+          }
+
+          notifyAuth(user);
+          notifyStatus(true, `Sesión iniciada: ${user.email}`);
+          return { success: true, user };
+        }
+
+        lastError = data.error?.message || 'ERROR_UNKNOWN';
+      } catch (err) {
+        console.error('Error al iniciar sesión:', err);
+        return {
+          success: false,
+          error: 'No se pudo conectar con los servidores de Firebase. Verifique su conexión a internet.'
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: translateAuthError(lastError),
+      rawError: lastError
+    };
+  }
+
+  /**
+   * Registrar nueva cuenta en Firebase Authentication
+   */
+  async function register(email, password) {
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.apiKey}`;
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!password || password.length < 6) {
+      return { success: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
+    }
 
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email.trim(),
+          email: cleanEmail,
           password: password,
           returnSecureToken: true
         })
@@ -97,34 +174,47 @@ const TB_FIREBASE = (function () {
 
       if (!res.ok || data.error) {
         const errMsg = data.error?.message || 'ERROR_UNKNOWN';
-        return { success: false, error: translateAuthError(errMsg) };
+        return { success: false, error: translateAuthError(errMsg), rawError: errMsg };
       }
 
-      // Usuario autenticado exitosamente
       const user = {
-        email: data.email,
+        email: data.email || cleanEmail,
         localId: data.localId,
         idToken: data.idToken,
         refreshToken: data.refreshToken,
-        expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000)
+        expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000),
+        isOffline: false
       };
 
-      if (remember) {
-        localStorage.setItem('tb_auth_user', JSON.stringify(user));
-      } else {
-        sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
-      }
-
+      localStorage.setItem('tb_auth_user', JSON.stringify(user));
       notifyAuth(user);
-      notifyStatus(true, `Sesión iniciada: ${user.email}`);
+      notifyStatus(true, `Cuenta registrada: ${user.email}`);
       return { success: true, user };
     } catch (err) {
-      console.error('Error al iniciar sesión:', err);
+      console.error('Error al registrar usuario:', err);
       return {
         success: false,
-        error: 'No se pudo conectar con los servidores de Firebase. Verifique su conexión a internet.'
+        error: 'No se pudo conectar con Firebase para registrar la cuenta.'
       };
     }
+  }
+
+  /**
+   * Acceso de emergencia en Modo Local / Sin Conexión
+   */
+  function loginOffline(email = '') {
+    const user = {
+      email: (email || '').trim() || 'operador.local@totalbeauty.com',
+      localId: 'offline_user',
+      idToken: null,
+      refreshToken: null,
+      expiresAt: Date.now() + 86400000,
+      isOffline: true
+    };
+    sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
+    notifyAuth(user);
+    notifyStatus(false, 'Modo Local / Offline');
+    return { success: true, user };
   }
 
   /**
@@ -635,6 +725,8 @@ const TB_FIREBASE = (function () {
     onConnectionChange,
     // Autenticación
     login,
+    register,
+    loginOffline,
     logout,
     checkSession,
     getCurrentUser,

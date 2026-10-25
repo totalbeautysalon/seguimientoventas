@@ -24,6 +24,16 @@
         <span class="auth-badge">Acceso Seguro &bull; Firebase Authentication</span>
       </div>
 
+      <!-- Pestañas Iniciar Sesión / Registrar Cuenta -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tab-auth-login">Iniciar Sesión</button>
+        <button type="button" class="auth-tab-btn" id="tab-auth-register">Registrar Cuenta</button>
+      </div>
+
+      <div id="auth-register-info" style="display:none; font-size:0.8rem; color:var(--muted); margin-bottom:14px; background:#f8fafc; padding:8px 12px; border-radius:4px; border-left:3px solid var(--primary); line-height:1.4;">
+        Cree su usuario con este correo y contraseña para vincularlo a Firebase <strong>totalbregis</strong>. Si ya lo dio de alta, use la pestaña Iniciar Sesión.
+      </div>
+
       <div id="auth-error-box" class="auth-error-box" style="display:none;"></div>
       <div id="auth-success-box" class="auth-success-box" style="display:none;"></div>
 
@@ -57,6 +67,12 @@
           <span id="btn-auth-text">Iniciar Sesión</span>
         </button>
       </form>
+
+      <div style="text-align:center; margin-top:14px;">
+        <button type="button" id="btn-login-offline" style="background:none; border:none; color:var(--muted); font-size:0.75rem; text-decoration:underline; cursor:pointer;">
+          Continuar en Modo Local (sin conexión a Firebase)
+        </button>
+      </div>
 
       <div class="auth-footer-notice">
         Base de Datos: <strong>totalbregis</strong> &bull; Total Beauty Portal Oficial
