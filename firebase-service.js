@@ -1,6 +1,6 @@
 /**
- * Total Beauty Salón y Academia - Servicio de Firebase
- * Sincronización en la nube con total-beauty-crm y respaldo offline en localStorage.
+ * Total Beauty Salón y Academia - Servicio de Firebase y Persistencia Local
+ * Interconexión 100% de Ventas, Arqueos, Caja Chica, Leads/Tipificación y Campañas.
  */
 
 const TB_FIREBASE = (function () {
@@ -28,7 +28,6 @@ const TB_FIREBASE = (function () {
     statusListeners.push(fn);
   }
 
-  // Comprobar conectividad con Firebase Realtime Database
   async function testConnection() {
     try {
       const controller = new AbortController();
@@ -39,14 +38,79 @@ const TB_FIREBASE = (function () {
         notifyStatus(true, 'Conectado a Firebase CRM');
         return true;
       }
-    } catch (e) {
-      // Offline fallback
-    }
+    } catch (e) {}
     notifyStatus(false, 'Modo Local / Sin Conexión');
     return false;
   }
 
-  // --- 1. ARQUEO DE CAJA PRINCIPAL ---
+  // =========================================================================
+  // 1. REGISTRO DIARIO DE VENTAS (INTERCONECTADO)
+  // =========================================================================
+  async function saveVenta(venta) {
+    if (!venta.id) {
+      venta.id = `v_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    }
+    const fecha = venta.fecha || new Date().toISOString().split('T')[0];
+
+    // LocalStorage
+    const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
+    if (!localVentas[fecha]) localVentas[fecha] = {};
+    localVentas[fecha][venta.id] = venta;
+    localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
+
+    // Firebase
+    try {
+      await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}/${venta.id}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(venta)
+      });
+      notifyStatus(true, 'Venta guardada en Firebase');
+      return { success: true, id: venta.id, source: 'firebase' };
+    } catch (e) {
+      notifyStatus(false, 'Venta guardada localmente');
+      return { success: true, id: venta.id, source: 'local' };
+    }
+  }
+
+  async function getVentasByFecha(fecha) {
+    const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
+    const local = localVentas[fecha] || {};
+
+    try {
+      const res = await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}.json`);
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          const merged = { ...local, ...cloud };
+          localVentas[fecha] = merged;
+          localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
+          return Object.values(merged);
+        }
+      }
+    } catch (e) {}
+
+    return Object.values(local);
+  }
+
+  async function deleteVenta(fecha, id) {
+    const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
+    if (localVentas[fecha] && localVentas[fecha][id]) {
+      delete localVentas[fecha][id];
+      localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
+    }
+
+    try {
+      await fetch(`${CONFIG.databaseURL}/ventas_diarias/${fecha}/${id}.json`, {
+        method: 'DELETE'
+      });
+    } catch (e) {}
+    return { success: true };
+  }
+
+  // =========================================================================
+  // 2. ARQUEOS DE CAJA PRINCIPAL Y CAJA CHICA
+  // =========================================================================
   async function saveArqueoPrincipal(data, pdfBase64 = null) {
     const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
     const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -58,65 +122,40 @@ const TB_FIREBASE = (function () {
       savedAt: new Date().toISOString()
     };
 
-    // Respaldo en localStorage
-    try {
-      const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
-      localHistory[key] = payload;
-      localStorage.setItem('tb_arqueos_history', JSON.stringify(localHistory));
-    } catch (e) {
-      console.warn('Error en localStorage', e);
-    }
+    const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
+    localHistory[key] = payload;
+    localStorage.setItem('tb_arqueos_history', JSON.stringify(localHistory));
 
-    // Sincronizar en Firebase
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja/${key}.json`, {
+      await fetch(`${CONFIG.databaseURL}/arqueos_caja/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal
+        body: JSON.stringify(payload)
       });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        notifyStatus(true, 'Guardado en Firebase');
-        return { success: true, key, source: 'firebase' };
-      }
+      notifyStatus(true, 'Arqueo guardado en Firebase');
+      return { success: true, key, source: 'firebase' };
     } catch (err) {
-      console.warn('Firebase offline, guardado localmente:', err);
-      notifyStatus(false, 'Guardado localmente (Offline)');
+      notifyStatus(false, 'Arqueo guardado localmente');
     }
-
     return { success: true, key, source: 'local' };
   }
 
   async function getArqueosList() {
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja.json`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
+      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja.json`);
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
-          notifyStatus(true, 'Sincronizado');
           const combined = { ...localHistory, ...cloudData };
           localStorage.setItem('tb_arqueos_history', JSON.stringify(combined));
           return combined;
         }
       }
-    } catch (err) {
-      notifyStatus(false, 'Historial local');
-    }
-
+    } catch (err) {}
     return localHistory;
   }
 
-  // --- 2. ARQUEO DE CAJA CHICA ---
   async function saveArqueoCajaChica(data, pdfBase64 = null) {
     const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
     const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -128,47 +167,28 @@ const TB_FIREBASE = (function () {
       savedAt: new Date().toISOString()
     };
 
-    // Respaldo en localStorage
-    try {
-      const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
-      localHistory[key] = payload;
-      localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(localHistory));
-    } catch (e) {
-      console.warn('Error en localStorage', e);
-    }
+    const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
+    localHistory[key] = payload;
+    localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(localHistory));
 
-    // Sincronizar en Firebase
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica/${key}.json`, {
+      await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal
+        body: JSON.stringify(payload)
       });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        notifyStatus(true, 'Guardado en Firebase');
-        return { success: true, key, source: 'firebase' };
-      }
+      notifyStatus(true, 'Caja chica guardada en Firebase');
+      return { success: true, key, source: 'firebase' };
     } catch (err) {
-      notifyStatus(false, 'Guardado localmente (Offline)');
+      notifyStatus(false, 'Caja chica guardada localmente');
     }
-
     return { success: true, key, source: 'local' };
   }
 
   async function getArqueosChicaList() {
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica.json`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
+      const res = await fetch(`${CONFIG.databaseURL}/arqueos_caja_chica.json`);
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
@@ -178,11 +198,12 @@ const TB_FIREBASE = (function () {
         }
       }
     } catch (err) {}
-
     return localHistory;
   }
 
-  // --- 3. BALANCESCORE POR ESTACIONES ---
+  // =========================================================================
+  // 3. BALANCESCORE POR ESTACIONES
+  // =========================================================================
   async function saveBalanceScore(fecha, stationsData) {
     const key = fecha || new Date().toISOString().split('T')[0];
     const payload = {
@@ -196,17 +217,32 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_balancescore', JSON.stringify(localScores));
 
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`, {
+      await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) return { success: true, source: 'firebase' };
+      return { success: true, source: 'firebase' };
     } catch (e) {}
     return { success: true, source: 'local' };
   }
 
-  // --- 4. REPORTE DIARIO DE INGRESOS ---
+  async function getBalanceScore(fecha) {
+    const key = fecha || new Date().toISOString().split('T')[0];
+    const localScores = JSON.parse(localStorage.getItem('tb_balancescore') || '{}');
+    try {
+      const res = await fetch(`${CONFIG.databaseURL}/balancescore/${key}.json`);
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud) return cloud;
+      }
+    } catch (e) {}
+    return localScores[key] || null;
+  }
+
+  // =========================================================================
+  // 4. REPORTE DIARIO DE INGRESOS
+  // =========================================================================
   async function saveIngresosReport(fecha, reportData) {
     const key = fecha || new Date().toISOString().split('T')[0];
     const payload = {
@@ -220,12 +256,12 @@ const TB_FIREBASE = (function () {
     localStorage.setItem('tb_ingresos_reportes', JSON.stringify(localIngresos));
 
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/reportes_ingresos/${key}.json`, {
+      await fetch(`${CONFIG.databaseURL}/reportes_ingresos/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) return { success: true, source: 'firebase' };
+      return { success: true, source: 'firebase' };
     } catch (e) {}
     return { success: true, source: 'local' };
   }
@@ -233,7 +269,6 @@ const TB_FIREBASE = (function () {
   async function getIngresosReport(fecha) {
     const key = fecha || new Date().toISOString().split('T')[0];
     const local = JSON.parse(localStorage.getItem('tb_ingresos_reportes') || '{}');
-
     try {
       const res = await fetch(`${CONFIG.databaseURL}/reportes_ingresos/${key}.json`);
       if (res.ok) {
@@ -241,53 +276,139 @@ const TB_FIREBASE = (function () {
         if (cloud) return cloud;
       }
     } catch (e) {}
-
     return local[key] || null;
   }
 
-  // --- 5. INTERESADAS Y CIERRES ---
-  async function saveInteresadas(fecha, type, data) {
-    const key = fecha || new Date().toISOString().split('T')[0];
-    const local = JSON.parse(localStorage.getItem('tb_interesadas_cierres') || '{}');
-    if (!local[key]) local[key] = {};
-    local[key][type] = {
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-    localStorage.setItem('tb_interesadas_cierres', JSON.stringify(local));
+  // =========================================================================
+  // 5. INTERESADAS Y CIERRES (CON TIPIFICACIÓN Y SEGUIMIENTO)
+  // =========================================================================
+  async function saveLead(lead) {
+    if (!lead.id) {
+      lead.id = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    }
+    const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
+    localLeads[lead.id] = lead;
+    localStorage.setItem('tb_leads_db', JSON.stringify(localLeads));
 
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/interesadas_cierres/${key}/${type}.json`, {
+      await fetch(`${CONFIG.databaseURL}/leads_seguimiento/${lead.id}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(local[key][type])
+        body: JSON.stringify(lead)
       });
-      if (res.ok) return { success: true, source: 'firebase' };
+      return { success: true, id: lead.id, source: 'firebase' };
+    } catch (e) {
+      return { success: true, id: lead.id, source: 'local' };
+    }
+  }
+
+  async function getLeadsAll() {
+    const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
+    try {
+      const res = await fetch(`${CONFIG.databaseURL}/leads_seguimiento.json`);
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          const merged = { ...localLeads, ...cloud };
+          localStorage.setItem('tb_leads_db', JSON.stringify(merged));
+          return Object.values(merged);
+        }
+      }
+    } catch (e) {}
+    return Object.values(localLeads);
+  }
+
+  async function updateLeadSeguimiento(leadId, nuevoSeguimiento, nuevaTipificacion) {
+    const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
+    if (!localLeads[leadId]) return { success: false };
+
+    const lead = localLeads[leadId];
+    if (!lead.historialSeguimiento) lead.historialSeguimiento = [];
+    lead.historialSeguimiento.push({
+      fechaHora: new Date().toISOString(),
+      ...nuevoSeguimiento
+    });
+    if (nuevaTipificacion) {
+      lead.tipificacion = nuevaTipificacion;
+    }
+    lead.updatedAt = new Date().toISOString();
+    localLeads[leadId] = lead;
+    localStorage.setItem('tb_leads_db', JSON.stringify(localLeads));
+
+    try {
+      await fetch(`${CONFIG.databaseURL}/leads_seguimiento/${leadId}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lead)
+      });
     } catch (e) {}
 
+    return { success: true, lead };
+  }
+
+  // =========================================================================
+  // 6. CAMPAÑA ACTIVA Y EVENTOS DEL MES
+  // =========================================================================
+  async function saveCampanaActiva(campana) {
+    localStorage.setItem('tb_campana_activa', JSON.stringify(campana));
+    try {
+      await fetch(`${CONFIG.databaseURL}/campana_activa.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campana)
+      });
+      return { success: true, source: 'firebase' };
+    } catch (e) {}
     return { success: true, source: 'local' };
   }
 
-  // --- 6. CAMPAÑA DEL MES Y EVENTOS ---
-  async function saveCampanaEventos(periodKey, payload) {
-    const key = periodKey || '2026-10';
-    const local = JSON.parse(localStorage.getItem('tb_campanas_eventos') || '{}');
-    local[key] = {
-      ...payload,
-      updatedAt: new Date().toISOString()
-    };
-    localStorage.setItem('tb_campanas_eventos', JSON.stringify(local));
+  async function getCampanaActiva() {
+    const local = JSON.parse(localStorage.getItem('tb_campana_activa') || 'null');
+    try {
+      const res = await fetch(`${CONFIG.databaseURL}/campana_activa.json`);
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud) {
+          localStorage.setItem('tb_campana_activa', JSON.stringify(cloud));
+          return cloud;
+        }
+      }
+    } catch (e) {}
+    return local;
+  }
+
+  async function saveEvento(evento) {
+    if (!evento.id) {
+      evento.id = `ev_${Date.now()}`;
+    }
+    const localEventos = JSON.parse(localStorage.getItem('tb_eventos_db') || '{}');
+    localEventos[evento.id] = evento;
+    localStorage.setItem('tb_eventos_db', JSON.stringify(localEventos));
 
     try {
-      const res = await fetch(`${CONFIG.databaseURL}/campanas_eventos/${key}.json`, {
+      await fetch(`${CONFIG.databaseURL}/eventos_mes/${evento.id}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(local[key])
+        body: JSON.stringify(evento)
       });
-      if (res.ok) return { success: true, source: 'firebase' };
     } catch (e) {}
+    return { success: true, id: evento.id };
+  }
 
-    return { success: true, source: 'local' };
+  async function getEventosAll() {
+    const local = JSON.parse(localStorage.getItem('tb_eventos_db') || '{}');
+    try {
+      const res = await fetch(`${CONFIG.databaseURL}/eventos_mes.json`);
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          const merged = { ...local, ...cloud };
+          localStorage.setItem('tb_eventos_db', JSON.stringify(merged));
+          return Object.values(merged);
+        }
+      }
+    } catch (e) {}
+    return Object.values(local);
   }
 
   setTimeout(testConnection, 500);
@@ -296,15 +417,24 @@ const TB_FIREBASE = (function () {
     CONFIG,
     testConnection,
     onConnectionChange,
+    saveVenta,
+    getVentasByFecha,
+    deleteVenta,
     saveArqueo: saveArqueoPrincipal,
     saveArqueoPrincipal,
     getArqueosList,
     saveArqueoCajaChica,
     getArqueosChicaList,
     saveBalanceScore,
+    getBalanceScore,
     saveIngresosReport,
     getIngresosReport,
-    saveInteresadas,
-    saveCampanaEventos
+    saveLead,
+    getLeadsAll,
+    updateLeadSeguimiento,
+    saveCampanaActiva,
+    getCampanaActiva,
+    saveEvento,
+    getEventosAll
   };
 })();

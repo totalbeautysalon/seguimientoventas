@@ -47,6 +47,14 @@
           </a>
         </li>
 
+        <li class="sidebar-menu-category">Registro Diario</li>
+        <li>
+          <a class="menu-item-link" data-module="ventas">
+            <span class="menu-icon">💰</span>
+            <span>Registro Diario de Ventas</span>
+          </a>
+        </li>
+
         <li class="sidebar-menu-category">Rendimiento Operativo</li>
         <li>
           <a class="menu-item-link" data-module="balancescore">
@@ -975,6 +983,209 @@
       </section>
 
       <!-- ================================================================
+           MÓDULO: REGISTRO DIARIO DE VENTAS (100% INTERCONECTADO)
+           ================================================================ -->
+      <section class="module-view" id="view-ventas">
+
+        <!-- Barra de Filtros y Acciones -->
+        <div class="filter-bar">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label for="ventas_filtro_fecha" style="font-weight:700; color:var(--dark);">Fecha de Ventas:</label>
+            <input type="date" id="ventas_filtro_fecha" class="input-date" style="max-width:180px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-ventas-hoy">Hoy</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-ventas-caja">
+              <span>🔄</span> Pasar a Caja Principal
+            </button>
+          </div>
+        </div>
+
+        <!-- KPIs Resumen de Ventas del Día -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">Total Cobrado Hoy</span>
+            <span class="kpi-value" id="kpi-ventas-total">$0.00</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Ventas en Efectivo</span>
+            <span class="kpi-value" id="kpi-ventas-efectivo">$0.00</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Ventas con Tarjeta</span>
+            <span class="kpi-value" id="kpi-ventas-tarjeta">$0.00</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Transferencias</span>
+            <span class="kpi-value" id="kpi-ventas-transf">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Formulario de Registro de Nueva Venta -->
+        <div class="ventas-form-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Registrar Nueva Venta del Día
+              </h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Los campos marcados con asterisco (<span class="required">*</span>) son obligatorios.</p>
+            </div>
+            <span class="kpi-status-badge badge-cuadrada" id="ventas-badge-operaciones">0 Operaciones</span>
+          </div>
+
+          <form id="form-nueva-venta" autocomplete="off">
+            <div class="ventas-form-grid">
+              
+              <div class="form-group">
+                <label for="venta_fecha">Fecha <span class="required">*</span></label>
+                <input type="date" id="venta_fecha" class="input-date" required>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_telefono">Teléfono <span class="required">*</span></label>
+                <input type="tel" id="venta_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678" required>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_clienta">Nombre de la clienta</label>
+                <input type="text" id="venta_clienta" class="input-text" placeholder="Nombre completo (opcional)">
+              </div>
+
+              <div class="form-group">
+                <label for="venta_servicio">Servicio o producto <span class="required">*</span></label>
+                <input type="text" id="venta_servicio" class="input-text" placeholder="Ej. Balayage, Uñas Acrílicas, Curso..." required list="lista-servicios-populares">
+                <datalist id="lista-servicios-populares">
+                  <option value="Balayage Completo + Matiz">
+                  <option value="Tinte Global y Tratamiento">
+                  <option value="Corte de Cabello y Planchado">
+                  <option value="Uñas Esculturales Acrílicas">
+                  <option value="Gelish Manos y Pies">
+                  <option value="Maquillaje Profesional y Peinado">
+                  <option value="Laminado de Cejas y Pestañas">
+                  <option value="Pedicure Spa Profundo">
+                  <option value="Limpieza Facial Hidratante">
+                  <option value="Inscripción Curso Uñas Academia">
+                  <option value="Inscripción Curso Colorimetría">
+                  <option value="Shampoo y Mascarilla Post-Color">
+                </datalist>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_estacion">Estación <span class="required">*</span></label>
+                <select id="venta_estacion" class="input-text" required>
+                  <option value="" disabled selected>Seleccione la estación...</option>
+                  <option value="Cabello">💇‍♀️ Cabello & Colorimetría</option>
+                  <option value="Uñas">💅 Uñas & Manicure</option>
+                  <option value="Maquillaje">💄 Maquillaje Profesional</option>
+                  <option value="Pestañas">👁️ Lash & Brow (Pestañas/Cejas)</option>
+                  <option value="Pedicure">🦶 Pedicure & Spa</option>
+                  <option value="Facial">✨ Cabina Facial</option>
+                  <option value="Academia">🎓 Academia Total Beauty</option>
+                  <option value="Retail">🛍️ Venta de Productos / Retail</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_especialista">Especialista <span class="required">*</span></label>
+                <input type="text" id="venta_especialista" class="input-text" placeholder="Nombre de quien atendió" required>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_metodo_pago">Método de pago <span class="required">*</span></label>
+                <select id="venta_metodo_pago" class="input-text" required>
+                  <option value="Efectivo" selected>💵 Efectivo</option>
+                  <option value="Tarjeta">💳 Tarjeta / Terminal</option>
+                  <option value="Transferencia">📱 Transferencia Bancaria</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_total">Total cobrado <span class="required">*</span></label>
+                <div class="currency-input-wrap">
+                  <span class="currency-prefix">$</span>
+                  <input type="number" step="0.01" min="0" class="input-currency" id="venta_total" placeholder="0.00" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="venta_status_pago">Status del pago <span class="required">*</span></label>
+                <select id="venta_status_pago" class="input-text" required>
+                  <option value="Pagado completo" selected>✅ Pagado completo</option>
+                  <option value="Anticipo">🟡 Anticipo</option>
+                  <option value="Saldo pendiente">🔴 Saldo pendiente</option>
+                </select>
+              </div>
+
+              <div class="form-group form-group-full">
+                <label for="venta_notas">Notas</label>
+                <input type="text" id="venta_notas" class="input-text" placeholder="Observaciones adicionales, saldo pendiente a liquidar, promociones aplicadas...">
+              </div>
+
+            </div>
+
+            <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+              <button type="reset" class="btn btn-secondary btn-sm" id="btn-limpiar-form-venta">Limpiar</button>
+              <button type="submit" class="btn btn-primary" id="btn-guardar-venta">
+                <span>💾</span> Guardar Venta
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tabla de Ventas Registradas para el Día -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <span class="section-badge">VT</span>
+              <div>
+                <h2 class="section-title">Listado de Ventas Registradas</h2>
+                <span class="section-subtitle">Ventas registradas en Firebase para la fecha seleccionada</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-ventas">
+              <span>🔄</span> Recargar Ventas
+            </button>
+          </div>
+          <div class="section-body">
+            <div class="table-responsive">
+              <table class="tb-table">
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Clienta</th>
+                    <th>Teléfono</th>
+                    <th>Servicio / Producto</th>
+                    <th>Estación</th>
+                    <th>Especialista</th>
+                    <th>Método</th>
+                    <th>Status</th>
+                    <th class="text-right">Total Cobrado</th>
+                    <th style="width:50px; text-align:center;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-ventas">
+                  <tr>
+                    <td colspan="10" class="table-empty-notice">
+                      <span>📂</span>
+                      No hay ventas registradas para este día. Registre una nueva venta arriba.
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="8">TOTAL DEL DÍA</td>
+                    <td class="text-right" id="tabla-ventas-gran-total" style="font-weight:800; font-size:1.05rem; color:var(--primary);">$0.00</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================
            MÓDULO 4: BALANCESCORE POR ESTACIONES
            ================================================================ -->
       <section class="module-view" id="view-balancescore">
@@ -1055,101 +1266,514 @@
       </section>
 
       <!-- ================================================================
-           MÓDULO 6: INTERESADAS, SOLO PREGUNTAN Y CIERRES
+           MÓDULO 6: INTERESADAS, SOLO PREGUNTAN Y CIERRES (3 OPCIONES)
            ================================================================ -->
       <section class="module-view" id="view-interesadas">
-        <div class="filter-bar">
-          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label for="lead_fecha" style="font-weight:700; color:var(--dark);">Fecha:</label>
-            <input type="date" id="lead_fecha" class="input-date" style="max-width:200px;">
-          </div>
-          <button type="button" class="btn btn-firebase btn-sm" id="btn-save-leads">
-            <span>💾</span> Guardar en Firebase
+
+        <!-- Selector de las 3 opciones requeridas -->
+        <div class="options-nav-pills">
+          <button type="button" class="option-pill active" id="btn-lead-opt-1" data-opt="1">
+            <span>➕</span> Opción 1: Nuevo Registro & Tipificación
+          </button>
+          <button type="button" class="option-pill" id="btn-lead-opt-2" data-opt="2">
+            <span>📋</span> Opción 2: Seguimiento en Tipificación (Llamada / WhatsApp)
+          </button>
+          <button type="button" class="option-pill" id="btn-lead-opt-3" data-opt="3">
+            <span>📊</span> Opción 3: BalanceScore de Conversión
           </button>
         </div>
 
-        <div class="subtabs-nav">
-          <button type="button" class="subtab-btn active" id="btn-subtab-salon"><span>💇‍♀️</span> Salón de Belleza</button>
-          <button type="button" class="subtab-btn" id="btn-subtab-academia"><span>🎓</span> Academia de Belleza</button>
+        <!-- ==============================================================
+             OPCIÓN 1: FORMULARIO DE NUEVO REGISTRO DE INTERESADA
+             ============================================================== -->
+        <div class="lead-subview active-subview" id="lead-subview-1">
+          <div class="ventas-form-card">
+            <div style="margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+              <h3 style="font-size:1.1rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Registrar Persona Interesada y Tipificación Inicial
+              </h3>
+              <p style="font-size:0.82rem; color:var(--muted); margin-top:2px;">
+                Ingrese los datos del prospecto para iniciar el seguimiento y alimentar las métricas en tiempo real.
+              </p>
+            </div>
+
+            <form id="form-nuevo-lead" autocomplete="off">
+              <div class="ventas-form-grid">
+                
+                <div class="form-group">
+                  <label for="lead_reg_fecha">Fecha de Contacto <span class="required">*</span></label>
+                  <input type="date" id="lead_reg_fecha" class="input-date" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_nombre">Nombre de la Persona <span class="required">*</span></label>
+                  <input type="text" id="lead_reg_nombre" class="input-text" placeholder="Nombre completo" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_telefono">Teléfono WhatsApp <span class="required">*</span></label>
+                  <input type="tel" id="lead_reg_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_unidad">Unidad de Negocio <span class="required">*</span></label>
+                  <select id="lead_reg_unidad" class="input-text" required>
+                    <option value="Salón de Belleza" selected>💇‍♀️ Salón de Belleza</option>
+                    <option value="Academia Total Beauty">🎓 Academia Total Beauty</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_servicio">Servicio o Curso de Interés <span class="required">*</span></label>
+                  <input type="text" id="lead_reg_servicio" class="input-text" placeholder="Ej. Balayage, Uñas, Curso Colorimetría..." required list="lista-servicios-lead">
+                  <datalist id="lista-servicios-lead">
+                    <option value="Balayage y Colorimetría">
+                    <option value="Uñas Acrílicas y Gelish">
+                    <option value="Maquillaje y Peinado Social">
+                    <option value="Lash & Brow / Pestañas">
+                    <option value="Pedicure Spa">
+                    <option value="Tratamiento Facial">
+                    <option value="Curso de Uñas Acrílicas (Academia)">
+                    <option value="Curso de Colorimetría Básica / Avanzada (Academia)">
+                    <option value="Diplomado Integral de Belleza (Academia)">
+                  </datalist>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_canal">Canal de Captación <span class="required">*</span></label>
+                  <select id="lead_reg_canal" class="input-text" required>
+                    <option value="WhatsApp" selected>📱 WhatsApp Directo</option>
+                    <option value="Instagram">📸 Instagram (@totalbeauty)</option>
+                    <option value="Facebook">👥 Facebook</option>
+                    <option value="TikTok">🎵 TikTok</option>
+                    <option value="Recomendación">⭐ Recomendación de Clienta</option>
+                    <option value="Mostrador">🚪 Mostrador / Visita a Sucursal</option>
+                    <option value="Otro">🌐 Otro Medio</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_tipificacion">Tipificación Inicial <span class="required">*</span></label>
+                  <select id="lead_reg_tipificacion" class="input-text" required>
+                    <option value="Interesada" selected>🔵 Interesada (Pide informes completos)</option>
+                    <option value="Solo pregunta">🟡 Solo pregunta (Pregunta precio y no responde más)</option>
+                    <option value="En seguimiento">🟣 En seguimiento (Por confirmar cita o pago)</option>
+                    <option value="Cierre">🟢 Cierre - Agendada / Pagó anticipo</option>
+                    <option value="No interesada">⚪ No interesada (Fuera de presupuesto / horario)</option>
+                  </select>
+                </div>
+
+                <div class="form-group form-group-full">
+                  <label for="lead_reg_notas">Notas / Objeciones / Seguimiento</label>
+                  <textarea id="lead_reg_notas" class="textarea-custom" style="min-height:60px;" placeholder="Detalles de la conversación, disponibilidad de horario de la clienta, dudas pendientes..."></textarea>
+                </div>
+
+              </div>
+
+              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
+                <button type="submit" class="btn btn-firebase" id="btn-submit-lead">
+                  <span>💾</span> Guardar Interesada en Firebase
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        <div class="funnel-grid">
+        <!-- ==============================================================
+             OPCIÓN 2: SEGUIMIENTO DE REGISTROS (LLAMADA O MENSAJE WHATSAPP)
+             ============================================================== -->
+        <div class="lead-subview" id="lead-subview-2" style="display:none;">
+          
+          <div class="filter-bar">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <label for="filtro_lead_tipif" style="font-weight:700; color:var(--dark);">Filtrar por Status:</label>
+              <select id="filtro_lead_tipif" class="input-text" style="max-width:180px; padding:6px 10px;">
+                <option value="TODAS">Todas las Tipificaciones</option>
+                <option value="Interesada">🔵 Interesadas</option>
+                <option value="Solo pregunta">🟡 Solo Preguntan</option>
+                <option value="En seguimiento">🟣 En Seguimiento</option>
+                <option value="Cierre">🟢 Cierres Concretados</option>
+                <option value="No interesada">⚪ No Interesadas</option>
+              </select>
+
+              <label for="filtro_lead_unidad" style="font-weight:700; color:var(--dark); margin-left:8px;">Unidad:</label>
+              <select id="filtro_lead_unidad" class="input-text" style="max-width:160px; padding:6px 10px;">
+                <option value="TODAS">Salón y Academia</option>
+                <option value="Salón de Belleza">💇‍♀️ Salón</option>
+                <option value="Academia Total Beauty">🎓 Academia</option>
+              </select>
+
+              <input type="text" id="buscador_leads" class="input-text" placeholder="Buscar por nombre o teléfono..." style="max-width:220px; padding:6px 10px;">
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-leads">
+              <span>🔄</span> Recargar Leads
+            </button>
+          </div>
+
           <div class="form-section">
-            <div class="section-header"><h2 class="section-title" id="lead-form-title">Registro Diario - Salón de Belleza</h2></div>
+            <div class="section-header">
+              <div class="section-title-wrap">
+                <span class="section-badge">🎯</span>
+                <div>
+                  <h2 class="section-title">Directorio de Seguimiento y Tipificación</h2>
+                  <span class="section-subtitle">Contacte por WhatsApp o llamada y actualice el status al instante</span>
+                </div>
+              </div>
+              <span class="kpi-status-badge badge-cuadrada" id="lead-counter-badge">0 Registros</span>
+            </div>
             <div class="section-body">
-              <div style="display:flex; flex-direction:column; gap:14px;">
-                <div class="form-group">
-                  <label for="lead_totales">Total de Interesadas (Leads atendidas): <span class="required">*</span></label>
-                  <input type="number" min="0" class="input-text lead-calc-trigger" id="lead_totales" value="0">
-                </div>
-                <div class="form-group">
-                  <label for="lead_cierres">Cierres Concretados (Citas con anticipo / Inscritas): <span class="required">*</span></label>
-                  <input type="number" min="0" class="input-text lead-calc-trigger" id="lead_cierres" value="0">
-                </div>
-                <div class="form-group">
-                  <label for="lead_preguntan">Solo Preguntan (No cerradas):</label>
-                  <input type="number" min="0" class="input-text" id="lead_preguntan" value="0" readonly style="background:#f1f5f9; font-weight:700;">
-                </div>
-                <div class="form-group">
-                  <label for="lead_motivos">Principales motivos de no cierre:</label>
-                  <textarea id="lead_motivos" class="textarea-custom" placeholder="Motivos..."></textarea>
-                </div>
+              <div class="table-responsive">
+                <table class="tb-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Nombre</th>
+                      <th>Contacto Directo</th>
+                      <th>Unidad & Servicio</th>
+                      <th>Canal</th>
+                      <th style="width:190px;">Tipificación Actual</th>
+                      <th>Última Nota</th>
+                      <th style="text-align:center; width:60px;">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-leads-seguimiento">
+                    <tr>
+                      <td colspan="8" class="table-empty-notice">
+                        <span>📭</span>
+                        No hay interesadas registradas. Use la Opción 1 para agregar prospectos.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <div class="funnel-visual">
-            <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark);">Embudo de Conversión</h3>
-            <div class="funnel-step step-1"><div><div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">1. Interesadas</div><div style="font-size:1.6rem; font-weight:900;" id="visual-interesadas">0</div></div><span style="font-size:1.8rem;">📥</span></div>
-            <div class="funnel-step step-2"><div><div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">2. Solo Preguntan</div><div style="font-size:1.6rem; font-weight:900;" id="visual-preguntan">0</div></div><span style="font-size:1.8rem;">💬</span></div>
-            <div class="funnel-step step-3"><div><div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">3. Cierres Logrados</div><div style="font-size:1.6rem; font-weight:900;" id="visual-cierres">0</div></div><span style="font-size:1.8rem;">🎯</span></div>
-            <div class="conversion-rate-box">
-              <div style="font-size:0.85rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Efectividad de Conversión</div>
-              <div class="rate-val" id="visual-tasa-conversion">0%</div>
+        </div>
+
+        <!-- ==============================================================
+             OPCIÓN 3: BALANCESCORE Y MÉTRICAS DE CONVERSIÓN COMERCIAL
+             ============================================================== -->
+        <div class="lead-subview" id="lead-subview-3" style="display:none;">
+          
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Total Interesadas</span>
+              <span class="kpi-value" id="kpi-bs-leads-total">0</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Solo Preguntan</span>
+              <span class="kpi-value" style="color:var(--warning);" id="kpi-bs-leads-preguntan">0</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">En Seguimiento</span>
+              <span class="kpi-value" style="color:#7e22ce;" id="kpi-bs-leads-seguimiento">0</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Cierres Concretados</span>
+              <span class="kpi-value" style="color:var(--success);" id="kpi-bs-leads-cierres">0</span>
             </div>
           </div>
+
+          <div class="funnel-grid" style="margin-top:16px;">
+            
+            <!-- Embudo Visual en Tiempo Real -->
+            <div class="funnel-visual" style="border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; background:#fff;">
+              <h3 style="font-size:1.1rem; font-weight:800; color:var(--dark); margin-bottom:14px;">
+                Embudo de Conversión Comercial (Leads Reales)
+              </h3>
+              <div class="funnel-step step-1">
+                <div>
+                  <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">1. Total Interesadas Atendidas</div>
+                  <div style="font-size:1.6rem; font-weight:900;" id="visual-bs-interesadas">0</div>
+                </div>
+                <span style="font-size:1.8rem;">📥</span>
+              </div>
+              <div class="funnel-step step-2">
+                <div>
+                  <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">2. Solo Preguntan (Sin Cierre)</div>
+                  <div style="font-size:1.6rem; font-weight:900;" id="visual-bs-preguntan">0</div>
+                </div>
+                <span style="font-size:1.8rem;">💬</span>
+              </div>
+              <div class="funnel-step" style="background:linear-gradient(135deg, #f3e8ff, #e9d5ff); border-color:#d8b4fe;">
+                <div>
+                  <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:#581c87;">3. En Seguimiento Activo</div>
+                  <div style="font-size:1.6rem; font-weight:900; color:#6b21a8;" id="visual-bs-seguimiento">0</div>
+                </div>
+                <span style="font-size:1.8rem;">🔄</span>
+              </div>
+              <div class="funnel-step step-3">
+                <div>
+                  <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700;">4. Cierres Logrados (Citas / Alumnas)</div>
+                  <div style="font-size:1.6rem; font-weight:900;" id="visual-bs-cierres">0</div>
+                </div>
+                <span style="font-size:1.8rem;">🎯</span>
+              </div>
+
+              <div class="conversion-rate-box">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Tasa de Conversión Global</div>
+                <div class="rate-val" id="visual-bs-tasa">0%</div>
+              </div>
+            </div>
+
+            <!-- Desglose por Unidad y Canal -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div class="form-section" style="margin-bottom:0;">
+                <div class="section-header">
+                  <h2 class="section-title">Conversión por Unidad de Negocio</h2>
+                </div>
+                <div class="section-body">
+                  <div class="table-responsive">
+                    <table class="tb-table">
+                      <thead>
+                        <tr>
+                          <th>Unidad</th>
+                          <th class="text-right">Leads</th>
+                          <th class="text-right">Cierres</th>
+                          <th class="text-right">% Conversión</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>💇‍♀️ Salón de Belleza</td>
+                          <td class="text-right" id="bs-salon-leads">0</td>
+                          <td class="text-right" id="bs-salon-cierres">0</td>
+                          <td class="text-right" style="font-weight:700; color:var(--success);" id="bs-salon-tasa">0%</td>
+                        </tr>
+                        <tr>
+                          <td>🎓 Academia Total Beauty</td>
+                          <td class="text-right" id="bs-academia-leads">0</td>
+                          <td class="text-right" id="bs-academia-cierres">0</td>
+                          <td class="text-right" style="font-weight:700; color:var(--success);" id="bs-academia-tasa">0%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-section" style="margin-bottom:0;">
+                <div class="section-header">
+                  <h2 class="section-title">Efectividad por Canal de Captación</h2>
+                </div>
+                <div class="section-body">
+                  <div class="table-responsive">
+                    <table class="tb-table">
+                      <thead>
+                        <tr>
+                          <th>Canal</th>
+                          <th class="text-right">Interesadas</th>
+                          <th class="text-right">Cierres</th>
+                          <th class="text-right">% Éxito</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbody-bs-canales">
+                        <tr>
+                          <td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">Sin datos suficientes</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
+
       </section>
 
       <!-- ================================================================
-           MÓDULO 7: CAMPAÑA DEL MES Y EVENTOS
+           MÓDULO 7: CAMPAÑA ACTIVA Y EVENTOS DEL MES
            ================================================================ -->
       <section class="module-view" id="view-campana">
-        <div class="campaign-hero">
-          <div>
-            <span style="background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; text-transform:uppercase;">Campaña Activa &bull; Octubre - Noviembre 2026</span>
-            <h2 id="campana-nombre-display">OCTUBRE ROSA & TEMPORADA DE GRADUACIONES</h2>
-            <p id="campana-desc-display">Promoción estelar de Balayage, Uñas Acrílicas y Cursos de Academia.</p>
+
+        <!-- Banner y Métricas de la Campaña Activa ("Ver cómo está funcionando") -->
+        <div class="campana-dashboard-card" id="campana-dashboard-container">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+            <div>
+              <span class="kpi-status-badge badge-cuadrada" id="campana-badge-vigencia">Campaña Activa</span>
+              <h2 style="font-size:1.4rem; font-weight:800; color:var(--primary); margin-top:6px;" id="campana-titulo-display">
+                Sin Campaña Configurada
+              </h2>
+              <p style="font-size:0.88rem; color:var(--slate); margin-top:2px;" id="campana-periodo-display">
+                Configure su campaña activa para medir el progreso en tiempo real contra las ventas registradas.
+              </p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-config-campana">
+              <span>✏️</span> Configurar Campaña Activa
+            </button>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-campana"><span>✏️</span> Editar Campaña</button>
+
+          <!-- Medidor de Avance contra Ventas Reales -->
+          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-weight:700; color:var(--dark); font-size:0.95rem;">Progreso de Ingresos vs Meta:</span>
+              <span style="font-weight:800; font-size:1.15rem; color:var(--primary);" id="campana-progreso-texto">$0.00 / $0.00 (0%)</span>
+            </div>
+            <div class="campana-progress-bar-wrap">
+              <div class="campana-progress-bar-fill" id="campana-progress-bar-fill" style="width:0%;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--muted); margin-top:4px;">
+              <span id="campana-dias-restantes">Días restantes: 0</span>
+              <span id="campana-ventas-periodo-count">0 ventas contabilizadas en el período</span>
+            </div>
+          </div>
+
+          <!-- Metas Específicas de Salón y Academia -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div class="kpi-card">
+              <span class="kpi-label">Meta Clientas Salón</span>
+              <span class="kpi-value" id="campana-metric-salon">0 / 0</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Meta Alumnas Academia</span>
+              <span class="kpi-value" id="campana-metric-academia">0 / 0</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Ticket Promedio Campaña</span>
+              <span class="kpi-value" id="campana-metric-ticket">$0.00</span>
+            </div>
+          </div>
         </div>
 
+        <!-- Formulario para Ingresar / Actualizar Campaña Activa -->
+        <div class="ventas-form-card" id="form-config-campana-wrap" style="display:none;">
+          <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark);">
+              <span>🎯</span> Ingresar / Editar Campaña Activa
+            </h3>
+            <p style="font-size:0.8rem; color:var(--muted);">Defina los objetivos del mes para monitorear el desempeño automáticamente.</p>
+          </div>
+
+          <form id="form-campana-activa" autocomplete="off">
+            <div class="ventas-form-grid">
+              
+              <div class="form-group form-group-full">
+                <label for="cfg_campana_nombre">Nombre de la Campaña <span class="required">*</span></label>
+                <input type="text" id="cfg_campana_nombre" class="input-text" placeholder="Ej. Temporada Graduaciones & Cursos de Verano" required>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg_campana_inicio">Fecha de Inicio <span class="required">*</span></label>
+                <input type="date" id="cfg_campana_inicio" class="input-date" required>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg_campana_fin">Fecha de Término <span class="required">*</span></label>
+                <input type="date" id="cfg_campana_fin" class="input-date" required>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg_campana_meta_ingreso">Meta de Ingresos ($) <span class="required">*</span></label>
+                <div class="currency-input-wrap">
+                  <span class="currency-prefix">$</span>
+                  <input type="number" step="100" min="0" class="input-currency" id="cfg_campana_meta_ingreso" placeholder="0.00" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg_campana_meta_salon">Meta Clientas Salón</label>
+                <input type="number" min="0" class="input-text" id="cfg_campana_meta_salon" placeholder="Ej. 100">
+              </div>
+
+              <div class="form-group">
+                <label for="cfg_campana_meta_academia">Meta Alumnas Academia</label>
+                <input type="number" min="0" class="input-text" id="cfg_campana_meta_academia" placeholder="Ej. 25">
+              </div>
+
+              <div class="form-group form-group-full">
+                <label for="cfg_campana_promociones">Paquetes Autorizados & Promociones</label>
+                <textarea id="cfg_campana_promociones" class="textarea-custom" style="min-height:70px;" placeholder="Detalle los paquetes autorizados, precios especiales y condiciones..."></textarea>
+              </div>
+
+            </div>
+
+            <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-config-campana">Cancelar</button>
+              <button type="submit" class="btn btn-firebase">
+                <span>💾</span> Guardar Campaña en Firebase
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Paquetes y Eventos del Mes -->
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px;">
+          
+          <!-- Paquetes Vigentes Mostrados Dinámicamente -->
           <div class="form-section">
-            <div class="section-header"><h2 class="section-title">Paquetes y Promociones Autorizadas</h2></div>
-            <div class="section-body">
-              <div style="display:flex; flex-direction:column; gap:12px;">
-                <div style="border:1px solid var(--border); padding:12px; border-radius:var(--radius-sm); background:#fafafa;">
-                  <div style="font-weight:700; color:var(--primary);">🌟 Paquete Balayage Glow + Tratamiento</div>
-                  <div style="font-size:0.85rem; color:var(--slate);">Balayage completo + matiz + sellado + planchado.</div>
-                  <div style="font-weight:800; color:var(--dark); margin-top:4px;">Precio Especial: $1,850.00</div>
-                </div>
-                <div style="border:1px solid var(--border); padding:12px; border-radius:var(--radius-sm); background:#fafafa;">
-                  <div style="font-weight:700; color:var(--primary);">💅 Paquete Uñas Esculturales + Gelish Pies</div>
-                  <div style="font-size:0.85rem; color:var(--slate);">Acrílico con diseño a mano alzada + pedicure básico.</div>
-                  <div style="font-weight:800; color:var(--dark); margin-top:4px;">Precio Especial: $650.00</div>
-                </div>
+            <div class="section-header">
+              <h2 class="section-title">Paquetes y Promociones Activas</h2>
+            </div>
+            <div class="section-body" id="campana-paquetes-display-container">
+              <div class="table-empty-notice" style="padding:24px 10px;">
+                <span>🏷️</span>
+                No hay promociones registradas para esta campaña. Configure la campaña arriba para agregarlas.
               </div>
             </div>
           </div>
 
+          <!-- Eventos y Fechas Clave del Mes -->
           <div class="form-section">
-            <div class="section-header"><h2 class="section-title">Eventos y Fechas Clave del Mes</h2><button type="button" class="btn btn-secondary btn-sm" id="btn-add-event"><span>➕</span> Nuevo Evento</button></div>
+            <div class="section-header">
+              <h2 class="section-title">Eventos del Mes</h2>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-nuevo-evento">
+                <span>➕</span> Nuevo Evento
+              </button>
+            </div>
             <div class="section-body">
-              <div class="events-timeline" id="events-timeline-container"></div>
+              
+              <!-- Formulario de nuevo evento colapsable -->
+              <div id="form-nuevo-evento-wrap" style="display:none; background:#f8fafc; border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:14px;">
+                <form id="form-nuevo-evento" autocomplete="off">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                    <div class="form-group">
+                      <label for="ev_fecha">Fecha <span class="required">*</span></label>
+                      <input type="date" id="ev_fecha" class="input-date" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="ev_tipo">Tipo de Evento</label>
+                      <select id="ev_tipo" class="input-text">
+                        <option value="Salón">💇‍♀️ Salón</option>
+                        <option value="Academia">🎓 Academia</option>
+                        <option value="Administración">💼 Administración</option>
+                        <option value="Promoción">🌟 Promoción Especial</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:10px;">
+                    <label for="ev_titulo">Título del Evento <span class="required">*</span></label>
+                    <input type="text" id="ev_titulo" class="input-text" placeholder="Ej. Inicio de Curso Colorimetría" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom:12px;">
+                    <label for="ev_responsable">Responsable <span class="required">*</span></label>
+                    <input type="text" id="ev_responsable" class="input-text" placeholder="Nombre del responsable" required>
+                  </div>
+                  <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-nuevo-evento">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Guardar Evento</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Listado de eventos -->
+              <div class="events-timeline" id="events-timeline-container">
+                <div class="table-empty-notice" style="padding:24px 10px;">
+                  <span>📅</span>
+                  No hay eventos registrados para este mes. Agregue uno con el botón "+ Nuevo Evento".
+                </div>
+              </div>
+
             </div>
           </div>
+
         </div>
+
       </section>
 
     </div>

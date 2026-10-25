@@ -1157,3 +1157,198 @@ body {
 .pdf-explanation-line { font-size: 8.5pt; margin-top: 4px; margin-bottom: 8px; line-height: 1.6; }
 .pdf-signature-field { margin-bottom: 8px; font-size: 9pt; }
 .pdf-signature-img { max-height: 55px; max-width: 200px; display: block; margin: 4px 0; }
+
+/* ==========================================================================
+   MÓDULO DE VENTAS DIARIAS, INTERESADAS 3-OPCIONES Y CAMPAÑA ACTIVA
+   ========================================================================== */
+.ventas-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.ventas-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.ventas-form-grid .form-group-full {
+  grid-column: 1 / -1;
+}
+
+/* Options / Tabs selector for Interesadas 3 opciones */
+.options-nav-pills {
+  display: flex;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.option-pill {
+  flex: 1;
+  min-width: 200px;
+  text-align: center;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--slate);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.option-pill:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--dark);
+}
+
+.option-pill.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tipificación Badges */
+.badge-tipif {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.badge-interesada {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-solo-pregunta {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.badge-cierre {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.badge-seguimiento {
+  background-color: #f3e8ff;
+  color: #7e22ce;
+}
+
+.badge-no-interesada {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+/* WhatsApp & Contact Buttons */
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #25d366;
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-whatsapp:hover {
+  background-color: #128c7e;
+  transform: translateY(-1px);
+}
+
+.btn-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #f8fafc;
+  color: var(--slate);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.btn-call:hover {
+  background-color: #e2e8f0;
+  color: var(--dark);
+}
+
+/* Campaign Dashboard Styles */
+.campana-dashboard-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.campana-progress-bar-wrap {
+  width: 100%;
+  background: #e2e8f0;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 10px 0;
+  position: relative;
+}
+
+.campana-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ec4899, #9d174d);
+  transition: width 0.4s ease;
+  border-radius: 8px;
+}
+
+.campana-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Table empty state */
+.table-empty-notice {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--muted);
+}
+
+.table-empty-notice span {
+  font-size: 2.2rem;
+  display: block;
+  margin-bottom: 6px;
+}
+

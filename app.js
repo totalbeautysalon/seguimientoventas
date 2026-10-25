@@ -1,6 +1,11 @@
 /**
  * Total Beauty Salón y Academia - Portal Integral de Gestión
- * Arqueo de Caja Principal y Arqueo de Caja Chica Independientes con Firebase y PDF.
+ * Sistema Completo Interconectado:
+ * - Arqueo de Caja Principal y Arqueo de Caja Chica con PDF oficial y reseteo de campos
+ * - Registro Diario de Ventas (fecha*, telefono*, clienta, servicio*, estacion*, especialista*, metodo*, total*, status*, notas)
+ * - Interesadas y Cierres con 3 Opciones (Nuevo Registro, Seguimiento por WhatsApp/Llamada, BalanceScore)
+ * - Campaña Activa ("Ver cómo está funcionando" vs Ventas Reales) y Eventos del Mes
+ * - Cero datos de prueba en estado inicial (inicio limpio para producción)
  */
 
 (function () {
@@ -22,9 +27,9 @@
 
   let currentModule = 'arqueo-principal';
   let currentHistTipo = 'principal'; // 'principal' o 'chica'
-  let currentLeadTab = 'salon';
+  let currentLeadOption = 1;         // 1: Nuevo, 2: Seguimiento, 3: BalanceScore
 
-  // --- FORMATEO DE MONEDA ---
+  // --- FORMATEO DE MONEDA Y NÚMEROS ---
   function formatCurrency(val) {
     const num = parseFloat(val) || 0;
     return '$' + num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -50,6 +55,7 @@
 
   function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     let icon = 'ℹ️';
@@ -69,7 +75,7 @@
   const moduleTitles = {
     'arqueo-principal': {
       title: 'Arqueo Diario de Caja Principal',
-      desc: 'Fondo inicial, ingresos de ventas, conteo físico, conciliación y depósitos'
+      desc: 'Fondo inicial, ingresos de ventas, conteo físico, conciliación y validación'
     },
     'arqueo-chica': {
       title: 'Arqueo Diario de Caja Chica',
@@ -79,21 +85,25 @@
       title: 'Reportes Diarios de Arqueo',
       desc: 'Consulta y descarga de reportes oficiales guardados en Firebase'
     },
+    'ventas': {
+      title: 'Registro Diario de Ventas',
+      desc: 'Captura detallada de operaciones, métodos de pago e interconexión con caja'
+    },
     'balancescore': {
       title: 'BalanceScore por Estaciones',
-      desc: 'Medición de metas y calidad en las 6 estaciones de trabajo'
+      desc: 'Medición de metas de ingresos y calidad operativa en las 6 estaciones de trabajo'
     },
     'ingresos': {
       title: 'Reporte Diario de Ingresos',
       desc: 'Análisis de ventas por método de pago y unidad de negocio'
     },
     'interesadas': {
-      title: 'Reporte de Interesadas, Solo Preguntan y Cierres',
-      desc: 'Embudo de conversión comercial para Salón y Academia'
+      title: 'Interesadas, Solo Preguntan y Cierres',
+      desc: '3 Opciones: Nuevo registro, Seguimiento por WhatsApp/Llamada y BalanceScore'
     },
     'campana': {
-      title: 'Campaña y Eventos del Mes',
-      desc: 'Promociones activas, paquetes autorizados y eventos'
+      title: 'Campaña Activa y Eventos del Mes',
+      desc: 'Objetivos mensuales, monitoreo de ventas en vivo y calendario de eventos'
     }
   };
 
@@ -117,11 +127,19 @@
 
     document.getElementById('app-sidebar')?.classList.remove('open');
 
+    // Carga de datos correspondientes
+    if (modKey === 'ventas') {
+      const vFecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      renderVentas(vFecha);
+    }
     if (modKey === 'historial') loadHistorial();
     if (modKey === 'balancescore') renderBalanceScoreStations();
     if (modKey === 'ingresos') renderIngresosReport();
-    if (modKey === 'interesadas') loadInteresadasData();
-    if (modKey === 'campana') renderCampanaEventos();
+    if (modKey === 'interesadas') loadInteresadasView();
+    if (modKey === 'campana') {
+      renderCampanaActiva();
+      renderEventosTimeline();
+    }
   }
 
   // --- CANVAS DE FIRMA DIGITAL ---
@@ -180,7 +198,173 @@
   }
 
   // =========================================================================
-  // 1. LÓGICA DE CAJA PRINCIPAL
+  // 1. REGISTRO DIARIO DE VENTAS (100% INTERCONECTADO)
+  // =========================================================================
+  async function renderVentas(fecha) {
+    if (!fecha) {
+      fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+    }
+    const filterInput = document.getElementById('ventas_filtro_fecha');
+    if (filterInput && !filterInput.value) filterInput.value = fecha;
+
+    const vFechaInput = document.getElementById('venta_fecha');
+    if (vFechaInput && !vFechaInput.value) vFechaInput.value = fecha;
+
+    const tbody = document.getElementById('tbody-ventas');
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
+
+    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+
+    let totCobrado = 0;
+    let totEfec = 0;
+    let totTarj = 0;
+    let totTransf = 0;
+
+    ventas.forEach(v => {
+      const imp = parseFloat(v.totalCobrado) || 0;
+      totCobrado += imp;
+      const mp = (v.metodoPago || '').toLowerCase();
+      if (mp.includes('efec')) totEfec += imp;
+      else if (mp.includes('tarj')) totTarj += imp;
+      else if (mp.includes('transf')) totTransf += imp;
+      else totEfec += imp;
+    });
+
+    setDisplay('kpi-ventas-total', totCobrado);
+    setDisplay('kpi-ventas-efectivo', totEfec);
+    setDisplay('kpi-ventas-tarjeta', totTarj);
+    setDisplay('kpi-ventas-transf', totTransf);
+    setDisplay('tabla-ventas-gran-total', totCobrado);
+
+    const opsBadge = document.getElementById('ventas-badge-operaciones');
+    if (opsBadge) opsBadge.textContent = `${ventas.length} Operaciones`;
+
+    tbody.innerHTML = '';
+    if (ventas.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="table-empty-notice">
+            <span>📂</span>
+            No hay ventas registradas para este día (${fecha}). Registre una nueva venta arriba.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    ventas.forEach((v, index) => {
+      const tr = document.createElement('tr');
+      const horaStr = v.hora || (v.createdAt ? new Date(v.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
+
+      let statusBadgeClass = 'badge-cuadrada';
+      if (v.statusPago === 'Anticipo') statusBadgeClass = 'badge-sobrante';
+      if (v.statusPago === 'Saldo pendiente') statusBadgeClass = 'badge-faltante';
+
+      tr.innerHTML = `
+        <td><span style="font-size:0.8rem; color:var(--muted);">${horaStr}</span></td>
+        <td><strong>${v.clienta || '<span style="color:var(--muted); font-style:italic;">Cliente Mostrador</span>'}</strong></td>
+        <td><span style="font-family:monospace; font-size:0.82rem;">${v.telefono || 'Sin tel'}</span></td>
+        <td>${v.servicio || '-'}</td>
+        <td><span style="font-size:0.82rem; font-weight:600; color:var(--primary);">${v.estacion || '-'}</span></td>
+        <td>${v.especialista || '-'}</td>
+        <td><span style="font-size:0.82rem;">${v.metodoPago || 'Efectivo'}</span></td>
+        <td><span class="kpi-status-badge ${statusBadgeClass}" style="font-size:0.75rem;">${v.statusPago || 'Pagado'}</span></td>
+        <td class="text-right" style="font-weight:700;">${formatCurrency(v.totalCobrado)}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha}" title="Eliminar Venta">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Interconexión: Sincronizar automáticamente las ventas del día a Caja Principal
+  async function syncVentasToCajaPrincipal(fecha, autoAlert = true) {
+    if (!fecha) fecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+
+    // Reiniciar contadores de ingresos
+    const matrix = {
+      servicios: { e: 0, t: 0, j: 0 },
+      anticipos: { e: 0, t: 0, j: 0 },
+      cursos:    { e: 0, t: 0, j: 0 },
+      productos: { e: 0, t: 0, j: 0 },
+      saldos:    { e: 0, t: 0, j: 0 },
+      otros:     { e: 0, t: 0, j: 0 }
+    };
+
+    const anticiposList = [];
+
+    ventas.forEach(v => {
+      const imp = parseFloat(v.totalCobrado) || 0;
+      const mp = (v.metodoPago || '').toLowerCase();
+      const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
+
+      const est = (v.estacion || '').toLowerCase();
+      const serv = (v.servicio || '').toLowerCase();
+      const st = (v.statusPago || '').toLowerCase();
+
+      if (st.includes('anticipo')) {
+        matrix.anticipos[col] += imp;
+        anticiposList.push({
+          clienta: v.clienta || 'Prospecto Cita',
+          concepto: v.servicio || 'Anticipo',
+          pago: imp,
+          saldo: 0
+        });
+      } else if (st.includes('saldo')) {
+        matrix.saldos[col] += imp;
+      } else if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
+        matrix.cursos[col] += imp;
+      } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
+        matrix.productos[col] += imp;
+      } else {
+        matrix.servicios[col] += imp;
+      }
+    });
+
+    // Rellenar formulario de Caja Principal
+    ['servicios', 'anticipos', 'cursos', 'productos', 'saldos', 'otros'].forEach(k => {
+      const elE = document.getElementById(`ing_${k}_efec`);
+      const elT = document.getElementById(`ing_${k}_transf`);
+      const elJ = document.getElementById(`ing_${k}_tarj`);
+      if (elE) elE.value = matrix[k].e.toFixed(2);
+      if (elT) elT.value = matrix[k].t.toFixed(2);
+      if (elJ) elJ.value = matrix[k].j.toFixed(2);
+    });
+
+    const opEl = document.getElementById('ing_operaciones_cobradas');
+    if (opEl) opEl.value = ventas.length > 0 ? ventas.length : '';
+
+    // Sincronizar anticipos si hay
+    if (anticiposList.length > 0) {
+      const tbodyAnt = document.getElementById('tbody-anticipos');
+      if (tbodyAnt) {
+        tbodyAnt.innerHTML = '';
+        anticiposList.forEach(a => {
+          const tr = document.createElement('tr');
+          tr.className = 'anticipo-row';
+          tr.innerHTML = `
+            <td><input type="text" class="input-text ant-clienta" value="${a.clienta}"></td>
+            <td><input type="text" class="input-text ant-concepto" value="${a.concepto}"></td>
+            <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-pago" value="${a.pago.toFixed(2)}"></div></td>
+            <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-saldo" value="${a.saldo.toFixed(2)}"></div></td>
+            <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm btn-del-row">✕</button></td>
+          `;
+          tbodyAnt.appendChild(tr);
+        });
+      }
+    }
+
+    recalculatePrincipal();
+
+    if (autoAlert) {
+      showToast(`✅ ${ventas.length} ventas del día cargadas exitosamente a Caja Principal`, 'success');
+    }
+  }
+
+  // =========================================================================
+  // 2. LÓGICA DE CAJA PRINCIPAL
   // =========================================================================
   function recalculatePrincipal() {
     const fCaja = parseVal('f_inicial_caja');
@@ -248,7 +432,7 @@
     setDisplay('concil_diferencia_caja', diferencia);
     setDisplay('kpi-diferencia', diferencia);
 
-    // Radio y badges
+    // Radios y badges
     const rCuadrada = document.getElementById('res_cuadrada');
     const rSobrante = document.getElementById('res_sobrante');
     const rFaltante = document.getElementById('res_faltante');
@@ -258,23 +442,23 @@
     const kpiBadge = document.getElementById('kpi-status-badge');
     const difLabel = document.getElementById('concil_diferencia_label');
 
-    cardC.className = 'resultado-radio-card';
-    cardS.className = 'resultado-radio-card';
-    cardF.className = 'resultado-radio-card';
+    if (cardC) cardC.className = 'resultado-radio-card';
+    if (cardS) cardS.className = 'resultado-radio-card';
+    if (cardF) cardF.className = 'resultado-radio-card';
 
     if (Math.abs(diferencia) < 0.005) {
-      rCuadrada.checked = true;
-      cardC.classList.add('active-cuadrada');
+      if (rCuadrada) rCuadrada.checked = true;
+      if (cardC) cardC.classList.add('active-cuadrada');
       if (kpiBadge) { kpiBadge.textContent = 'Cuadrada'; kpiBadge.className = 'kpi-status-badge badge-cuadrada'; }
       if (difLabel) { difLabel.textContent = '✅ Caja cuadrada exacta'; difLabel.style.color = 'var(--success)'; }
     } else if (diferencia > 0.005) {
-      rSobrante.checked = true;
-      cardS.classList.add('active-sobrante');
+      if (rSobrante) rSobrante.checked = true;
+      if (cardS) cardS.classList.add('active-sobrante');
       if (kpiBadge) { kpiBadge.textContent = `Sobrante: ${formatCurrency(diferencia)}`; kpiBadge.className = 'kpi-status-badge badge-sobrante'; }
       if (difLabel) { difLabel.textContent = `🟡 Sobrante de ${formatCurrency(diferencia)}`; difLabel.style.color = 'var(--warning)'; }
     } else {
-      rFaltante.checked = true;
-      cardF.classList.add('active-faltante');
+      if (rFaltante) rFaltante.checked = true;
+      if (cardF) cardF.classList.add('active-faltante');
       if (kpiBadge) { kpiBadge.textContent = `Faltante: ${formatCurrency(Math.abs(diferencia))}`; kpiBadge.className = 'kpi-status-badge badge-faltante'; }
       if (difLabel) { difLabel.textContent = `🔴 Faltante de ${formatCurrency(Math.abs(diferencia))}`; difLabel.style.color = 'var(--danger)'; }
     }
@@ -438,7 +622,7 @@
     });
     document.getElementById('p_conteo_tot').textContent = formatCurrency(tc);
 
-    // Concil
+    // Conciliación
     document.getElementById('p_concil_fondo').textContent = formatCurrency(parseVal('f_inicial_caja'));
     document.getElementById('p_concil_ingresos').textContent = formatCurrency(parseVal('ing_total_efectivo'));
     document.getElementById('p_concil_retiros').textContent = formatCurrency(parseVal('concil_retiros_resguardo'));
@@ -452,7 +636,7 @@
     document.getElementById('p_box_faltante').textContent = res === 'faltante' ? '✓' : '';
     document.getElementById('p_explicacion').textContent = document.getElementById('concil_explicacion').value.trim() || 'Sin diferencias.';
 
-    // Validacion
+    // Validación y entrega
     const valN = document.getElementById('val_responsable_nombre').value || document.getElementById('header_responsable').value;
     document.getElementById('p_val_nombre').textContent = valN;
     const firmaImg = document.getElementById('p_val_firma_img');
@@ -475,7 +659,7 @@
   }
 
   // =========================================================================
-  // 2. LÓGICA DE CAJA CHICA
+  // 3. LÓGICA DE CAJA CHICA
   // =========================================================================
   function recalculateChica() {
     const fChica = parseVal('chica_fondo_inicial');
@@ -492,7 +676,7 @@
     setDisplay('kpi-chica-salidas', totSal);
     setDisplay('chica_concil_salidas', totSal);
 
-    // Conteo fisico chica
+    // Conteo físico chica
     const denoms = [
       { id: 'chica_b_1000', subId: 'chica_sub_1000', val: 1000 },
       { id: 'chica_b_500',  subId: 'chica_sub_500',  val: 500 },
@@ -539,23 +723,23 @@
     const kBadge = document.getElementById('kpi-chica-status-badge');
     const dLabel = document.getElementById('chica_diferencia_label');
 
-    cardC.className = 'resultado-radio-card';
-    cardS.className = 'resultado-radio-card';
-    cardF.className = 'resultado-radio-card';
+    if (cardC) cardC.className = 'resultado-radio-card';
+    if (cardS) cardS.className = 'resultado-radio-card';
+    if (cardF) cardF.className = 'resultado-radio-card';
 
     if (Math.abs(dif) < 0.005) {
-      rC.checked = true;
-      cardC.classList.add('active-cuadrada');
+      if (rC) rC.checked = true;
+      if (cardC) cardC.classList.add('active-cuadrada');
       if (kBadge) { kBadge.textContent = 'Cuadrada'; kBadge.className = 'kpi-status-badge badge-cuadrada'; }
       if (dLabel) { dLabel.textContent = '✅ Caja cuadrada exacta'; dLabel.style.color = 'var(--success)'; }
     } else if (dif > 0.005) {
-      rS.checked = true;
-      cardS.classList.add('active-sobrante');
+      if (rS) rS.checked = true;
+      if (cardS) cardS.classList.add('active-sobrante');
       if (kBadge) { kBadge.textContent = `Sobrante: ${formatCurrency(dif)}`; kBadge.className = 'kpi-status-badge badge-sobrante'; }
       if (dLabel) { dLabel.textContent = `🟡 Sobrante de ${formatCurrency(dif)}`; dLabel.style.color = 'var(--warning)'; }
     } else {
-      rF.checked = true;
-      cardF.classList.add('active-faltante');
+      if (rF) rF.checked = true;
+      if (cardF) cardF.classList.add('active-faltante');
       if (kBadge) { kBadge.textContent = `Faltante: ${formatCurrency(Math.abs(dif))}`; kBadge.className = 'kpi-status-badge badge-faltante'; }
       if (dLabel) { dLabel.textContent = `🔴 Faltante de ${formatCurrency(Math.abs(dif))}`; dLabel.style.color = 'var(--danger)'; }
     }
@@ -662,7 +846,7 @@
     });
     document.getElementById('pc_total_contado').textContent = formatCurrency(tc);
 
-    // Concil
+    // Conciliación
     document.getElementById('pc_concil_fondo').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
     document.getElementById('pc_concil_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
     document.getElementById('pc_concil_esperado').textContent = formatCurrency(parseVal('chica_concil_esperado'));
@@ -693,7 +877,7 @@
   }
 
   // =========================================================================
-  // 3. EXPORTACIÓN A PDF Y GUARDADO CON LIMPIEZA
+  // 4. EXPORTACIÓN A PDF Y GUARDADO CON LIMPIEZA INMEDIATA
   // =========================================================================
   async function exportPDF(isChica = false) {
     const el = document.getElementById(isChica ? 'printable-report-chica' : 'printable-report');
@@ -724,7 +908,7 @@
     return fileName;
   }
 
-  // Botón unificado: Guardar en Firebase Cloud -> Descargar PDF -> Limpiar Formulario
+  // Guardar en Firebase Cloud -> Descargar PDF -> Limpiar Formulario
   async function saveFirebaseAndDownload(isChica = false) {
     const fechaId = isChica ? 'chica_fecha' : 'header_fecha';
     const respId = isChica ? 'chica_responsable' : 'header_responsable';
@@ -746,11 +930,10 @@
     showToast(`Guardando ${isChica ? 'Caja Chica' : 'Caja Principal'} en Firebase...`, 'info');
 
     // 1. Guardar en Firebase
-    let saveRes;
     if (isChica) {
-      saveRes = await TB_FIREBASE.saveArqueoCajaChica(serializeChica());
+      await TB_FIREBASE.saveArqueoCajaChica(serializeChica());
     } else {
-      saveRes = await TB_FIREBASE.saveArqueoPrincipal(serializePrincipal());
+      await TB_FIREBASE.saveArqueoPrincipal(serializePrincipal());
     }
 
     // 2. Descargar PDF automáticamente
@@ -759,17 +942,17 @@
 
     showToast(`✅ ¡${isChica ? 'Caja Chica' : 'Caja Principal'} guardada en Firebase y PDF descargado (${fileName})!`, 'success');
 
-    // 3. Limpiar los campos para nueva información
+    // 3. Limpiar los campos para introducir nueva información
     if (isChica) {
       clearChicaForm();
     } else {
       clearPrincipalForm();
     }
-    showToast('Campos listos para registrar un nuevo arqueo.', 'info');
+    showToast('Campos limpios y listos para nuevo registro.', 'info');
   }
 
   // =========================================================================
-  // 4. MÓDULO HISTORIAL
+  // 5. MÓDULO HISTORIAL
   // =========================================================================
   async function loadHistorial(filterDate = null) {
     const container = document.getElementById('history-grid-container');
@@ -842,166 +1025,453 @@
   }
 
   // =========================================================================
-  // 5. BALANCESCORE POR ESTACIONES
+  // 6. BALANCESCORE POR ESTACIONES (INTERCONECTADO CON VENTAS)
   // =========================================================================
-  const DEFAULT_STATIONS = [
-    { id: 'cabello', name: 'Cabello & Colorimetría', icon: '💇‍♀️', meta: 2200, lograda: 2450, clientesMeta: 6, clientesReales: 7, ticket: 350, score: 98, checks: [true, true, true, true] },
-    { id: 'unas', name: 'Uñas & Manicure', icon: '💅', meta: 1500, lograda: 1680, clientesMeta: 5, clientesReales: 6, ticket: 280, score: 95, checks: [true, true, true, true] },
-    { id: 'maquillaje', name: 'Maquillaje Profesional', icon: '💄', meta: 1200, lograda: 1200, clientesMeta: 3, clientesReales: 3, ticket: 400, score: 92, checks: [true, true, false, true] },
-    { id: 'pestanas', name: 'Lash & Brow Bar', icon: '👁️', meta: 1000, lograda: 850, clientesMeta: 4, clientesReales: 3, ticket: 283, score: 85, checks: [true, true, true, false] },
-    { id: 'pedicure', name: 'Pedicure & Spa', icon: '🦶', meta: 800, lograda: 920, clientesMeta: 4, clientesReales: 5, ticket: 184, score: 96, checks: [true, true, true, true] },
-    { id: 'facial', name: 'Cabina Facial', icon: '✨', meta: 900, lograda: 750, clientesMeta: 3, clientesReales: 2, ticket: 375, score: 82, checks: [true, true, false, true] }
+  const STATIONS_METAS = [
+    { id: 'Cabello', name: 'Cabello & Colorimetría', icon: '💇‍♀️', meta: 2500, clientesMeta: 6 },
+    { id: 'Uñas', name: 'Uñas & Manicure', icon: '💅', meta: 1800, clientesMeta: 6 },
+    { id: 'Maquillaje', name: 'Maquillaje Profesional', icon: '💄', meta: 1200, clientesMeta: 3 },
+    { id: 'Pestañas', name: 'Lash & Brow (Pestañas/Cejas)', icon: '👁️', meta: 1000, clientesMeta: 4 },
+    { id: 'Pedicure', name: 'Pedicure & Spa', icon: '🦶', meta: 900, clientesMeta: 4 },
+    { id: 'Facial', name: 'Cabina Facial', icon: '✨', meta: 900, clientesMeta: 3 }
   ];
 
-  function renderBalanceScoreStations() {
+  async function renderBalanceScoreStations() {
     const container = document.getElementById('stations-grid-container');
     container.innerHTML = '';
     const fEl = document.getElementById('bs_fecha');
     if (!fEl.value) fEl.value = new Date().toISOString().split('T')[0];
+    const fecha = fEl.value;
+
+    // Obtener ventas reales para calcular la recaudación exacta por estación
+    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
 
     let totalScore = 0;
-    DEFAULT_STATIONS.forEach(st => {
-      totalScore += st.score;
+    STATIONS_METAS.forEach(st => {
+      // Filtrar ventas de esta estación
+      const ventasSt = ventas.filter(v => (v.estacion || '').toLowerCase().includes(st.id.toLowerCase()));
+      const lograda = ventasSt.reduce((sum, v) => sum + (parseFloat(v.totalCobrado) || 0), 0);
+      const clientesReales = ventasSt.length;
+      const ticket = clientesReales > 0 ? lograda / clientesReales : 0;
+
+      const pct = Math.min(100, Math.round((lograda / st.meta) * 100));
+      // Calificación: 60% por ventas + 40% por estándares
+      const score = Math.round((pct * 0.6) + 40);
+      totalScore += score;
+
       const card = document.createElement('div');
       card.className = 'station-card';
-      const pct = Math.min(100, Math.round((st.lograda / st.meta) * 100));
-
       card.innerHTML = `
-        <div class="station-card-header"><div class="station-title"><span>${st.icon}</span><span>${st.name}</span></div><span class="station-score-badge">${st.score}%</span></div>
+        <div class="station-card-header">
+          <div class="station-title"><span>${st.icon}</span><span>${st.name}</span></div>
+          <span class="station-score-badge">${score}%</span>
+        </div>
         <div class="station-card-body">
           <div class="station-progress-wrap">
-            <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;"><span>Cumplimiento: ${pct}%</span><span>${formatCurrency(st.lograda)} / ${formatCurrency(st.meta)}</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%; background:${pct >= 100 ? '#10b981' : (pct >= 80 ? '#f59e0b' : '#ef4444')}"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;">
+              <span>Cumplimiento: ${pct}%</span>
+              <span>${formatCurrency(lograda)} / ${formatCurrency(st.meta)}</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width:${pct}%; background:${pct >= 100 ? '#10b981' : (pct >= 80 ? '#f59e0b' : '#ef4444')}"></div>
+            </div>
           </div>
           <div class="station-metrics-row">
-            <div class="history-metric-box"><div class="label">Clientes</div><div class="val">${st.clientesReales} / Meta: ${st.clientesMeta}</div></div>
-            <div class="history-metric-box"><div class="label">Ticket Promedio</div><div class="val">${formatCurrency(st.ticket)}</div></div>
+            <div class="history-metric-box"><div class="label">Clientes Reales</div><div class="val">${clientesReales} / Meta: ${st.clientesMeta}</div></div>
+            <div class="history-metric-box"><div class="label">Ticket Promedio</div><div class="val">${formatCurrency(ticket)}</div></div>
           </div>
           <div class="checklist-group">
-            <label class="checklist-item"><input type="checkbox" ${st.checks[0] ? 'checked' : ''}> Limpieza de estación</label>
-            <label class="checklist-item"><input type="checkbox" ${st.checks[1] ? 'checked' : ''}> Puntualidad en arranque</label>
-            <label class="checklist-item"><input type="checkbox" ${st.checks[2] ? 'checked' : ''}> Hospitalidad Total Beauty</label>
-            <label class="checklist-item"><input type="checkbox" ${st.checks[3] ? 'checked' : ''}> Venta cruzada / producto</label>
+            <label class="checklist-item"><input type="checkbox" checked> Limpieza y desinfección</label>
+            <label class="checklist-item"><input type="checkbox" checked> Puntualidad en citas</label>
+            <label class="checklist-item"><input type="checkbox" checked> Experiencia Total Beauty</label>
+            <label class="checklist-item"><input type="checkbox" checked> Sugerencia de producto / venta cruzada</label>
           </div>
         </div>
       `;
       container.appendChild(card);
     });
 
+    const overall = STATIONS_METAS.length > 0 ? Math.round(totalScore / STATIONS_METAS.length) : 0;
     const badge = document.getElementById('bs-overall-badge');
-    badge.textContent = `Score Salón: ${Math.round(totalScore / DEFAULT_STATIONS.length)}%`;
+    if (badge) badge.textContent = `Score Salón: ${overall}%`;
   }
 
   // =========================================================================
-  // 6. REPORTE DIARIO DE INGRESOS
+  // 7. REPORTE DIARIO DE INGRESOS (INTERCONECTADO)
   // =========================================================================
-  function renderIngresosReport() {
+  async function renderIngresosReport() {
     const fIn = document.getElementById('rep_ingresos_fecha');
     if (!fIn.value) fIn.value = new Date().toISOString().split('T')[0];
+    const fecha = fIn.value;
 
-    const efec = parseVal('ing_total_efectivo');
-    const transf = parseVal('ing_total_transf');
-    const tarj = parseVal('ing_total_tarjeta');
-    const total = efec + transf + tarj;
+    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
 
-    const serv = parseVal('ing_servicios_total') + parseVal('ing_anticipos_total') + parseVal('ing_saldos_total');
-    const acad = parseVal('ing_cursos_total');
-    const retail = parseVal('ing_productos_total') + parseVal('ing_otros_total');
+    let totEfec = 0, totTarj = 0, totTransf = 0;
+    let totSalon = 0, totAcad = 0, totRetail = 0;
+
+    ventas.forEach(v => {
+      const imp = parseFloat(v.totalCobrado) || 0;
+      const mp = (v.metodoPago || '').toLowerCase();
+      if (mp.includes('tarj')) totTarj += imp;
+      else if (mp.includes('transf')) totTransf += imp;
+      else totEfec += imp;
+
+      const est = (v.estacion || '').toLowerCase();
+      const serv = (v.servicio || '').toLowerCase();
+      if (est.includes('academia') || serv.includes('curso')) totAcad += imp;
+      else if (est.includes('retail') || serv.includes('producto')) totRetail += imp;
+      else totSalon += imp;
+    });
+
+    const total = totEfec + totTarj + totTransf;
 
     document.getElementById('kpi-ingreso-total').textContent = formatCurrency(total);
     document.getElementById('kpi-ingreso-cumplimiento').textContent = total > 0 ? `${Math.round((total / 5000) * 100)}%` : '0%';
 
     let pred = 'Efectivo';
-    if (tarj > efec && tarj > transf) pred = 'Tarjeta';
-    if (transf > efec && transf > tarj) pred = 'Transferencia';
+    if (totTarj > totEfec && totTarj > totTransf) pred = 'Tarjeta';
+    if (totTransf > totEfec && totTransf > totTarj) pred = 'Transferencia';
     document.getElementById('kpi-ingreso-metodo').textContent = pred;
 
-    document.getElementById('rep_efectivo_val').textContent = formatCurrency(efec);
-    document.getElementById('rep_efectivo_pct').textContent = total > 0 ? `${Math.round((efec / total) * 100)}%` : '0%';
-    document.getElementById('rep_tarjeta_val').textContent = formatCurrency(tarj);
-    document.getElementById('rep_tarjeta_pct').textContent = total > 0 ? `${Math.round((tarj / total) * 100)}%` : '0%';
-    document.getElementById('rep_transf_val').textContent = formatCurrency(transf);
-    document.getElementById('rep_transf_pct').textContent = total > 0 ? `${Math.round((transf / total) * 100)}%` : '0%';
+    document.getElementById('rep_efectivo_val').textContent = formatCurrency(totEfec);
+    document.getElementById('rep_efectivo_pct').textContent = total > 0 ? `${Math.round((totEfec / total) * 100)}%` : '0%';
+    document.getElementById('rep_tarjeta_val').textContent = formatCurrency(totTarj);
+    document.getElementById('rep_tarjeta_pct').textContent = total > 0 ? `${Math.round((totTarj / total) * 100)}%` : '0%';
+    document.getElementById('rep_transf_val').textContent = formatCurrency(totTransf);
+    document.getElementById('rep_transf_pct').textContent = total > 0 ? `${Math.round((totTransf / total) * 100)}%` : '0%';
     document.getElementById('rep_metodos_total').textContent = formatCurrency(total);
 
-    document.getElementById('rep_salon_val').textContent = formatCurrency(serv);
-    document.getElementById('rep_salon_pct').textContent = total > 0 ? `${Math.round((serv / total) * 100)}%` : '0%';
-    document.getElementById('rep_academia_val').textContent = formatCurrency(acad);
-    document.getElementById('rep_academia_pct').textContent = total > 0 ? `${Math.round((acad / total) * 100)}%` : '0%';
-    document.getElementById('rep_retail_val').textContent = formatCurrency(retail);
-    document.getElementById('rep_retail_pct').textContent = total > 0 ? `${Math.round((retail / total) * 100)}%` : '0%';
+    document.getElementById('rep_salon_val').textContent = formatCurrency(totSalon);
+    document.getElementById('rep_salon_pct').textContent = total > 0 ? `${Math.round((totSalon / total) * 100)}%` : '0%';
+    document.getElementById('rep_academia_val').textContent = formatCurrency(totAcad);
+    document.getElementById('rep_academia_pct').textContent = total > 0 ? `${Math.round((totAcad / total) * 100)}%` : '0%';
+    document.getElementById('rep_retail_val').textContent = formatCurrency(totRetail);
+    document.getElementById('rep_retail_pct').textContent = total > 0 ? `${Math.round((totRetail / total) * 100)}%` : '0%';
     document.getElementById('rep_unidades_total').textContent = formatCurrency(total);
   }
 
   // =========================================================================
-  // 7. INTERESADAS Y CIERRES
+  // 8. INTERESADAS Y CIERRES (3 OPCIONES REQUERIDAS)
   // =========================================================================
-  const LEADS_DATA = {
-    salon: { totales: 14, cierres: 5, motivos: '3 clientas querían sábado por la tarde, 2 precio balayage.' },
-    academia: { totales: 9, cierres: 3, motivos: '2 preguntaron por facilidades de pago, 1 sin horario vespertino.' }
-  };
+  function switchLeadOption(optNum) {
+    currentLeadOption = parseInt(optNum, 10) || 1;
 
-  function loadInteresadasData() {
-    const fIn = document.getElementById('lead_fecha');
-    if (!fIn.value) fIn.value = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('.option-pill').forEach(btn => {
+      if (parseInt(btn.dataset.opt, 10) === currentLeadOption) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
 
-    const cur = LEADS_DATA[currentLeadTab];
-    document.getElementById('lead_totales').value = cur.totales;
-    document.getElementById('lead_cierres').value = cur.cierres;
-    document.getElementById('lead_motivos').value = cur.motivos;
-    calculateLeadsFunnel();
+    [1, 2, 3].forEach(n => {
+      const el = document.getElementById(`lead-subview-${n}`);
+      if (el) el.style.display = (n === currentLeadOption) ? 'block' : 'none';
+    });
+
+    if (currentLeadOption === 2) renderLeadsDirectory();
+    if (currentLeadOption === 3) renderLeadsBalanceScore();
   }
 
-  function calculateLeadsFunnel() {
-    const tot = parseInt(document.getElementById('lead_totales').value, 10) || 0;
-    const cierres = parseInt(document.getElementById('lead_cierres').value, 10) || 0;
-    const preguntan = Math.max(0, tot - cierres);
+  function loadInteresadasView() {
+    const fReg = document.getElementById('lead_reg_fecha');
+    if (fReg && !fReg.value) fReg.value = new Date().toISOString().split('T')[0];
+    switchLeadOption(currentLeadOption);
+  }
 
-    document.getElementById('lead_preguntan').value = preguntan;
-    document.getElementById('visual-interesadas').textContent = tot;
-    document.getElementById('visual-preguntan').textContent = preguntan;
-    document.getElementById('visual-cierres').textContent = cierres;
+  // Opción 2: Directorio de Seguimiento por Llamada o WhatsApp
+  async function renderLeadsDirectory() {
+    const tbody = document.getElementById('tbody-leads-seguimiento');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando prospectos...</td></tr>';
 
-    const rate = tot > 0 ? Math.round((cierres / tot) * 100) : 0;
-    document.getElementById('visual-tasa-conversion').textContent = `${rate}%`;
+    const leads = await TB_FIREBASE.getLeadsAll();
+    const filtroTipif = document.getElementById('filtro_lead_tipif')?.value || 'TODAS';
+    const filtroUnidad = document.getElementById('filtro_lead_unidad')?.value || 'TODAS';
+    const query = (document.getElementById('buscador_leads')?.value || '').toLowerCase().trim();
 
-    LEADS_DATA[currentLeadTab] = {
-      totales: tot,
-      cierres: cierres,
-      motivos: document.getElementById('lead_motivos').value
-    };
+    const filtered = leads.filter(l => {
+      if (filtroTipif !== 'TODAS' && l.tipificacion !== filtroTipif) return false;
+      if (filtroUnidad !== 'TODAS' && l.unidad !== filtroUnidad) return false;
+      if (query) {
+        const nom = (l.nombre || '').toLowerCase();
+        const tel = (l.telefono || '').toLowerCase();
+        const serv = (l.servicio || '').toLowerCase();
+        if (!nom.includes(query) && !tel.includes(query) && !serv.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const badge = document.getElementById('lead-counter-badge');
+    if (badge) badge.textContent = `${filtered.length} Registros`;
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="table-empty-notice">
+            <span>📭</span>
+            No se encontraron interesadas con los filtros seleccionados. Use la Opción 1 para agregar nuevas prospectas.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    filtered.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(l => {
+      const tr = document.createElement('tr');
+      const cleanTel = (l.telefono || '').replace(/\D/g, '');
+      const waMsg = encodeURIComponent(`Hola ${l.nombre || ''}, te saludamos de Total Beauty Salón y Academia ✨ Respecto a tu interés en ${l.servicio || 'nuestros servicios'}, ¿te gustaría agendar tu cita o resolver alguna duda?`);
+      const waUrl = `https://wa.me/52${cleanTel}?text=${waMsg}`;
+
+      tr.innerHTML = `
+        <td><span style="font-size:0.8rem; color:var(--muted);">${l.fecha || 'Hoy'}</span></td>
+        <td><strong>${l.nombre || 'Prospecto'}</strong></td>
+        <td>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <a href="${waUrl}" target="_blank" class="btn-whatsapp" title="Enviar WhatsApp a ${l.telefono}">
+              <span>💬</span> WhatsApp
+            </a>
+            <a href="tel:${cleanTel}" class="btn-call" title="Llamar">
+              <span>📞</span>
+            </a>
+          </div>
+        </td>
+        <td>
+          <div style="font-weight:600; color:var(--dark); font-size:0.85rem;">${l.servicio || '-'}</div>
+          <span style="font-size:0.75rem; color:var(--muted);">${l.unidad || 'Salón'}</span>
+        </td>
+        <td><span style="font-size:0.8rem; color:var(--slate);">${l.canal || 'WhatsApp'}</span></td>
+        <td>
+          <select class="input-text lead-tipif-select" data-id="${l.id}" style="padding:4px 8px; font-size:0.82rem; font-weight:600;">
+            <option value="Interesada" ${l.tipificacion === 'Interesada' ? 'selected' : ''}>🔵 Interesada</option>
+            <option value="Solo pregunta" ${l.tipificacion === 'Solo pregunta' ? 'selected' : ''}>🟡 Solo pregunta</option>
+            <option value="En seguimiento" ${l.tipificacion === 'En seguimiento' ? 'selected' : ''}>🟣 En seguimiento</option>
+            <option value="Cierre" ${l.tipificacion === 'Cierre' ? 'selected' : ''}>🟢 Cierre (Agendada/Pagó)</option>
+            <option value="No interesada" ${l.tipificacion === 'No interesada' ? 'selected' : ''}>⚪ No interesada</option>
+          </select>
+        </td>
+        <td><span style="font-size:0.8rem; color:var(--muted);">${l.notas ? l.notas.substring(0, 45) + '...' : 'Sin notas'}</span></td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-lead" data-id="${l.id}" title="Eliminar registro">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Opción 3: BalanceScore de Conversión Comercial en Tiempo Real
+  async function renderLeadsBalanceScore() {
+    const leads = await TB_FIREBASE.getLeadsAll();
+
+    const total = leads.length;
+    const preguntan = leads.filter(l => l.tipificacion === 'Solo pregunta').length;
+    const seguimiento = leads.filter(l => l.tipificacion === 'En seguimiento').length;
+    const cierres = leads.filter(l => l.tipificacion === 'Cierre').length;
+
+    const tasa = total > 0 ? Math.round((cierres / total) * 100) : 0;
+
+    document.getElementById('kpi-bs-leads-total').textContent = total;
+    document.getElementById('kpi-bs-leads-preguntan').textContent = preguntan;
+    document.getElementById('kpi-bs-leads-seguimiento').textContent = seguimiento;
+    document.getElementById('kpi-bs-leads-cierres').textContent = cierres;
+
+    document.getElementById('visual-bs-interesadas').textContent = total;
+    document.getElementById('visual-bs-preguntan').textContent = preguntan;
+    document.getElementById('visual-bs-seguimiento').textContent = seguimiento;
+    document.getElementById('visual-bs-cierres').textContent = cierres;
+    document.getElementById('visual-bs-tasa').textContent = `${tasa}%`;
+
+    // Comparativa Salón vs Academia
+    const salonLeads = leads.filter(l => (l.unidad || '').includes('Salón'));
+    const salonCierres = salonLeads.filter(l => l.tipificacion === 'Cierre').length;
+    const salonTasa = salonLeads.length > 0 ? Math.round((salonCierres / salonLeads.length) * 100) : 0;
+
+    const acadLeads = leads.filter(l => (l.unidad || '').includes('Academia'));
+    const acadCierres = acadLeads.filter(l => l.tipificacion === 'Cierre').length;
+    const acadTasa = acadLeads.length > 0 ? Math.round((acadCierres / acadLeads.length) * 100) : 0;
+
+    document.getElementById('bs-salon-leads').textContent = salonLeads.length;
+    document.getElementById('bs-salon-cierres').textContent = salonCierres;
+    document.getElementById('bs-salon-tasa').textContent = `${salonTasa}%`;
+
+    document.getElementById('bs-academia-leads').textContent = acadLeads.length;
+    document.getElementById('bs-academia-cierres').textContent = acadCierres;
+    document.getElementById('bs-academia-tasa').textContent = `${acadTasa}%`;
+
+    // Desglose por Canal
+    const canalCounts = {};
+    leads.forEach(l => {
+      const c = l.canal || 'WhatsApp';
+      if (!canalCounts[c]) canalCounts[c] = { total: 0, cierres: 0 };
+      canalCounts[c].total += 1;
+      if (l.tipificacion === 'Cierre') canalCounts[c].cierres += 1;
+    });
+
+    const tbodyCanal = document.getElementById('tbody-bs-canales');
+    tbodyCanal.innerHTML = '';
+    const canales = Object.keys(canalCounts);
+    if (canales.length === 0) {
+      tbodyCanal.innerHTML = '<tr><td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">No hay canales registrados aún</td></tr>';
+    } else {
+      canales.forEach(c => {
+        const inf = canalCounts[c];
+        const pct = inf.total > 0 ? Math.round((inf.cierres / inf.total) * 100) : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${c}</strong></td>
+          <td class="text-right">${inf.total}</td>
+          <td class="text-right" style="font-weight:700; color:var(--success);">${inf.cierres}</td>
+          <td class="text-right" style="font-weight:700;">${pct}%</td>
+        `;
+        tbodyCanal.appendChild(tr);
+      });
+    }
   }
 
   // =========================================================================
-  // 8. CAMPAÑA Y EVENTOS
+  // 9. CAMPAÑA ACTIVA Y EVENTOS DEL MES (MONITOREO EN VIVO)
   // =========================================================================
-  const DEFAULT_EVENTS = [
-    { day: '26', month: 'OCT', title: 'Apertura de Semana & Revisión de Metas', type: 'Recepción & Salón', resp: 'Marbella Ríos' },
-    { day: '28', month: 'OCT', title: 'Inicio Curso Intensivo Uñas Acrílicas', type: 'Academia', resp: 'Instructora Titular' },
-    { day: '30', month: 'OCT', title: 'Viernes de Balayage & Promociones', type: 'Salón', resp: 'Equipo Estilistas' },
-    { day: '31', month: 'OCT', title: 'Cierre de Mes & Arqueo General', type: 'Dirección', resp: 'Administración' },
-    { day: '05', month: 'NOV', title: 'Masterclass de Colorimetría', type: 'Academia', resp: 'Master Guest' }
-  ];
+  async function renderCampanaActiva() {
+    const campana = await TB_FIREBASE.getCampanaActiva();
+    const tituloDisplay = document.getElementById('campana-titulo-display');
+    const periodoDisplay = document.getElementById('campana-periodo-display');
+    const progressBar = document.getElementById('campana-progress-bar-fill');
+    const progresoTexto = document.getElementById('campana-progreso-texto');
+    const diasRestantes = document.getElementById('campana-dias-restantes');
+    const ventasCountEl = document.getElementById('campana-ventas-periodo-count');
+    const metricSalon = document.getElementById('campana-metric-salon');
+    const metricAcademia = document.getElementById('campana-metric-academia');
+    const metricTicket = document.getElementById('campana-metric-ticket');
+    const paquetesContainer = document.getElementById('campana-paquetes-display-container');
 
-  function renderCampanaEventos() {
+    if (!campana || !campana.nombre) {
+      tituloDisplay.textContent = 'Sin Campaña Activa Configurada';
+      periodoDisplay.textContent = 'Haga clic en "Configurar Campaña Activa" para definir las metas de este mes.';
+      progressBar.style.width = '0%';
+      progresoTexto.textContent = '$0.00 / $0.00 (0%)';
+      diasRestantes.textContent = 'Días restantes: --';
+      ventasCountEl.textContent = '0 ventas registradas';
+      metricSalon.textContent = '0 / 0';
+      metricAcademia.textContent = '0 / 0';
+      metricTicket.textContent = '$0.00';
+      paquetesContainer.innerHTML = `
+        <div class="table-empty-notice" style="padding:24px 10px;">
+          <span>🏷️</span>
+          No hay paquetes ni promociones activas. Configure la campaña arriba para agregarlos.
+        </div>
+      `;
+      return;
+    }
+
+    tituloDisplay.textContent = campana.nombre;
+    periodoDisplay.textContent = `Vigencia: del ${campana.fechaInicio || '--'} al ${campana.fechaFin || '--'}`;
+
+    // Calcular días restantes
+    if (campana.fechaFin) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const fin = new Date(campana.fechaFin);
+      fin.setHours(0, 0, 0, 0);
+      const diffTime = fin - hoy;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      diasRestantes.textContent = diffDays >= 0 ? `Días restantes de campaña: ${diffDays}` : 'Campaña concluida';
+    }
+
+    // Calcular ventas reales en el período de la campaña
+    const localVentasDB = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
+    let ingresosEnPeriodo = 0;
+    let ventasEnPeriodoCount = 0;
+    let clientasSalon = 0;
+    let alumnasAcademia = 0;
+
+    const fIni = campana.fechaInicio || '1970-01-01';
+    const fFin = campana.fechaFin || '2099-12-31';
+
+    Object.keys(localVentasDB).forEach(f => {
+      if (f >= fIni && f <= fFin) {
+        const diaVentas = Object.values(localVentasDB[f] || {});
+        diaVentas.forEach(v => {
+          const imp = parseFloat(v.totalCobrado) || 0;
+          ingresosEnPeriodo += imp;
+          ventasEnPeriodoCount += 1;
+          const est = (v.estacion || '').toLowerCase();
+          if (est.includes('academia')) alumnasAcademia += 1;
+          else clientasSalon += 1;
+        });
+      }
+    });
+
+    const meta = parseFloat(campana.metaIngreso) || 0;
+    const pct = meta > 0 ? Math.min(100, Math.round((ingresosEnPeriodo / meta) * 100)) : 0;
+    progressBar.style.width = `${pct}%`;
+    progresoTexto.textContent = `${formatCurrency(ingresosEnPeriodo)} / ${formatCurrency(meta)} (${pct}%)`;
+    ventasCountEl.textContent = `${ventasEnPeriodoCount} ventas registradas en el período`;
+
+    metricSalon.textContent = `${clientasSalon} / Meta: ${campana.metaSalon || '0'}`;
+    metricAcademia.textContent = `${alumnasAcademia} / Meta: ${campana.metaAcademia || '0'}`;
+    const avgTicket = ventasEnPeriodoCount > 0 ? ingresosEnPeriodo / ventasEnPeriodoCount : 0;
+    metricTicket.textContent = formatCurrency(avgTicket);
+
+    // Paquetes promocionales
+    if (campana.promociones && campana.promociones.trim()) {
+      paquetesContainer.innerHTML = `
+        <div style="border:1px solid var(--border); padding:16px; border-radius:var(--radius-sm); background:#fafafa; font-size:0.9rem; line-height:1.6; white-space:pre-wrap;">
+          ${campana.promociones}
+        </div>
+      `;
+    } else {
+      paquetesContainer.innerHTML = `
+        <div class="table-empty-notice" style="padding:24px 10px;">
+          <span>🏷️</span>
+          Sin paquetes especiales definidos para esta campaña.
+        </div>
+      `;
+    }
+  }
+
+  async function renderEventosTimeline() {
     const container = document.getElementById('events-timeline-container');
+    container.innerHTML = '<div style="text-align:center; padding:16px; color:var(--muted);">Cargando eventos...</div>';
+
+    const eventos = await TB_FIREBASE.getEventosAll();
+
     container.innerHTML = '';
-    DEFAULT_EVENTS.forEach(ev => {
+    if (eventos.length === 0) {
+      container.innerHTML = `
+        <div class="table-empty-notice" style="padding:24px 10px;">
+          <span>📅</span>
+          No hay eventos registrados para este mes. Agregue uno con el botón "+ Nuevo Evento".
+        </div>
+      `;
+      return;
+    }
+
+    eventos.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '')).forEach(ev => {
       const card = document.createElement('div');
       card.className = 'event-item-card';
+      const dObj = ev.fecha ? new Date(ev.fecha + 'T00:00:00') : new Date();
+      const diaStr = String(dObj.getDate()).padStart(2, '0');
+      const mesStr = dObj.toLocaleString('es-MX', { month: 'short' }).toUpperCase();
+
       card.innerHTML = `
         <div style="display:flex; align-items:center; gap:14px;">
-          <div class="event-date-badge"><div class="day">${ev.day}</div><div class="month">${ev.month}</div></div>
-          <div><div style="font-weight:700; color:var(--dark);">${ev.title}</div><div style="font-size:0.8rem; color:var(--muted);">${ev.type} &bull; Resp: <strong>${ev.resp}</strong></div></div>
+          <div class="event-date-badge">
+            <div class="day">${diaStr}</div>
+            <div class="month">${mesStr}</div>
+          </div>
+          <div>
+            <div style="font-weight:700; color:var(--dark); font-size:0.92rem;">${ev.titulo}</div>
+            <div style="font-size:0.78rem; color:var(--muted);">${ev.tipo || 'Salón'} &bull; Resp: <strong>${ev.responsable || 'Equipo'}</strong></div>
+          </div>
         </div>
-        <span class="kpi-status-badge badge-cuadrada">Confirmado</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="kpi-status-badge badge-cuadrada">Confirmado</span>
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-evento" data-id="${ev.id}">✕</button>
+        </div>
       `;
       container.appendChild(card);
     });
   }
 
   // =========================================================================
-  // INICIALIZACIÓN Y LISTENERS
+  // 10. INICIALIZACIÓN Y EVENT LISTENERS
   // =========================================================================
   document.addEventListener('DOMContentLoaded', () => {
     // Configurar Canvas de Firmas
@@ -1035,7 +1505,7 @@
       document.getElementById('app-sidebar')?.classList.toggle('open');
     });
 
-    // Firebase Status
+    // Firebase Status Dot
     TB_FIREBASE.onConnectionChange((online) => {
       const dot = document.getElementById('fb-status-dot');
       const text = document.getElementById('fb-status-text');
@@ -1043,7 +1513,7 @@
       if (text) text.textContent = online ? 'Firebase Conectado' : 'Modo Local / Offline';
     });
 
-    // Eventos de entrada: Caja Principal
+    // Recálculo dinámico en Caja Principal y Chica
     document.addEventListener('input', (e) => {
       if (e.target.matches('.calc-trigger') || e.target.matches('.ant-pago') || e.target.matches('.ant-saldo')) {
         recalculatePrincipal();
@@ -1051,12 +1521,9 @@
       if (e.target.matches('.chica-calc-trigger') || e.target.matches('.chica-importe')) {
         recalculateChica();
       }
-      if (e.target.matches('.lead-calc-trigger')) {
-        calculateLeadsFunnel();
-      }
     });
 
-    // Botones de incremento Caja Principal
+    // Botones de incremento denominaciones
     document.querySelectorAll('.denom-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const row = btn.closest('.denomination-row');
@@ -1070,7 +1537,6 @@
       });
     });
 
-    // Botones de incremento Caja Chica
     document.querySelectorAll('.denom-btn-chica').forEach(btn => {
       btn.addEventListener('click', () => {
         const row = btn.closest('.denomination-row');
@@ -1084,7 +1550,7 @@
       });
     });
 
-    // Agregar Fila Salida Caja Chica
+    // Filas dinámicas en Caja Chica y Anticipos
     document.getElementById('btn-add-chica-salida')?.addEventListener('click', () => {
       const tbody = document.getElementById('tbody-chica-salidas');
       const tr = document.createElement('tr');
@@ -1100,7 +1566,6 @@
       recalculateChica();
     });
 
-    // Agregar Fila Anticipo
     document.getElementById('btn-add-anticipo')?.addEventListener('click', () => {
       const tbody = document.getElementById('tbody-anticipos');
       const tr = document.createElement('tr');
@@ -1127,7 +1592,7 @@
       }
     });
 
-    // Guardar en Firebase Cloud, Descargar PDF y Limpiar:
+    // Guardado unificado: Firebase + Descargar PDF + Limpiar
     document.getElementById('btn-save-firebase-bottom')?.addEventListener('click', () => {
       saveFirebaseAndDownload(false);
     });
@@ -1152,9 +1617,19 @@
       showToast('Formulario limpiado', 'info');
     });
 
+    document.getElementById('header_fecha')?.addEventListener('change', (e) => {
+      syncVentasToCajaPrincipal(e.target.value, false);
+    });
+
     document.getElementById('btn-pull-ventas')?.addEventListener('click', () => {
-      showToast('Ventas del día sincronizadas en los ingresos', 'success');
-      recalculatePrincipal();
+      const fecha = document.getElementById('header_fecha')?.value;
+      syncVentasToCajaPrincipal(fecha, true);
+    });
+
+    document.getElementById('btn-sync-ventas-caja')?.addEventListener('click', () => {
+      const fecha = document.getElementById('ventas_filtro_fecha')?.value;
+      syncVentasToCajaPrincipal(fecha, true);
+      switchModule('arqueo-principal');
     });
 
     document.getElementById('btn-sync-transf')?.addEventListener('click', () => {
@@ -1169,7 +1644,7 @@
       showToast('Importe entregado copiado del conteo', 'info');
     });
 
-    // Historial tipo switch
+    // Historial switches
     document.getElementById('btn-hist-tipo-principal')?.addEventListener('click', () => {
       currentHistTipo = 'principal';
       document.getElementById('btn-hist-tipo-principal').classList.add('active');
@@ -1198,40 +1673,289 @@
       showToast('Historial recargado desde Firebase', 'success');
     });
 
-    // Subtabs Leads
-    document.getElementById('btn-subtab-salon')?.addEventListener('click', () => {
-      currentLeadTab = 'salon';
-      document.getElementById('btn-subtab-salon').classList.add('active');
-      document.getElementById('btn-subtab-academia').classList.remove('active');
-      document.getElementById('lead-form-title').textContent = 'Registro Diario - Salón de Belleza';
-      loadInteresadasData();
+    // -----------------------------------------------------------------------
+    // EVENTOS: REGISTRO DIARIO DE VENTAS
+    // -----------------------------------------------------------------------
+    document.getElementById('form-nueva-venta')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const fecha = document.getElementById('venta_fecha').value;
+      const telefono = document.getElementById('venta_telefono').value.trim();
+      const clienta = document.getElementById('venta_clienta').value.trim();
+      const servicio = document.getElementById('venta_servicio').value.trim();
+      const estacion = document.getElementById('venta_estacion').value;
+      const especialista = document.getElementById('venta_especialista').value.trim();
+      const metodoPago = document.getElementById('venta_metodo_pago').value;
+      const totalCobrado = parseFloat(document.getElementById('venta_total').value) || 0;
+      const statusPago = document.getElementById('venta_status_pago').value;
+      const notas = document.getElementById('venta_notas').value.trim();
+
+      if (!fecha || !telefono || !servicio || !estacion || !especialista || !metodoPago || isNaN(totalCobrado) || !statusPago) {
+        showToast('Por favor llene todos los campos obligatorios marcados con *', 'warning');
+        return;
+      }
+
+      const venta = {
+        fecha,
+        telefono,
+        clienta,
+        servicio,
+        estacion,
+        especialista,
+        metodoPago,
+        totalCobrado,
+        statusPago,
+        notas,
+        createdAt: new Date().toISOString()
+      };
+
+      await TB_FIREBASE.saveVenta(venta);
+      showToast(`✅ Venta de ${formatCurrency(totalCobrado)} guardada en Firebase`, 'success');
+
+      // Limpiar formulario excepto la fecha
+      document.getElementById('venta_telefono').value = '';
+      document.getElementById('venta_clienta').value = '';
+      document.getElementById('venta_servicio').value = '';
+      document.getElementById('venta_especialista').value = '';
+      document.getElementById('venta_total').value = '';
+      document.getElementById('venta_notas').value = '';
+
+      renderVentas(fecha);
+
+      // Si la fecha coincide con la caja principal activa, actualizar ingresos
+      if (fecha === document.getElementById('header_fecha')?.value) {
+        syncVentasToCajaPrincipal(fecha, false);
+      }
+      renderCampanaActiva();
     });
 
-    document.getElementById('btn-subtab-academia')?.addEventListener('click', () => {
-      currentLeadTab = 'academia';
-      document.getElementById('btn-subtab-academia').classList.add('active');
-      document.getElementById('btn-subtab-salon').classList.remove('active');
-      document.getElementById('lead-form-title').textContent = 'Registro Diario - Academia de Belleza';
-      loadInteresadasData();
+    document.getElementById('ventas_filtro_fecha')?.addEventListener('change', (e) => {
+      renderVentas(e.target.value);
     });
 
-    document.getElementById('btn-save-leads')?.addEventListener('click', async () => {
-      const fecha = document.getElementById('lead_fecha').value;
-      await TB_FIREBASE.saveInteresadas(fecha, currentLeadTab, LEADS_DATA[currentLeadTab]);
-      showToast(`Embudo de ${currentLeadTab === 'salon' ? 'Salón' : 'Academia'} guardado en Firebase`, 'success');
+    document.getElementById('btn-ventas-hoy')?.addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('ventas_filtro_fecha').value = today;
+      renderVentas(today);
     });
 
-    // BalanceScore
+    document.getElementById('btn-refresh-ventas')?.addEventListener('click', () => {
+      const fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      renderVentas(fecha);
+      showToast('Ventas recargadas desde Firebase', 'info');
+    });
+
+    document.addEventListener('click', async (e) => {
+      if (e.target.matches('.btn-del-venta')) {
+        const id = e.target.dataset.id;
+        const fecha = e.target.dataset.fecha;
+        if (confirm('¿Está seguro de eliminar esta venta?')) {
+          await TB_FIREBASE.deleteVenta(fecha, id);
+          renderVentas(fecha);
+          if (fecha === document.getElementById('header_fecha')?.value) {
+            syncVentasToCajaPrincipal(fecha, false);
+          }
+          showToast('Venta eliminada', 'info');
+        }
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // EVENTOS: INTERESADAS Y CIERRES (3 OPCIONES)
+    // -----------------------------------------------------------------------
+    document.querySelectorAll('.option-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const opt = btn.dataset.opt;
+        if (opt) switchLeadOption(opt);
+      });
+    });
+
+    // Formulario Opción 1: Nuevo Lead
+    document.getElementById('form-nuevo-lead')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fecha = document.getElementById('lead_reg_fecha').value;
+      const nombre = document.getElementById('lead_reg_nombre').value.trim();
+      const telefono = document.getElementById('lead_reg_telefono').value.trim();
+      const unidad = document.getElementById('lead_reg_unidad').value;
+      const servicio = document.getElementById('lead_reg_servicio').value.trim();
+      const canal = document.getElementById('lead_reg_canal').value;
+      const tipificacion = document.getElementById('lead_reg_tipificacion').value;
+      const notas = document.getElementById('lead_reg_notas').value.trim();
+
+      if (!fecha || !nombre || !telefono || !servicio) {
+        showToast('Complete los campos obligatorios (*)', 'warning');
+        return;
+      }
+
+      const lead = {
+        fecha,
+        nombre,
+        telefono,
+        unidad,
+        servicio,
+        canal,
+        tipificacion,
+        notas,
+        historialSeguimiento: [
+          { fechaHora: new Date().toISOString(), accion: 'Contacto inicial', tipificacion }
+        ],
+        createdAt: new Date().toISOString()
+      };
+
+      await TB_FIREBASE.saveLead(lead);
+      showToast(`✅ ${nombre} guardada en Firebase Cloud`, 'success');
+
+      // Limpiar formulario
+      document.getElementById('form-nuevo-lead').reset();
+      document.getElementById('lead_reg_fecha').value = new Date().toISOString().split('T')[0];
+
+      // Cambiar a la Opción 2 para verla en la lista
+      switchLeadOption(2);
+    });
+
+    // Filtros de la Opción 2
+    document.getElementById('filtro_lead_tipif')?.addEventListener('change', renderLeadsDirectory);
+    document.getElementById('filtro_lead_unidad')?.addEventListener('change', renderLeadsDirectory);
+    document.getElementById('buscador_leads')?.addEventListener('input', renderLeadsDirectory);
+    document.getElementById('btn-refresh-leads')?.addEventListener('click', () => {
+      renderLeadsDirectory();
+      showToast('Directorio de leads recargado', 'info');
+    });
+
+    // Cambio dinámico de tipificación en la tabla de seguimiento
+    document.addEventListener('change', async (e) => {
+      if (e.target.matches('.lead-tipif-select')) {
+        const id = e.target.dataset.id;
+        const newTipif = e.target.value;
+        await TB_FIREBASE.updateLeadSeguimiento(id, { accion: 'Actualización en lista' }, newTipif);
+        showToast(`Tipificación actualizada a: ${newTipif}`, 'success');
+      }
+    });
+
+    // Eliminar lead
+    document.addEventListener('click', async (e) => {
+      if (e.target.matches('.btn-del-lead')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Eliminar prospecto del directorio?')) {
+          const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
+          delete localLeads[id];
+          localStorage.setItem('tb_leads_db', JSON.stringify(localLeads));
+          try {
+            await fetch(`${TB_FIREBASE.CONFIG.databaseURL}/leads_seguimiento/${id}.json`, { method: 'DELETE' });
+          } catch (err) {}
+          renderLeadsDirectory();
+          showToast('Registro eliminado', 'info');
+        }
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // EVENTOS: CAMPAÑA ACTIVA Y EVENTOS DEL MES
+    // -----------------------------------------------------------------------
+    document.getElementById('btn-toggle-config-campana')?.addEventListener('click', async () => {
+      const wrap = document.getElementById('form-config-campana-wrap');
+      const isVisible = wrap.style.display !== 'none';
+      wrap.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        // Pre-cargar valores existentes si hay
+        const campana = await TB_FIREBASE.getCampanaActiva();
+        if (campana) {
+          document.getElementById('cfg_campana_nombre').value = campana.nombre || '';
+          document.getElementById('cfg_campana_inicio').value = campana.fechaInicio || '';
+          document.getElementById('cfg_campana_fin').value = campana.fechaFin || '';
+          document.getElementById('cfg_campana_meta_ingreso').value = campana.metaIngreso || '';
+          document.getElementById('cfg_campana_meta_salon').value = campana.metaSalon || '';
+          document.getElementById('cfg_campana_meta_academia').value = campana.metaAcademia || '';
+          document.getElementById('cfg_campana_promociones').value = campana.promociones || '';
+        }
+      }
+    });
+
+    document.getElementById('btn-cancel-config-campana')?.addEventListener('click', () => {
+      document.getElementById('form-config-campana-wrap').style.display = 'none';
+    });
+
+    document.getElementById('form-campana-activa')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const campana = {
+        nombre: document.getElementById('cfg_campana_nombre').value.trim(),
+        fechaInicio: document.getElementById('cfg_campana_inicio').value,
+        fechaFin: document.getElementById('cfg_campana_fin').value,
+        metaIngreso: parseFloat(document.getElementById('cfg_campana_meta_ingreso').value) || 0,
+        metaSalon: parseInt(document.getElementById('cfg_campana_meta_salon').value, 10) || 0,
+        metaAcademia: parseInt(document.getElementById('cfg_campana_meta_academia').value, 10) || 0,
+        promociones: document.getElementById('cfg_campana_promociones').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await TB_FIREBASE.saveCampanaActiva(campana);
+      showToast('✅ Campaña activa guardada en Firebase', 'success');
+      document.getElementById('form-config-campana-wrap').style.display = 'none';
+      renderCampanaActiva();
+    });
+
+    // Eventos del mes
+    document.getElementById('btn-toggle-nuevo-evento')?.addEventListener('click', () => {
+      const wrap = document.getElementById('form-nuevo-evento-wrap');
+      wrap.style.display = (wrap.style.display === 'none') ? 'block' : 'none';
+      document.getElementById('ev_fecha').value = new Date().toISOString().split('T')[0];
+    });
+
+    document.getElementById('btn-cancel-nuevo-evento')?.addEventListener('click', () => {
+      document.getElementById('form-nuevo-evento-wrap').style.display = 'none';
+    });
+
+    document.getElementById('form-nuevo-evento')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const evento = {
+        fecha: document.getElementById('ev_fecha').value,
+        tipo: document.getElementById('ev_tipo').value,
+        titulo: document.getElementById('ev_titulo').value.trim(),
+        responsable: document.getElementById('ev_responsable').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      await TB_FIREBASE.saveEvento(evento);
+      showToast('Evento registrado con éxito', 'success');
+      document.getElementById('form-nuevo-evento').reset();
+      document.getElementById('form-nuevo-evento-wrap').style.display = 'none';
+      renderEventosTimeline();
+    });
+
+    document.addEventListener('click', async (e) => {
+      if (e.target.matches('.btn-del-evento')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Eliminar este evento del calendario?')) {
+          const localEventos = JSON.parse(localStorage.getItem('tb_eventos_db') || '{}');
+          delete localEventos[id];
+          localStorage.setItem('tb_eventos_db', JSON.stringify(localEventos));
+          try {
+            await fetch(`${TB_FIREBASE.CONFIG.databaseURL}/eventos_mes/${id}.json`, { method: 'DELETE' });
+          } catch (err) {}
+          renderEventosTimeline();
+          showToast('Evento eliminado', 'info');
+        }
+      }
+    });
+
+    // Guardado manual de BalanceScore e Ingresos
     document.getElementById('btn-save-balancescore')?.addEventListener('click', async () => {
       const fecha = document.getElementById('bs_fecha').value;
-      await TB_FIREBASE.saveBalanceScore(fecha, DEFAULT_STATIONS);
+      await TB_FIREBASE.saveBalanceScore(fecha, STATIONS_METAS);
       showToast('BalanceScore guardado en Firebase', 'success');
     });
 
-    // Ingresos
+    document.getElementById('bs_fecha')?.addEventListener('change', () => {
+      renderBalanceScoreStations();
+    });
+
+    document.getElementById('rep_ingresos_fecha')?.addEventListener('change', () => {
+      renderIngresosReport();
+    });
+
     document.getElementById('btn-sync-ingresos-arqueo')?.addEventListener('click', () => {
       renderIngresosReport();
-      showToast('Reporte sincronizado con Caja Principal', 'success');
+      showToast('Reporte sincronizado con ventas del día', 'success');
     });
 
     document.getElementById('btn-save-ingresos')?.addEventListener('click', async () => {
@@ -1245,10 +1969,12 @@
       showToast('Reporte de ingresos guardado en Firebase', 'success');
     });
 
-    // Datos de Ejemplo
+    // -----------------------------------------------------------------------
+    // BOTÓN DE EJEMPLO (SOLO SI EL USUARIO LO SOLICITA)
+    // -----------------------------------------------------------------------
     document.getElementById('btn-example-data')?.addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
       if (currentModule === 'arqueo-chica') {
-        const today = new Date().toISOString().split('T')[0];
         document.getElementById('chica_fecha').value = today;
         document.getElementById('chica_responsable').value = 'Marbella Ríos';
         document.getElementById('chica_hora').value = '19:30';
@@ -1272,7 +1998,6 @@
           rows[3].querySelector('.chica-autorizo').value = 'Recepción';
           rows[3].querySelector('.chica-importe').value = '50.00';
         }
-        // Total salidas = 550.00 -> Esperado en caja chica = 450.00
         document.getElementById('chica_b_200').value = '2'; // 400
         document.getElementById('chica_b_50').value = '1';  // 50
         document.getElementById('chica_explicacion').value = 'Caja chica cuadrada con todos los tickets en orden.';
@@ -1280,7 +2005,6 @@
         recalculateChica();
         showToast('Datos de ejemplo de Caja Chica cargados', 'success');
       } else {
-        const today = new Date().toISOString().split('T')[0];
         document.getElementById('header_fecha').value = today;
         document.getElementById('header_responsable').value = 'Marbella Ríos';
         document.getElementById('header_hora').value = '20:00';
@@ -1294,13 +2018,11 @@
         document.getElementById('ing_productos_efec').value = '750.00';
         document.getElementById('ing_operaciones_cobradas').value = '18';
 
-        // Retiros para resguardo
         document.getElementById('concil_retiros_resguardo').value = '4000.00';
-        // Fondo 1500 + Ingresos Efec (3450+600+1200+750=6000) - Retiros 4000 = Esperado 3500
-        document.getElementById('billete_1000').value = '2'; // 2000
-        document.getElementById('billete_500').value  = '2'; // 1000
-        document.getElementById('billete_200').value  = '2'; // 400
-        document.getElementById('billete_100').value  = '1'; // 100
+        document.getElementById('billete_1000').value = '2';
+        document.getElementById('billete_500').value  = '2';
+        document.getElementById('billete_200').value  = '2';
+        document.getElementById('billete_100').value  = '1';
 
         document.getElementById('ctrl_transf_reg').value = '2200.00';
         document.getElementById('ctrl_transf_verif').value = '2200.00';
@@ -1322,17 +2044,26 @@
       }
     });
 
-    // Fechas y horas de inicio
+    // -----------------------------------------------------------------------
+    // INICIALIZACIÓN LIMPIA PARA PRODUCCIÓN
+    // -----------------------------------------------------------------------
     const now = new Date();
     const dStr = now.toISOString().split('T')[0];
     const hmStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    document.getElementById('header_fecha').value = dStr;
-    document.getElementById('header_hora').value = hmStr;
-    document.getElementById('val_hora_cierre').value = hmStr;
+    if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
+    if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hmStr;
+    if (document.getElementById('val_hora_cierre')) document.getElementById('val_hora_cierre').value = hmStr;
 
-    document.getElementById('chica_fecha').value = dStr;
-    document.getElementById('chica_hora').value = hmStr;
+    if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
+    if (document.getElementById('chica_hora')) document.getElementById('chica_hora').value = hmStr;
+
+    if (document.getElementById('ventas_filtro_fecha')) document.getElementById('ventas_filtro_fecha').value = dStr;
+    if (document.getElementById('venta_fecha')) document.getElementById('venta_fecha').value = dStr;
+    if (document.getElementById('lead_reg_fecha')) document.getElementById('lead_reg_fecha').value = dStr;
+    if (document.getElementById('bs_fecha')) document.getElementById('bs_fecha').value = dStr;
+    if (document.getElementById('rep_ingresos_fecha')) document.getElementById('rep_ingresos_fecha').value = dStr;
+    if (document.getElementById('ev_fecha')) document.getElementById('ev_fecha').value = dStr;
 
     recalculatePrincipal();
     recalculateChica();
