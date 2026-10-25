@@ -9,7 +9,7 @@ Conectado 100% a la nube de **Firebase Authentication** y **Firebase Realtime Da
 
 ### 🔐 Inicio de Sesión Seguro (Firebase Authentication)
 El sistema cuenta con una pantalla de inicio de sesión (*login barrier*) conectada directamente a Firebase Auth:
-- **Método**: Correo electrónico y contraseña.
+- **Acceso Exclusivo**: Acceso mediante correo electrónico y contraseña configurados en Firebase Authentication (`totalbregis`).
 - **Seguridad**: Tokens seguros de sesión (`idToken`), persistencia de sesión ("Recordar sesión") y actualización automática de token (`refreshToken`).
 - **Recuperación**: Opción para enviar enlace oficial de restablecimiento de contraseña a la bandeja de entrada del usuario.
 - **Perfil Activo**: El correo del usuario autenticado se muestra en la barra superior (*topbar*) y en el pie del menú lateral (*sidebar*), con botón para **Cerrar Sesión** en cualquier momento.
@@ -43,11 +43,11 @@ El sistema cuenta con una barra lateral (*sidebar*) interactiva con acceso a tod
 Módulo para capturar cada venta u operación cobrada en recepción:
 - **Campos Solicitados (* = obligatorios)**:
   - `fecha*` (Fecha de la venta)
-  - `telefono*` (Teléfono celular a 10 dígitos)
+  - `telefono` (Teléfono celular a 10 dígitos, **opcional**)
   - `nombre de la clienta` (Opcional)
-  - `servicio o producto*` (Con sugerencias rápidas)
-  - `estacion*` (Cabello, Uñas, Maquillaje, Pestañas, Pedicure, Facial, Academia, Retail)
-  - `especialista*` (Nombre de quien atendió)
+  - `servicio o producto*` (Selector desplegable configurado en Configuración General; autocompleta estación y precio sugerido)
+  - `estacion*` (Selector desplegable configurado en Configuración General)
+  - `especialista*` (Selector desplegable configurado en Configuración General)
   - `metodo de pago*` (Efectivo, Tarjeta, Transferencia)
   - `total cobrado*` (Monto en pesos)
   - `status del pago*` (Pagado completo, Anticipo, Saldo pendiente)
@@ -66,14 +66,16 @@ Módulo para capturar cada venta u operación cobrada en recepción:
 - Muestra estatus de cuadratura, ingresos, salidas y diferencias.
 
 #### 5. 💈 BalanceScore por Estaciones
-- Medición en tiempo real de las 6 estaciones de trabajo del salón:
-  1. **Cabello & Colorimetría**
-  2. **Uñas & Manicure**
-  3. **Maquillaje Profesional**
-  4. **Lash & Brow Bar (Pestañas/Cejas)**
-  5. **Pedicure & Spa**
-  6. **Cabina Facial**
-- Toma las ventas registradas del día y calcula automáticamente el ingreso logrado vs. meta, clientes atendidos y ticket promedio.
+- Medición en tiempo real de las estaciones de trabajo activas:
+  1. **Cabello**
+  2. **Uñas**
+  3. **Maquillaje**
+  4. **Pestañas**
+  5. **Pedicure**
+  6. **Facial**
+  7. **Academia**
+  8. **Retail**
+- Toma las ventas registradas del día y calcula automáticamente el ingreso logrado vs. meta de la estación, clientes atendidos y ticket promedio.
 - Checklists de estándares operativos (limpieza, puntualidad, hospitalidad, venta cruzada).
 - Score general ponderado del salón.
 
@@ -98,6 +100,19 @@ Pestañas segmentadas para gestionar el ciclo comercial:
 - **Configurar / Editar Campaña Activa**: Formulario para definir nombre, fechas de vigencia, metas y paquetes.
 - **Eventos del Mes**: Calendario de eventos con fechas, responsables y creación de nuevos eventos.
 
+#### 9. ⚙️ Configuración General (Catálogos Dinámicos)
+Módulo administrativo para gestionar los catálogos del negocio sincronizados con Firebase:
+- **Servicios y Productos**:
+  - Alta y administración con nombre, tipo (*Servicio Salón, Producto Retail, Curso Academia*), estación asignada y precio base sugerido.
+  - Alimenta dinámicamente el selector del Registro Diario de Ventas.
+- **Estaciones de Trabajo**:
+  - Configuración de áreas del salón y academia con icono/emoji, meta diaria de ingresos ($) y meta de clientes.
+  - Vinculado dinámicamente al BalanceScore por Estaciones.
+- **Especialistas**:
+  - Directorio del equipo operativo con nombre completo, especialidad/estación y teléfono.
+  - Alimenta dinámicamente el selector de especialista en ventas.
+- **Acceso Rápido**: Enlaces directos `⚙️ Configurar` junto a cada selector del formulario de ventas.
+
 ---
 
 ### 🛡️ Cero Datos de Prueba (Producción Limpia)
@@ -118,6 +133,7 @@ El sistema inicia sin datos mock ni registros falsos. Todo inicia en blanco, lis
   - `/eventos_mes/{id}`: Eventos y fechas clave.
   - `/balancescore/{fecha}`: Evaluaciones del BalanceScore.
   - `/reportes_ingresos/{fecha}`: Reportes diarios de ingresos.
+  - `/configuracion/{servicios,estaciones,especialistas}`: Catálogos maestros configurables.
 - **Respaldo Offline**: Persistencia automática en `localStorage` ante fallos de conexión.
 
 ---

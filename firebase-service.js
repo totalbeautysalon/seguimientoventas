@@ -716,6 +716,55 @@ const TB_FIREBASE = (function () {
     return Object.values(local);
   }
 
+  // =========================================================================
+  // 7. CONFIGURACIÓN GENERAL (CATÁLOGOS: SERVICIOS, ESTACIONES, ESPECIALISTAS)
+  // =========================================================================
+  async function saveCatalogo(tipo, items) {
+    localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(items));
+    try {
+      await fetch(getDbUrl(`configuracion/${tipo}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items)
+      });
+      return { success: true, source: 'firebase' };
+    } catch (e) {
+      console.warn(`Error al sincronizar catálogo ${tipo} con Firebase:`, e);
+      return { success: true, source: 'local' };
+    }
+  }
+
+  async function getCatalogo(tipo, defaultItems = []) {
+    let local = null;
+    try {
+      const stored = localStorage.getItem(`tb_cat_${tipo}`);
+      if (stored) local = JSON.parse(stored);
+    } catch (e) {}
+
+    try {
+      const res = await fetch(getDbUrl(`configuracion/${tipo}`));
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && (Array.isArray(cloud) ? cloud.length > 0 : Object.keys(cloud).length > 0)) {
+          const list = Array.isArray(cloud) ? cloud : Object.values(cloud);
+          localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(list));
+          return list;
+        }
+      }
+    } catch (e) {}
+
+    if (local && Array.isArray(local) && local.length > 0) {
+      return local;
+    }
+
+    if (defaultItems && defaultItems.length > 0) {
+      saveCatalogo(tipo, defaultItems).catch(() => {});
+      return defaultItems;
+    }
+
+    return [];
+  }
+
   // Inicializar conexión
   setTimeout(testConnection, 500);
 
@@ -725,13 +774,14 @@ const TB_FIREBASE = (function () {
     onConnectionChange,
     // Autenticación
     login,
-    register,
-    loginOffline,
     logout,
     checkSession,
     getCurrentUser,
     onAuthChange,
     sendPasswordReset,
+    // Catálogos de Configuración General
+    saveCatalogo,
+    getCatalogo,
     // CRUD Módulos
     saveVenta,
     getVentasByFecha,

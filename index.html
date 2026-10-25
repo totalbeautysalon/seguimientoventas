@@ -24,15 +24,7 @@
         <span class="auth-badge">Acceso Seguro &bull; Firebase Authentication</span>
       </div>
 
-      <!-- Pestañas Iniciar Sesión / Registrar Cuenta -->
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab-btn active" id="tab-auth-login">Iniciar Sesión</button>
-        <button type="button" class="auth-tab-btn" id="tab-auth-register">Registrar Cuenta</button>
-      </div>
-
-      <div id="auth-register-info" style="display:none; font-size:0.8rem; color:var(--muted); margin-bottom:14px; background:#f8fafc; padding:8px 12px; border-radius:4px; border-left:3px solid var(--primary); line-height:1.4;">
-        Cree su usuario con este correo y contraseña para vincularlo a Firebase <strong>totalbregis</strong>. Si ya lo dio de alta, use la pestaña Iniciar Sesión.
-      </div>
+      
 
       <div id="auth-error-box" class="auth-error-box" style="display:none;"></div>
       <div id="auth-success-box" class="auth-success-box" style="display:none;"></div>
@@ -68,11 +60,7 @@
         </button>
       </form>
 
-      <div style="text-align:center; margin-top:14px;">
-        <button type="button" id="btn-login-offline" style="background:none; border:none; color:var(--muted); font-size:0.75rem; text-decoration:underline; cursor:pointer;">
-          Continuar en Modo Local (sin conexión a Firebase)
-        </button>
-      </div>
+      
 
       <div class="auth-footer-notice">
         Base de Datos: <strong>totalbregis</strong> &bull; Total Beauty Portal Oficial
@@ -148,6 +136,14 @@
           <a class="menu-item-link" data-module="campana">
             <span class="menu-icon">🌟</span>
             <span>Campaña y Eventos</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-category">Administración</li>
+        <li>
+          <a class="menu-item-link" data-module="configuracion">
+            <span class="menu-icon">⚙️</span>
+            <span>Configuración General</span>
           </a>
         </li>
       </ul>
@@ -1125,8 +1121,8 @@
               </div>
 
               <div class="form-group">
-                <label for="venta_telefono">Teléfono <span class="required">*</span></label>
-                <input type="tel" id="venta_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678" required>
+                <label for="venta_telefono">Teléfono</label>
+                <input type="tel" id="venta_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678 (opcional)">
               </div>
 
               <div class="form-group">
@@ -1135,42 +1131,33 @@
               </div>
 
               <div class="form-group">
-                <label for="venta_servicio">Servicio o producto <span class="required">*</span></label>
-                <input type="text" id="venta_servicio" class="input-text" placeholder="Ej. Balayage, Uñas Acrílicas, Curso..." required list="lista-servicios-populares">
-                <datalist id="lista-servicios-populares">
-                  <option value="Balayage Completo + Matiz">
-                  <option value="Tinte Global y Tratamiento">
-                  <option value="Corte de Cabello y Planchado">
-                  <option value="Uñas Esculturales Acrílicas">
-                  <option value="Gelish Manos y Pies">
-                  <option value="Maquillaje Profesional y Peinado">
-                  <option value="Laminado de Cejas y Pestañas">
-                  <option value="Pedicure Spa Profundo">
-                  <option value="Limpieza Facial Hidratante">
-                  <option value="Inscripción Curso Uñas Academia">
-                  <option value="Inscripción Curso Colorimetría">
-                  <option value="Shampoo y Mascarilla Post-Color">
-                </datalist>
-              </div>
-
-              <div class="form-group">
-                <label for="venta_estacion">Estación <span class="required">*</span></label>
-                <select id="venta_estacion" class="input-text" required>
-                  <option value="" disabled selected>Seleccione la estación...</option>
-                  <option value="Cabello">💇‍♀️ Cabello & Colorimetría</option>
-                  <option value="Uñas">💅 Uñas & Manicure</option>
-                  <option value="Maquillaje">💄 Maquillaje Profesional</option>
-                  <option value="Pestañas">👁️ Lash & Brow (Pestañas/Cejas)</option>
-                  <option value="Pedicure">🦶 Pedicure & Spa</option>
-                  <option value="Facial">✨ Cabina Facial</option>
-                  <option value="Academia">🎓 Academia Total Beauty</option>
-                  <option value="Retail">🛍️ Venta de Productos / Retail</option>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <label for="venta_servicio">Servicio o producto <span class="required">*</span></label>
+                  <a href="#" class="btn-goto-config" data-config-tab="servicios" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
+                </div>
+                <select id="venta_servicio" class="input-text" required>
+                  <option value="" disabled selected>Seleccione servicio o producto...</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label for="venta_especialista">Especialista <span class="required">*</span></label>
-                <input type="text" id="venta_especialista" class="input-text" placeholder="Nombre de quien atendió" required>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <label for="venta_estacion">Estación <span class="required">*</span></label>
+                  <a href="#" class="btn-goto-config" data-config-tab="estaciones" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
+                </div>
+                <select id="venta_estacion" class="input-text" required>
+                  <option value="" disabled selected>Seleccione la estación...</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <label for="venta_especialista">Especialista <span class="required">*</span></label>
+                  <a href="#" class="btn-goto-config" data-config-tab="especialistas" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
+                </div>
+                <select id="venta_especialista" class="input-text" required>
+                  <option value="" disabled selected>Seleccione especialista...</option>
+                </select>
               </div>
 
               <div class="form-group">
@@ -1855,6 +1842,252 @@
             </div>
           </div>
 
+        </div>
+
+      </section>
+
+      <!-- ================================================================
+           9. CONFIGURACIÓN GENERAL (SERVICIOS, ESTACIONES, ESPECIALISTAS)
+           ================================================================ -->
+      <section class="module-view" id="view-configuracion">
+
+        <!-- Barra Superior con Subpestañas -->
+        <div class="filter-bar" style="margin-bottom:18px;">
+          <div class="option-pills-bar" style="margin-bottom:0;">
+            <button type="button" class="option-pill config-nav-pill active" data-cfgtab="servicios">
+              <span class="pill-icon">✨</span>
+              <span>1. Servicios y Productos</span>
+            </button>
+            <button type="button" class="option-pill config-nav-pill" data-cfgtab="estaciones">
+              <span class="pill-icon">💈</span>
+              <span>2. Estaciones de Trabajo</span>
+            </button>
+            <button type="button" class="option-pill config-nav-pill" data-cfgtab="especialistas">
+              <span class="pill-icon">👩‍🎨</span>
+              <span>3. Especialistas</span>
+            </button>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-config">
+              <span>🔄</span> Sincronizar con Firebase
+            </button>
+          </div>
+        </div>
+
+        <!-- SUBPESTAÑA 1: SERVICIOS Y PRODUCTOS -->
+        <div class="config-subview" id="config-subview-servicios">
+          <div class="ventas-form-card" style="margin-bottom:20px;">
+            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Dar de Alta Nuevo Servicio o Producto
+              </h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
+                Los servicios y productos configurados aquí aparecerán automáticamente en el selector del Registro Diario de Ventas.
+              </p>
+            </div>
+
+            <form id="form-nuevo-servicio" autocomplete="off">
+              <div class="ventas-form-grid">
+                <div class="form-group">
+                  <label for="cfg_serv_nombre">Nombre del Servicio o Producto <span class="required">*</span></label>
+                  <input type="text" id="cfg_serv_nombre" class="input-text" placeholder="Ej. Balayage Completo, Uñas Acrílicas..." required>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_serv_tipo">Tipo <span class="required">*</span></label>
+                  <select id="cfg_serv_tipo" class="input-text" required>
+                    <option value="Servicio" selected>💇‍♀️ Servicio (Salón)</option>
+                    <option value="Producto">🛍️ Producto (Venta Retail)</option>
+                    <option value="Curso">🎓 Curso / Taller (Academia)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_serv_estacion">Estación Asignada <span class="required">*</span></label>
+                  <select id="cfg_serv_estacion" class="input-text" required>
+                    <!-- Rellenado dinámicamente con estaciones -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_serv_precio">Precio Base / Cobro Sugerido ($) <span class="required">*</span></label>
+                  <div class="currency-input-wrap">
+                    <span class="currency-prefix">$</span>
+                    <input type="number" step="0.01" min="0" class="input-currency" id="cfg_serv_precio" placeholder="0.00" required>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Servicio/Producto</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Catálogo de Servicios Existentes -->
+          <div class="form-section">
+            <div class="section-header">
+              <div class="section-title-wrap">
+                <span class="section-badge">CAT</span>
+                <div>
+                  <h2 class="section-title">Catálogo de Servicios y Productos Activos</h2>
+                  <span class="section-subtitle">Disponibles en el selector de ventas e interconectados con caja</span>
+                </div>
+              </div>
+              <span class="kpi-status-badge badge-cuadrada" id="badge-total-servicios">0 Registros</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Estación Asignada</th>
+                    <th class="text-right">Precio Base</th>
+                    <th class="text-center" style="width:90px;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-cat-servicios">
+                  <!-- Llenado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBPESTAÑA 2: ESTACIONES DE TRABAJO -->
+        <div class="config-subview" id="config-subview-estaciones" style="display:none;">
+          <div class="ventas-form-card" style="margin-bottom:20px;">
+            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Dar de Alta Nueva Estación de Trabajo
+              </h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
+                Las estaciones determinan las áreas operativas del Salón / Academia y alimentan el BalanceScore diario.
+              </p>
+            </div>
+
+            <form id="form-nueva-estacion" autocomplete="off">
+              <div class="ventas-form-grid">
+                <div class="form-group">
+                  <label for="cfg_est_nombre">Nombre de la Estación <span class="required">*</span></label>
+                  <input type="text" id="cfg_est_nombre" class="input-text" placeholder="Ej. Cabello, Uñas, etc." required>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_est_icono">Icono / Emoji</label>
+                  <input type="text" id="cfg_est_icono" class="input-text" placeholder="Ej. 💇‍♀️, 💅, 💄, 🎓" maxlength="4" value="✨">
+                </div>
+                <div class="form-group">
+                  <label for="cfg_est_meta">Meta Diaria de Venta ($) <span class="required">*</span></label>
+                  <div class="currency-input-wrap">
+                    <span class="currency-prefix">$</span>
+                    <input type="number" step="0.01" min="0" class="input-currency" id="cfg_est_meta" placeholder="2000.00" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_est_meta_clientes">Meta Diaria de Clientes</label>
+                  <input type="number" min="1" class="input-text" id="cfg_est_meta_clientes" placeholder="5" value="5">
+                </div>
+              </div>
+              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Estación</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Catálogo de Estaciones Existentes -->
+          <div class="form-section">
+            <div class="section-header">
+              <div class="section-title-wrap">
+                <span class="section-badge">EST</span>
+                <div>
+                  <h2 class="section-title">Estaciones de Trabajo Activas</h2>
+                  <span class="section-subtitle">Áreas operativas y metas asociadas al BalanceScore</span>
+                </div>
+              </div>
+              <span class="kpi-status-badge badge-cuadrada" id="badge-total-estaciones">0 Estaciones</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width:60px;">Icono</th>
+                    <th>Nombre de la Estación</th>
+                    <th class="text-right">Meta Diaria ($)</th>
+                    <th class="text-right">Meta Clientes</th>
+                    <th class="text-center" style="width:90px;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-cat-estaciones">
+                  <!-- Llenado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBPESTAÑA 3: ESPECIALISTAS -->
+        <div class="config-subview" id="config-subview-especialistas" style="display:none;">
+          <div class="ventas-form-card" style="margin-bottom:20px;">
+            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Dar de Alta Nuevo(a) Especialista
+              </h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
+                Especialistas y profesionales del equipo asignados a la atención y venta en el Salón y Academia.
+              </p>
+            </div>
+
+            <form id="form-nuevo-especialista" autocomplete="off">
+              <div class="ventas-form-grid">
+                <div class="form-group">
+                  <label for="cfg_esp_nombre">Nombre Completo <span class="required">*</span></label>
+                  <input type="text" id="cfg_esp_nombre" class="input-text" placeholder="Ej. Marbella Ríos, Karla Méndez..." required>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_esp_estacion">Estación / Especialidad Asignada <span class="required">*</span></label>
+                  <select id="cfg_esp_estacion" class="input-text" required>
+                    <!-- Rellenado dinámicamente con estaciones -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="cfg_esp_telefono">Teléfono de Contacto</label>
+                  <input type="tel" id="cfg_esp_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678 (opcional)">
+                </div>
+              </div>
+              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Especialista</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Catálogo de Especialistas Existentes -->
+          <div class="form-section">
+            <div class="section-header">
+              <div class="section-title-wrap">
+                <span class="section-badge">ESP</span>
+                <div>
+                  <h2 class="section-title">Especialistas Activos del Equipo</h2>
+                  <span class="section-subtitle">Profesionales disponibles para asignación en el registro de ventas</span>
+                </div>
+              </div>
+              <span class="kpi-status-badge badge-cuadrada" id="badge-total-especialistas">0 Especialistas</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nombre Completo</th>
+                    <th>Especialidad / Estación</th>
+                    <th>Teléfono</th>
+                    <th class="text-center" style="width:90px;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-cat-especialistas">
+                  <!-- Llenado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
       </section>

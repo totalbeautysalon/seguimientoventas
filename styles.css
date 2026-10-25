@@ -1608,4 +1608,56 @@ body {
   margin-top: 2px;
 }
 
+/* ==========================================================================
+   CONFIGURACIÓN GENERAL Y SELECTORES DINÁMICOS
+   ========================================================================== */
+.btn-goto-config {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fdf2f8;
+  color: var(--primary) !important;
+  border: 1px solid #fbcfe8;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-goto-config:hover {
+  background: var(--primary);
+  color: #ffffff !important;
+  border-color: var(--primary);
+  text-decoration: none !important;
+}
+
+.cat-badge-tipo {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cat-badge-servicio {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.cat-badge-producto {
+  background: #fdf2f8;
+  color: #be185d;
+  border: 1px solid #fbcfe8;
+}
+
+.cat-badge-curso {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+
 

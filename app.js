@@ -104,6 +104,10 @@
     'campana': {
       title: 'Campaña Activa y Eventos del Mes',
       desc: 'Objetivos mensuales, monitoreo de ventas en vivo y calendario de eventos'
+    },
+    'configuracion': {
+      title: 'Configuración General',
+      desc: 'Administración de catálogos: Servicios y Productos, Estaciones de Trabajo y Especialistas'
     }
   };
 
@@ -139,6 +143,9 @@
     if (modKey === 'campana') {
       renderCampanaActiva();
       renderEventosTimeline();
+    }
+    if (modKey === 'configuracion') {
+      loadAndRenderConfiguracion();
     }
   }
 
@@ -1036,6 +1043,19 @@
     { id: 'Facial', name: 'Cabina Facial', icon: '✨', meta: 900, clientesMeta: 3 }
   ];
 
+  function getActiveStationMetas() {
+    if (catEstaciones && catEstaciones.length > 0) {
+      return catEstaciones.map(e => ({
+        id: e.nombre,
+        name: e.nombre,
+        icon: e.icono || '💈',
+        meta: parseFloat(e.meta) || 2000,
+        clientesMeta: parseInt(e.metaClientes, 10) || 5
+      }));
+    }
+    return STATIONS_METAS;
+  }
+
   async function renderBalanceScoreStations() {
     const container = document.getElementById('stations-grid-container');
     container.innerHTML = '';
@@ -1045,9 +1065,10 @@
 
     // Obtener ventas reales para calcular la recaudación exacta por estación
     const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    const activeStations = getActiveStationMetas();
 
     let totalScore = 0;
-    STATIONS_METAS.forEach(st => {
+    activeStations.forEach(st => {
       // Filtrar ventas de esta estación
       const ventasSt = ventas.filter(v => (v.estacion || '').toLowerCase().includes(st.id.toLowerCase()));
       const lograda = ventasSt.reduce((sum, v) => sum + (parseFloat(v.totalCobrado) || 0), 0);
@@ -1091,7 +1112,7 @@
       container.appendChild(card);
     });
 
-    const overall = STATIONS_METAS.length > 0 ? Math.round(totalScore / STATIONS_METAS.length) : 0;
+    const overall = activeStations.length > 0 ? Math.round(totalScore / activeStations.length) : 0;
     const badge = document.getElementById('bs-overall-badge');
     if (badge) badge.textContent = `Score Salón: ${overall}%`;
   }
@@ -1471,7 +1492,237 @@
   }
 
   // =========================================================================
-  // 10. INICIALIZACIÓN Y EVENT LISTENERS
+  // 10. CONFIGURACIÓN GENERAL (CATÁLOGOS: SERVICIOS, ESTACIONES, ESPECIALISTAS)
+  // =========================================================================
+  const DEFAULT_ESTACIONES = [
+    { id: 'est_1', nombre: 'Cabello', icono: '💇‍♀️', meta: 2500, metaClientes: 6 },
+    { id: 'est_2', nombre: 'Uñas', icono: '💅', meta: 1800, metaClientes: 6 },
+    { id: 'est_3', nombre: 'Maquillaje', icono: '💄', meta: 1200, metaClientes: 3 },
+    { id: 'est_4', nombre: 'Pestañas', icono: '👁️', meta: 1000, metaClientes: 4 },
+    { id: 'est_5', nombre: 'Pedicure', icono: '🦶', meta: 900, metaClientes: 4 },
+    { id: 'est_6', nombre: 'Facial', icono: '✨', meta: 900, metaClientes: 3 },
+    { id: 'est_7', nombre: 'Academia', icono: '🎓', meta: 3500, metaClientes: 2 },
+    { id: 'est_8', nombre: 'Retail', icono: '🛍️', meta: 1000, metaClientes: 5 }
+  ];
+
+  const DEFAULT_ESPECIALISTAS = [
+    { id: 'esp_1', nombre: 'Marbella Ríos', estacion: 'Cabello', telefono: '5512345678' },
+    { id: 'esp_2', nombre: 'Especialista Salón', estacion: 'Uñas', telefono: '' },
+    { id: 'esp_3', nombre: 'Especialista Academia', estacion: 'Academia', telefono: '' }
+  ];
+
+  const DEFAULT_SERVICIOS = [
+    { id: 'srv_1', nombre: 'Balayage Completo + Matiz', tipo: 'Servicio', estacion: 'Cabello', precio: 1800 },
+    { id: 'srv_2', nombre: 'Tinte Global y Tratamiento', tipo: 'Servicio', estacion: 'Cabello', precio: 850 },
+    { id: 'srv_3', nombre: 'Corte de Cabello y Planchado', tipo: 'Servicio', estacion: 'Cabello', precio: 350 },
+    { id: 'srv_4', nombre: 'Uñas Esculturales Acrílicas', tipo: 'Servicio', estacion: 'Uñas', precio: 600 },
+    { id: 'srv_5', nombre: 'Gelish Manos y Pies', tipo: 'Servicio', estacion: 'Uñas', precio: 300 },
+    { id: 'srv_6', nombre: 'Maquillaje Profesional y Peinado', tipo: 'Servicio', estacion: 'Maquillaje', precio: 800 },
+    { id: 'srv_7', nombre: 'Laminado de Cejas y Pestañas', tipo: 'Servicio', estacion: 'Pestañas', precio: 550 },
+    { id: 'srv_8', nombre: 'Pedicure Spa Profundo', tipo: 'Servicio', estacion: 'Pedicure', precio: 450 },
+    { id: 'srv_9', nombre: 'Limpieza Facial Hidratante', tipo: 'Servicio', estacion: 'Facial', precio: 700 },
+    { id: 'srv_10', nombre: 'Inscripción Curso Uñas Academia', tipo: 'Curso', estacion: 'Academia', precio: 2500 },
+    { id: 'srv_11', nombre: 'Inscripción Curso Colorimetría', tipo: 'Curso', estacion: 'Academia', precio: 3500 },
+    { id: 'srv_12', nombre: 'Shampoo y Mascarilla Post-Color', tipo: 'Producto', estacion: 'Retail', precio: 450 }
+  ];
+
+  let currentConfigTab = 'servicios';
+  let catServicios = [];
+  let catEstaciones = [];
+  let catEspecialistas = [];
+
+  function switchConfigTab(tabKey) {
+    currentConfigTab = tabKey;
+    document.querySelectorAll('.config-nav-pill').forEach(btn => {
+      if (btn.dataset.cfgtab === tabKey) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+
+    ['servicios', 'estaciones', 'especialistas'].forEach(k => {
+      const el = document.getElementById(`config-subview-${k}`);
+      if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
+    });
+  }
+
+  async function loadCatalogsData() {
+    catEstaciones = await TB_FIREBASE.getCatalogo('estaciones', DEFAULT_ESTACIONES);
+    catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas', DEFAULT_ESPECIALISTAS);
+    catServicios = await TB_FIREBASE.getCatalogo('servicios', DEFAULT_SERVICIOS);
+
+    populateSalesDropdowns();
+    populateConfigStationDropdowns();
+  }
+
+  function populateSalesDropdowns() {
+    // 1. Selector de Servicios en Venta
+    const servSelect = document.getElementById('venta_servicio');
+    if (servSelect) {
+      const currentVal = servSelect.value;
+      servSelect.innerHTML = '<option value="" disabled selected>Seleccione servicio o producto...</option>';
+      
+      const grupos = {
+        'Servicios (Salón)': catServicios.filter(s => s.tipo === 'Servicio'),
+        'Productos (Retail)': catServicios.filter(s => s.tipo === 'Producto'),
+        'Cursos (Academia)': catServicios.filter(s => s.tipo === 'Curso')
+      };
+
+      Object.entries(grupos).forEach(([grpName, items]) => {
+        if (items.length > 0) {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = grpName;
+          items.forEach(it => {
+            const opt = document.createElement('option');
+            opt.value = it.nombre;
+            opt.textContent = `${it.nombre} - $${parseFloat(it.precio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+            opt.dataset.estacion = it.estacion || '';
+            opt.dataset.precio = it.precio || 0;
+            optGroup.appendChild(opt);
+          });
+          servSelect.appendChild(optGroup);
+        }
+      });
+      if (currentVal) servSelect.value = currentVal;
+    }
+
+    // 2. Selector de Estaciones en Venta
+    const estSelect = document.getElementById('venta_estacion');
+    if (estSelect) {
+      const currentVal = estSelect.value;
+      estSelect.innerHTML = '<option value="" disabled selected>Seleccione la estación...</option>';
+      catEstaciones.forEach(est => {
+        const opt = document.createElement('option');
+        opt.value = est.nombre;
+        opt.textContent = `${est.icono || '💈'} ${est.nombre}`;
+        estSelect.appendChild(opt);
+      });
+      if (currentVal) estSelect.value = currentVal;
+    }
+
+    // 3. Selector de Especialistas en Venta
+    const espSelect = document.getElementById('venta_especialista');
+    if (espSelect) {
+      const currentVal = espSelect.value;
+      espSelect.innerHTML = '<option value="" disabled selected>Seleccione especialista...</option>';
+      catEspecialistas.forEach(esp => {
+        const opt = document.createElement('option');
+        opt.value = esp.nombre;
+        opt.textContent = `${esp.nombre} (${esp.estacion || 'General'})`;
+        espSelect.appendChild(opt);
+      });
+      if (currentVal) espSelect.value = currentVal;
+    }
+  }
+
+  function populateConfigStationDropdowns() {
+    const s1 = document.getElementById('cfg_serv_estacion');
+    const s2 = document.getElementById('cfg_esp_estacion');
+    [s1, s2].forEach(sel => {
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="" disabled selected>Seleccione estación...</option>';
+      catEstaciones.forEach(est => {
+        const opt = document.createElement('option');
+        opt.value = est.nombre;
+        opt.textContent = `${est.icono || '💈'} ${est.nombre}`;
+        sel.appendChild(opt);
+      });
+      if (cur) sel.value = cur;
+    });
+  }
+
+  async function loadAndRenderConfiguracion() {
+    await loadCatalogsData();
+    renderCatServiciosTable();
+    renderCatEstacionesTable();
+    renderCatEspecialistasTable();
+  }
+
+  function renderCatServiciosTable() {
+    const tbody = document.getElementById('tbody-cat-servicios');
+    const badge = document.getElementById('badge-total-servicios');
+    if (badge) badge.textContent = `${catServicios.length} Registros`;
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (catServicios.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty-notice"><span>✨</span>No hay servicios configurados. Agregue uno arriba.</td></tr>';
+      return;
+    }
+
+    catServicios.forEach(s => {
+      const tr = document.createElement('tr');
+      let badgeClass = 'cat-badge-servicio';
+      if (s.tipo === 'Producto') badgeClass = 'cat-badge-producto';
+      if (s.tipo === 'Curso') badgeClass = 'cat-badge-curso';
+
+      tr.innerHTML = `
+        <td><strong>${s.nombre}</strong></td>
+        <td><span class="cat-badge-tipo ${badgeClass}">${s.tipo}</span></td>
+        <td><span style="font-weight:600; color:var(--primary);">${s.estacion || 'General'}</span></td>
+        <td class="text-right" style="font-weight:700;">$${parseFloat(s.precio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-serv" data-id="${s.id}" title="Eliminar servicio">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCatEstacionesTable() {
+    const tbody = document.getElementById('tbody-cat-estaciones');
+    const badge = document.getElementById('badge-total-estaciones');
+    if (badge) badge.textContent = `${catEstaciones.length} Estaciones`;
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (catEstaciones.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty-notice"><span>💈</span>No hay estaciones configuradas.</td></tr>';
+      return;
+    }
+
+    catEstaciones.forEach(est => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size:1.2rem; text-align:center;">${est.icono || '✨'}</td>
+        <td><strong>${est.nombre}</strong></td>
+        <td class="text-right" style="font-weight:700;">$${parseFloat(est.meta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${est.metaClientes || 5} clientes</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-est" data-id="${est.id}" title="Eliminar estación">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCatEspecialistasTable() {
+    const tbody = document.getElementById('tbody-cat-especialistas');
+    const badge = document.getElementById('badge-total-especialistas');
+    if (badge) badge.textContent = `${catEspecialistas.length} Especialistas`;
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (catEspecialistas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="table-empty-notice"><span>👩‍🎨</span>No hay especialistas configurados.</td></tr>';
+      return;
+    }
+
+    catEspecialistas.forEach(esp => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${esp.nombre}</strong></td>
+        <td><span style="font-weight:600; color:var(--primary);">${esp.estacion || 'General'}</span></td>
+        <td><span style="font-family:monospace; font-size:0.82rem;">${esp.telefono || 'Sin teléfono'}</span></td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-esp" data-id="${esp.id}" title="Eliminar especialista">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // =========================================================================
+  // 11. INICIALIZACIÓN Y EVENT LISTENERS
   // =========================================================================
   document.addEventListener('DOMContentLoaded', () => {
     // Configurar Canvas de Firmas
@@ -1676,21 +1927,49 @@
     // -----------------------------------------------------------------------
     // EVENTOS: REGISTRO DIARIO DE VENTAS
     // -----------------------------------------------------------------------
+    // Al seleccionar un servicio: autocompletar estación y precio sugerido
+    document.getElementById('venta_servicio')?.addEventListener('change', (e) => {
+      const selected = e.target.selectedOptions[0];
+      if (selected) {
+        const est = selected.dataset.estacion;
+        const prc = selected.dataset.precio;
+        if (est) {
+          const estEl = document.getElementById('venta_estacion');
+          if (estEl) estEl.value = est;
+        }
+        if (prc && parseFloat(prc) > 0) {
+          const totEl = document.getElementById('venta_total');
+          if (totEl) totEl.value = parseFloat(prc).toFixed(2);
+        }
+      }
+    });
+
+    // Enlaces directos a configuración
+    document.querySelectorAll('.btn-goto-config').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tab = btn.dataset.configTab || 'servicios';
+        switchModule('configuracion');
+        switchConfigTab(tab);
+      });
+    });
+
     document.getElementById('form-nueva-venta')?.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const fecha = document.getElementById('venta_fecha').value;
-      const telefono = document.getElementById('venta_telefono').value.trim();
+      const telefono = document.getElementById('venta_telefono').value.trim(); // Opcional
       const clienta = document.getElementById('venta_clienta').value.trim();
-      const servicio = document.getElementById('venta_servicio').value.trim();
+      const servicio = document.getElementById('venta_servicio').value;
       const estacion = document.getElementById('venta_estacion').value;
-      const especialista = document.getElementById('venta_especialista').value.trim();
+      const especialista = document.getElementById('venta_especialista').value;
       const metodoPago = document.getElementById('venta_metodo_pago').value;
       const totalCobrado = parseFloat(document.getElementById('venta_total').value) || 0;
       const statusPago = document.getElementById('venta_status_pago').value;
       const notas = document.getElementById('venta_notas').value.trim();
 
-      if (!fecha || !telefono || !servicio || !estacion || !especialista || !metodoPago || isNaN(totalCobrado) || !statusPago) {
+      // Teléfono YA NO es obligatorio (los obligatorios son fecha, servicio, estación, especialista, método de pago, total, status)
+      if (!fecha || !servicio || !estacion || !especialista || !metodoPago || isNaN(totalCobrado) || !statusPago) {
         showToast('Por favor llene todos los campos obligatorios marcados con *', 'warning');
         return;
       }
@@ -1716,6 +1995,7 @@
       document.getElementById('venta_telefono').value = '';
       document.getElementById('venta_clienta').value = '';
       document.getElementById('venta_servicio').value = '';
+      document.getElementById('venta_estacion').value = '';
       document.getElementById('venta_especialista').value = '';
       document.getElementById('venta_total').value = '';
       document.getElementById('venta_notas').value = '';
@@ -1727,6 +2007,126 @@
         syncVentasToCajaPrincipal(fecha, false);
       }
       renderCampanaActiva();
+    });
+
+    // -----------------------------------------------------------------------
+    // EVENTOS: CONFIGURACIÓN GENERAL (CATÁLOGOS)
+    // -----------------------------------------------------------------------
+    document.querySelectorAll('.config-nav-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.cfgtab;
+        if (tab) switchConfigTab(tab);
+      });
+    });
+
+    // Alta de Servicio
+    document.getElementById('form-nuevo-servicio')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('cfg_serv_nombre').value.trim();
+      const tipo = document.getElementById('cfg_serv_tipo').value;
+      const estacion = document.getElementById('cfg_serv_estacion').value;
+      const precio = parseFloat(document.getElementById('cfg_serv_precio').value) || 0;
+
+      if (!nombre || !tipo || !estacion) {
+        showToast('Complete todos los campos obligatorios (*)', 'warning');
+        return;
+      }
+
+      const item = { id: `srv_${Date.now()}`, nombre, tipo, estacion, precio };
+      catServicios.push(item);
+      await TB_FIREBASE.saveCatalogo('servicios', catServicios);
+      renderCatServiciosTable();
+      populateSalesDropdowns();
+      document.getElementById('form-nuevo-servicio').reset();
+      showToast(`✅ Servicio/Producto "${nombre}" guardado en Firebase`, 'success');
+    });
+
+    // Alta de Estación
+    document.getElementById('form-nueva-estacion')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('cfg_est_nombre').value.trim();
+      const icono = document.getElementById('cfg_est_icono').value.trim() || '💈';
+      const meta = parseFloat(document.getElementById('cfg_est_meta').value) || 0;
+      const metaClientes = parseInt(document.getElementById('cfg_est_meta_clientes').value, 10) || 5;
+
+      if (!nombre || meta <= 0) {
+        showToast('Ingrese un nombre de estación y una meta diaria válida', 'warning');
+        return;
+      }
+
+      const item = { id: `est_${Date.now()}`, nombre, icono, meta, metaClientes };
+      catEstaciones.push(item);
+      await TB_FIREBASE.saveCatalogo('estaciones', catEstaciones);
+      renderCatEstacionesTable();
+      populateSalesDropdowns();
+      populateConfigStationDropdowns();
+      document.getElementById('form-nueva-estacion').reset();
+      document.getElementById('cfg_est_icono').value = '✨';
+      document.getElementById('cfg_est_meta_clientes').value = '5';
+      showToast(`✅ Estación "${nombre}" guardada e integrada al BalanceScore`, 'success');
+    });
+
+    // Alta de Especialista
+    document.getElementById('form-nuevo-especialista')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('cfg_esp_nombre').value.trim();
+      const estacion = document.getElementById('cfg_esp_estacion').value;
+      const telefono = document.getElementById('cfg_esp_telefono').value.trim();
+
+      if (!nombre || !estacion) {
+        showToast('Complete el nombre y seleccione la estación asignada (*)', 'warning');
+        return;
+      }
+
+      const item = { id: `esp_${Date.now()}`, nombre, estacion, telefono };
+      catEspecialistas.push(item);
+      await TB_FIREBASE.saveCatalogo('especialistas', catEspecialistas);
+      renderCatEspecialistasTable();
+      populateSalesDropdowns();
+      document.getElementById('form-nuevo-especialista').reset();
+      showToast(`✅ Especialista "${nombre}" guardado(a) en Firebase`, 'success');
+    });
+
+    // Eliminar ítems de catálogo
+    document.addEventListener('click', async (e) => {
+      if (e.target.matches('.btn-del-cfg-serv')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Está seguro de eliminar este servicio del catálogo?')) {
+          catServicios = catServicios.filter(s => s.id !== id);
+          await TB_FIREBASE.saveCatalogo('servicios', catServicios);
+          renderCatServiciosTable();
+          populateSalesDropdowns();
+          showToast('Servicio eliminado', 'info');
+        }
+      }
+      if (e.target.matches('.btn-del-cfg-est')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Está seguro de eliminar esta estación de trabajo?')) {
+          catEstaciones = catEstaciones.filter(st => st.id !== id);
+          await TB_FIREBASE.saveCatalogo('estaciones', catEstaciones);
+          renderCatEstacionesTable();
+          populateSalesDropdowns();
+          populateConfigStationDropdowns();
+          showToast('Estación eliminada', 'info');
+        }
+      }
+      if (e.target.matches('.btn-del-cfg-esp')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Está seguro de eliminar este(a) especialista?')) {
+          catEspecialistas = catEspecialistas.filter(esp => esp.id !== id);
+          await TB_FIREBASE.saveCatalogo('especialistas', catEspecialistas);
+          renderCatEspecialistasTable();
+          populateSalesDropdowns();
+          showToast('Especialista eliminado', 'info');
+        }
+      }
+    });
+
+    // Botón de sincronizar catálogo
+    document.getElementById('btn-sync-config')?.addEventListener('click', async () => {
+      showToast('Sincronizando catálogos desde Firebase...', 'info');
+      await loadAndRenderConfiguracion();
+      showToast('Catálogos sincronizados con éxito', 'success');
     });
 
     document.getElementById('ventas_filtro_fecha')?.addEventListener('change', (e) => {
@@ -2068,6 +2468,9 @@
     recalculatePrincipal();
     recalculateChica();
 
+    // Inicializar Catálogos Generales (Servicios, Estaciones, Especialistas)
+    loadCatalogsData();
+
     // Inicializar Sistema de Autenticación Firebase Auth
     initAuthSystem();
   });
@@ -2088,56 +2491,15 @@
     const authText = document.getElementById('btn-auth-text');
     const btnTogglePwd = document.getElementById('btn-toggle-pwd');
     const linkForgotPwd = document.getElementById('link-forgot-pwd');
-    const tabLogin = document.getElementById('tab-auth-login');
-    const tabRegister = document.getElementById('tab-auth-register');
-    const registerInfo = document.getElementById('auth-register-info');
-    const btnLoginOffline = document.getElementById('btn-login-offline');
 
     const topbarUserBadge = document.getElementById('topbar-user-badge');
     const topbarUserEmail = document.getElementById('topbar-user-email');
     const sidebarUserCard = document.getElementById('sidebar-user-card');
     const sidebarUserEmail = document.getElementById('sidebar-user-email');
 
-    let currentAuthMode = 'login'; // 'login' o 'register'
-
-    function setAuthMode(mode) {
-      currentAuthMode = mode;
-      if (mode === 'register') {
-        if (tabRegister) tabRegister.classList.add('active');
-        if (tabLogin) tabLogin.classList.remove('active');
-        if (registerInfo) registerInfo.style.display = 'block';
-        if (authText) authText.textContent = 'Crear Cuenta en Firebase';
-      } else {
-        if (tabLogin) tabLogin.classList.add('active');
-        if (tabRegister) tabRegister.classList.remove('active');
-        if (registerInfo) registerInfo.style.display = 'none';
-        if (authText) authText.textContent = 'Iniciar Sesión';
-      }
-      if (authErrorBox) authErrorBox.style.display = 'none';
-      if (authSuccessBox) authSuccessBox.style.display = 'none';
-    }
-
-    tabLogin?.addEventListener('click', () => setAuthMode('login'));
-    tabRegister?.addEventListener('click', () => setAuthMode('register'));
-
-    function showError(msg, showRegisterHint = false) {
+    function showError(msg) {
       if (authErrorBox) {
-        if (showRegisterHint) {
-          authErrorBox.innerHTML = `
-            <div>${msg}</div>
-            <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(185,28,28,0.3);">
-              ¿Es un usuario nuevo o no está dado de alta en <strong>totalbregis</strong>?
-              <button type="button" id="btn-quick-switch-register" style="background:none; border:none; color:#b91c1c; font-weight:800; text-decoration:underline; cursor:pointer; padding:0; margin-left:4px;">
-                Haga clic aquí para Registrar su Cuenta
-              </button>
-            </div>
-          `;
-          document.getElementById('btn-quick-switch-register')?.addEventListener('click', () => {
-            setAuthMode('register');
-          });
-        } else {
-          authErrorBox.textContent = msg;
-        }
+        authErrorBox.textContent = msg;
         authErrorBox.style.display = 'block';
       }
       if (authSuccessBox) authSuccessBox.style.display = 'none';
@@ -2182,7 +2544,6 @@
       if (authForm) authForm.reset();
       if (authErrorBox) authErrorBox.style.display = 'none';
       if (authSuccessBox) authSuccessBox.style.display = 'none';
-      setAuthMode('login');
     }
 
     // Toggle ver contraseña
@@ -2206,15 +2567,7 @@
       }
     });
 
-    // Entrar en Modo Local / Offline
-    btnLoginOffline?.addEventListener('click', () => {
-      const email = authEmail?.value?.trim() || 'operador.local@totalbeauty.com';
-      TB_FIREBASE.loginOffline(email);
-      onLoginSuccess({ email, isOffline: true });
-      showToast('Ingresó en Modo Local / Trabajo Sin Conexión', 'warning');
-    });
-
-    // Envío del formulario (Login o Register)
+    // Envío del formulario de Inicio de Sesión
     authForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = authEmail.value.trim();
@@ -2222,31 +2575,25 @@
       const remember = authRemember ? authRemember.checked : true;
 
       if (!email || !password) {
-        showError('Por favor complete su correo y contraseña.');
+        showError('Por favor ingrese su correo electrónico y contraseña.');
         return;
       }
 
       if (authSpinner) authSpinner.style.display = 'inline-block';
-      if (authText) authText.textContent = (currentAuthMode === 'register') ? 'Registrando en Firebase...' : 'Verificando con Firebase...';
+      if (authText) authText.textContent = 'Verificando con Firebase...';
       if (authSubmitBtn) authSubmitBtn.disabled = true;
       if (authErrorBox) authErrorBox.style.display = 'none';
 
-      let res;
-      if (currentAuthMode === 'register') {
-        res = await TB_FIREBASE.register(email, password);
-      } else {
-        res = await TB_FIREBASE.login(email, password, remember);
-      }
+      const res = await TB_FIREBASE.login(email, password, remember);
 
       if (authSpinner) authSpinner.style.display = 'none';
-      if (authText) authText.textContent = (currentAuthMode === 'register') ? 'Crear Cuenta en Firebase' : 'Iniciar Sesión';
+      if (authText) authText.textContent = 'Iniciar Sesión';
       if (authSubmitBtn) authSubmitBtn.disabled = false;
 
       if (res.success) {
         onLoginSuccess(res.user);
       } else {
-        const isCredentialErr = res.rawError === 'INVALID_LOGIN_CREDENTIALS' || res.rawError === 'EMAIL_NOT_FOUND' || res.rawError === 'INVALID_PASSWORD';
-        showError(res.error, isCredentialErr && currentAuthMode === 'login');
+        showError(res.error);
       }
     });
 
