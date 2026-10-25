@@ -1,0 +1,15 @@
+# Node / Temp files
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.env.local
+*.log
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# OS metadata
+.DS_Store
