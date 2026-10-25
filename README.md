@@ -9,11 +9,12 @@ Conectado 100% a la nube de **Firebase Authentication** y **Firebase Realtime Da
 
 ### 🔐 Inicio de Sesión Seguro (Firebase Authentication)
 El sistema cuenta con una pantalla de inicio de sesión (*login barrier*) conectada directamente a Firebase Auth:
-- **Acceso Exclusivo**: Acceso mediante correo electrónico y contraseña configurados en Firebase Authentication (`totalbregis`).
-- **Seguridad**: Tokens seguros de sesión (`idToken`), persistencia de sesión ("Recordar sesión") y actualización automática de token (`refreshToken`).
+- **Acceso Exclusivo**: Acceso mediante correo electrónico y contraseña configurados en Firebase Authentication (`totalbregis`). No existe modo offline ni accesos locales.
+- **Caducidad Obligatoria de 1 Hora**: Por directiva de seguridad, la sesión caduca estrictamente tras **1 hora (60 minutos)** de haber ingresado. Siempre que se entre a la página o transcurra 1 hora, el sistema bloqueará el acceso y solicitará obligatoriamente iniciar sesión de nuevo.
+- **Temporizador Activo**: Monitoreo en vivo dentro de la aplicación para invalidar la sesión y mostrar la pantalla de bloqueo en el momento exacto en que se cumple 1 hora de uso continuo.
 - **Recuperación**: Opción para enviar enlace oficial de restablecimiento de contraseña a la bandeja de entrada del usuario.
 - **Perfil Activo**: El correo del usuario autenticado se muestra en la barra superior (*topbar*) y en el pie del menú lateral (*sidebar*), con botón para **Cerrar Sesión** en cualquier momento.
-- **Protección**: Si el usuario no ha iniciado sesión, el portal permanece bloqueado. Todas las consultas y guardados en Realtime Database se envían autenticados.
+- **Protección**: Si el usuario no ha iniciado sesión o su sesión expiró, el portal permanece bloqueado. Todas las consultas y guardados en Realtime Database se envían autenticados.
 
 ---
 
@@ -141,8 +142,8 @@ El sistema inicia sin datos mock ni registros falsos. Todo inicia en blanco, lis
   - `/eventos_mes/{id}`: Eventos y fechas clave.
   - `/balancescore/{fecha}`: Evaluaciones del BalanceScore.
   - `/reportes_ingresos/{fecha}`: Reportes diarios de ingresos.
-  - `/configuracion/{servicios,estaciones,especialistas}`: Catálogos maestros configurables.
-- **Respaldo Offline**: Persistencia automática en `localStorage` ante fallos de conexión.
+  - `/configuracion/{servicios,estaciones,especialistas,metas}`: Catálogos maestros configurables.
+- **Operación Exclusiva Cloud**: Todo flujo opera conectado directamente a Firebase Realtime Database sin modo offline.
 
 ---
 

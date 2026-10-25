@@ -173,9 +173,10 @@ body {
   box-shadow: 0 0 6px #22c55e;
 }
 
-.status-dot.offline {
-  background-color: #f59e0b;
-  box-shadow: 0 0 6px #f59e0b;
+.status-dot.offline,
+.status-dot.disconnected {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
 }
 
 /* Main Area */

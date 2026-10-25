@@ -5,6 +5,8 @@
  */
 
 const TB_FIREBASE = (function () {
+  // Límite estricto de sesión: 1 hora obligatoria (3,600,000 ms)
+  const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
   'use strict';
 
   // Configuración oficial de Firebase del proyecto totalbregis
@@ -111,20 +113,20 @@ const TB_FIREBASE = (function () {
         const data = await res.json();
 
         if (res.ok && !data.error) {
+          const now = Date.now();
           const user = {
             email: data.email || cleanEmail,
             localId: data.localId,
             idToken: data.idToken,
             refreshToken: data.refreshToken,
-            expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000),
-            isOffline: false
+            loginTimestamp: now,
+            sessionExpiresAt: now + SESSION_TIMEOUT_MS,
+            expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000)
           };
 
-          if (remember) {
-            localStorage.setItem('tb_auth_user', JSON.stringify(user));
-          } else {
-            sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
-          }
+          localStorage.setItem('tb_auth_user', JSON.stringify(user));
+          localStorage.setItem('tb_session_login_time', String(now));
+          sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
 
           notifyAuth(user);
           notifyStatus(true, `Sesión iniciada: ${user.email}`);
@@ -148,74 +150,7 @@ const TB_FIREBASE = (function () {
     };
   }
 
-  /**
-   * Registrar nueva cuenta en Firebase Authentication
-   */
-  async function register(email, password) {
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.apiKey}`;
-    const cleanEmail = (email || '').trim().toLowerCase();
 
-    if (!password || password.length < 6) {
-      return { success: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
-    }
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: password,
-          returnSecureToken: true
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        const errMsg = data.error?.message || 'ERROR_UNKNOWN';
-        return { success: false, error: translateAuthError(errMsg), rawError: errMsg };
-      }
-
-      const user = {
-        email: data.email || cleanEmail,
-        localId: data.localId,
-        idToken: data.idToken,
-        refreshToken: data.refreshToken,
-        expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000),
-        isOffline: false
-      };
-
-      localStorage.setItem('tb_auth_user', JSON.stringify(user));
-      notifyAuth(user);
-      notifyStatus(true, `Cuenta registrada: ${user.email}`);
-      return { success: true, user };
-    } catch (err) {
-      console.error('Error al registrar usuario:', err);
-      return {
-        success: false,
-        error: 'No se pudo conectar con Firebase para registrar la cuenta.'
-      };
-    }
-  }
-
-  /**
-   * Acceso de emergencia en Modo Local / Sin Conexión
-   */
-  function loginOffline(email = '') {
-    const user = {
-      email: (email || '').trim() || 'operador.local@totalbeauty.com',
-      localId: 'offline_user',
-      idToken: null,
-      refreshToken: null,
-      expiresAt: Date.now() + 86400000,
-      isOffline: true
-    };
-    sessionStorage.setItem('tb_auth_user', JSON.stringify(user));
-    notifyAuth(user);
-    notifyStatus(false, 'Modo Local / Offline');
-    return { success: true, user };
-  }
 
   /**
    * Refrescar el idToken usando el refreshToken
@@ -247,32 +182,50 @@ const TB_FIREBASE = (function () {
   }
 
   /**
-   * Verificar sesión guardada al abrir la aplicación
+   * Verificar sesión guardada al abrir la aplicación con límite estricto de 1 hora
    */
   async function checkSession() {
     const raw = localStorage.getItem('tb_auth_user') || sessionStorage.getItem('tb_auth_user');
-    if (!raw) return null;
+    if (!raw) return { active: false };
 
     try {
       const user = JSON.parse(raw);
+      const loginTime = user.loginTimestamp || parseInt(localStorage.getItem('tb_session_login_time') || '0', 10);
+      const elapsed = Date.now() - loginTime;
+
+      // OBLIGATORIO: Si transcurrió 1 hora o más (3,600,000 ms), forzar cierre de sesión
+      if (!loginTime || elapsed >= SESSION_TIMEOUT_MS) {
+        console.warn(`Sesión expirada tras ${Math.round(elapsed / 60000)} minutos (límite: 1 hora).`);
+        logout();
+        return {
+          active: false,
+          expired: true,
+          message: '⚠️ Por seguridad, la sesión caduca automáticamente después de 1 hora. Por favor inicie sesión nuevamente.'
+        };
+      }
+
       if (user && user.refreshToken) {
-        // Si el token está por expirar en menos de 5 minutos, refrescarlo
+        // Si el idToken está por expirar pero está dentro de la hora permitida, refrescarlo
         if (Date.now() > (user.expiresAt - 300000)) {
           const newToken = await refreshAuthToken(user.refreshToken);
           if (!newToken) {
-            // Sesión caducada
             logout();
-            return null;
+            return {
+              active: false,
+              expired: true,
+              message: 'La sesión no pudo ser validada con Firebase. Por favor inicie sesión nuevamente.'
+            };
           }
         }
         notifyAuth(user);
-        notifyStatus(true, `Sesión activa: ${user.email}`);
-        return user;
+        notifyStatus(true, `Conectado a Firebase (${user.email})`);
+        return { active: true, user, remainingMs: SESSION_TIMEOUT_MS - elapsed };
       }
     } catch (e) {
       console.error('Error verificando sesión:', e);
     }
-    return null;
+    logout();
+    return { active: false };
   }
 
   /**
@@ -281,11 +234,25 @@ const TB_FIREBASE = (function () {
   function logout() {
     currentUser = null;
     localStorage.removeItem('tb_auth_user');
+    localStorage.removeItem('tb_session_login_time');
     sessionStorage.removeItem('tb_auth_user');
     notifyAuth(null);
     notifyStatus(false, 'Sesión cerrada');
     return { success: true };
   }
+
+  // Monitoreo activo: si la página permanece abierta, expirar automáticamente a los 60 min
+  setInterval(() => {
+    if (currentUser) {
+      const loginTime = currentUser.loginTimestamp || parseInt(localStorage.getItem('tb_session_login_time') || '0', 10);
+      if (loginTime && (Date.now() - loginTime >= SESSION_TIMEOUT_MS)) {
+        logout();
+        window.dispatchEvent(new CustomEvent('tb_session_expired', {
+          detail: { message: '⚠️ Su sesión ha expirado tras 1 hora de acceso continuo. Por favor inicie sesión nuevamente.' }
+        }));
+      }
+    }
+  }, 10000);
 
   /**
    * Enviar enlace de restablecimiento de contraseña
@@ -342,7 +309,7 @@ const TB_FIREBASE = (function () {
         return true;
       }
     } catch (e) {}
-    notifyStatus(false, 'Modo Local / Sin Conexión');
+    notifyStatus(false, 'Sin conexión con Firebase');
     return false;
   }
 

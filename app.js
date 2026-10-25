@@ -2043,7 +2043,7 @@
       const dot = document.getElementById('fb-status-dot');
       const text = document.getElementById('fb-status-text');
       if (dot) dot.className = online ? 'status-dot' : 'status-dot offline';
-      if (text) text.textContent = online ? 'Firebase Conectado' : 'Modo Local / Offline';
+      if (text) text.textContent = online ? 'Firebase Conectado' : 'Sin Conexión con Firebase';
     });
 
     // Recálculo dinámico en Caja Principal y Chica
@@ -2971,13 +2971,23 @@
       });
     });
 
-    // Verificar si hay sesión previa activa
-    TB_FIREBASE.checkSession().then(user => {
-      if (user) {
-        onLoginSuccess(user);
+    // Verificar si hay sesión previa activa y validar límite estricto de 1 hora
+    TB_FIREBASE.checkSession().then(res => {
+      if (res && res.active && res.user) {
+        onLoginSuccess(res.user);
       } else {
         onLogoutSuccess();
+        if (res && res.expired) {
+          showError(res.message || '⚠️ Por seguridad, la sesión caduca automáticamente después de 1 hora. Por favor inicie sesión nuevamente.');
+        }
       }
+    });
+
+    // Escuchar expiración automática tras 1 hora en tiempo real
+    window.addEventListener('tb_session_expired', (e) => {
+      onLogoutSuccess();
+      showError(e.detail?.message || '⚠️ Su sesión ha expirado tras 1 hora de acceso continuo. Por favor inicie sesión nuevamente.');
+      showToast('Sesión expirada (límite de 1 hora)', 'warning');
     });
   }
 
