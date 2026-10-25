@@ -124,8 +124,15 @@ Módulo administrativo para gestionar los catálogos del negocio sincronizados c
 
 ---
 
-### 🛡️ Cero Datos de Prueba (Producción Limpia)
-El sistema inicia sin datos mock ni registros falsos. Todo inicia en blanco, listo para la operación real del salón y academia. Si se desea visualizar datos de demostración para capacitación, se puede presionar el botón **"⚡ Ejemplo"** en la barra superior.
+### 🛡️ Persistencia Estricta en BD y Cero Datos de Prueba
+- **Autoridad Total de la Base de Datos**: El sistema muestra **única y estrictamente lo que está almacenado en Firebase Realtime Database**. Si un elemento no está en la base de datos, no se muestra nada (listas limpias). Si se agrega un nuevo servicio, estación o especialista, se guarda de inmediato en Firebase y se muestra en adelante.
+- **Eliminación Definitiva (Sin Resurrección de Datos)**: Al eliminar cualquier registro o catálogo en Configuración General, se elimina de Firebase y jamás se vuelve a inyectar ni a cambiar por datos no solicitados al iniciar sesión nuevamente.
+- **Cero Inyección de Mocks**: Se eliminaron completamente todos los arreglos de prueba por defecto (`DEFAULT_SERVICIOS`, `DEFAULT_ESTACIONES`, `DEFAULT_ESPECIALISTAS`, etc.).
+- **Herramientas de Limpieza de 1 Clic**: En Configuración General se incluyeron botones de vaciado rápido:
+  - `🗑️ Vaciar Servicios`: Elimina en bloque los servicios en Firebase.
+  - `🗑️ Vaciar Estaciones`: Elimina en bloque las estaciones y sincroniza metas en Firebase.
+  - `🗑️ Vaciar Especialistas`: Elimina en bloque el catálogo de especialistas en Firebase.
+  - `🧹 Limpiar Todo el Catálogo`: Permite borrar de una sola vez cualquier dato de prueba anterior para comenzar desde cero con los datos reales del negocio.
 
 ---
 

@@ -712,15 +712,23 @@ const TB_FIREBASE = (function () {
   }
 
   // =========================================================================
+  // =========================================================================
   // 7. CONFIGURACIÓN GENERAL (CATÁLOGOS: SERVICIOS, ESTACIONES, ESPECIALISTAS)
+  // PERSISTENCIA ESTRICTA EN FIREBASE SIN INYECCIÓN DE DATOS DE PRUEBA
   // =========================================================================
   async function saveCatalogo(tipo, items) {
-    localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(items));
+    const cleanList = Array.isArray(items) ? items : Object.values(items || {});
+    localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(cleanList));
     try {
+      const payload = {
+        initialized: true,
+        items: cleanList,
+        updatedAt: new Date().toISOString()
+      };
       await fetch(getDbUrl(`configuracion/${tipo}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(items)
+        body: JSON.stringify(payload)
       });
       return { success: true, source: 'firebase' };
     } catch (e) {
@@ -729,33 +737,47 @@ const TB_FIREBASE = (function () {
     }
   }
 
-  async function getCatalogo(tipo, defaultItems = []) {
-    let local = null;
-    try {
-      const stored = localStorage.getItem(`tb_cat_${tipo}`);
-      if (stored) local = JSON.parse(stored);
-    } catch (e) {}
-
+  async function getCatalogo(tipo) {
     try {
       const res = await fetch(getDbUrl(`configuracion/${tipo}`));
       if (res.ok) {
         const cloud = await res.json();
-        if (cloud && (Array.isArray(cloud) ? cloud.length > 0 : Object.keys(cloud).length > 0)) {
-          const list = Array.isArray(cloud) ? cloud : Object.values(cloud);
-          localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(list));
-          return list;
+        // Si no existe el nodo en Firebase, retornamos lista vacía (sin inyectar datos de prueba)
+        if (cloud === null || cloud === undefined) {
+          localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify([]));
+          return [];
         }
+
+        let list = [];
+        if (cloud.items !== undefined) {
+          list = Array.isArray(cloud.items) ? cloud.items.filter(Boolean) : Object.values(cloud.items || {});
+        } else if (Array.isArray(cloud)) {
+          // Retrocompatibilidad por si estaba guardado como array directo
+          list = cloud.filter(Boolean);
+        } else if (typeof cloud === 'object') {
+          // Objeto de Firebase (mapa id -> item o { initialized: true })
+          const copy = { ...cloud };
+          delete copy.initialized;
+          delete copy.updatedAt;
+          delete copy.exists;
+          list = Object.values(copy);
+        }
+
+        localStorage.setItem(`tb_cat_${tipo}`, JSON.stringify(list));
+        return list;
+      }
+    } catch (e) {
+      console.warn(`Error al consultar catálogo ${tipo} desde Firebase:`, e);
+    }
+
+    // Si falló la red (sin conexión puntual), usar la copia en localStorage
+    try {
+      const stored = localStorage.getItem(`tb_cat_${tipo}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-
-    if (local && Array.isArray(local) && local.length > 0) {
-      return local;
-    }
-
-    if (defaultItems && defaultItems.length > 0) {
-      saveCatalogo(tipo, defaultItems).catch(() => {});
-      return defaultItems;
-    }
 
     return [];
   }
