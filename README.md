@@ -1,84 +1,110 @@
 # TOTAL BEAUTY SALÓN Y ACADEMIA
-## Sistema Interactivo de Arqueo Diario de Caja y Exportación a PDF
+## Portal Integral de Gestión: Arqueo de Caja, Firebase Cloud, BalanceScore y Reportes Comerciales
 
-Aplicación web diseñada específicamente para registrar, conciliar y validar el arqueo diario de caja de acuerdo con el formato oficial de **TOTAL BEAUTY SALÓN Y ACADEMIA** (`FORMATO DE ARQUEO DIARIO DE CAJA.pdf`).
-
----
-
-### 🌟 Características Principales
-
-1. **Cumplimiento al 100% del Formato Oficial**:
-   - **Encabezado**: Fecha, Responsable de caja y Hora.
-   - **1. Fondo Inicial de Caja**: Fondo inicial caja, fondo inicial caja chica y total disponible inicial.
-   - **2. Ingresos del Día**: Desglose por concepto (Servicios de belleza, Anticipos de citas, Cursos de la academia, Venta de productos, Liquidación de saldos pendientes, Otros ingresos) y por método de pago (Efectivo, Transferencia, Tarjeta / otro). Totalización automática y número de operaciones.
-   - **3. Salidas de Dinero de Caja Chica**: Compra de materiales, productos, gastos operativos, retiro de efectivo (para resguardo/depósito) y otros, con motivo, autorización e importe. Permite agregar filas adicionales dinámicamente.
-   - **4. Conteo Físico del Efectivo**: Calculadora interactiva por denominación de billetes ($1,000, $500, $200, $100, $50, $20) y monedas ($10, $5, $2, $1, $0.50) con botones de incremento rápido (+/-) y subtotal automático.
-   - **5. Conciliación de Caja**: Cálculo exacto del efectivo esperado frente al efectivo contado físicamente, detección automática de estado (**Caja cuadrada**, **Sobrante de efectivo** o **Faltante de efectivo**) y campo para explicación detallada.
-   - **6. Control de Transferencias y Otros Pagos**: Comparativa entre importes registrados vs. importes verificados en cuentas bancarias/terminales con cálculo de diferencias. Botón para sincronizar desde ingresos con un solo clic.
-   - **7. Anticipos y Saldos Pendientes**: Registro dinámico de anticipos por clienta/alumno con montos recibidos y saldos pendientes.
-   - **8. Resumen Final del Día**: Consolidado automático de los 7 indicadores financieros clave, contador de servicios/anticipos/cursos y observaciones del día.
-   - **9. Entrega y Validación**: Declaración formal de conformidad, pad interactivo para **firma digital**, registro de horas de cierre y entrega, persona que recibe, importe entregado y observaciones.
-
-2. **Exportación a PDF Oficial**:
-   - Genera el reporte oficial en formato PDF fiel al documento original de 3 páginas.
-   - **Nombre de archivo automático**: `Arqueo_Caja_YYYY-MM-DD_[NombreResponsable].pdf` (ejemplo: `Arqueo_Caja_2026-10-25_Marbella_Rios.pdf`).
-   - Funciona sin conexión a internet (librerías incluidas localmente).
-
-3. **Funcionalidades de Productividad**:
-   - **⚡ Datos de Ejemplo**: Permite cargar un arqueo completo realista con un clic para entrenamiento o pruebas.
-   - **💾 Autoguardado Continuo**: No se pierden datos si se cierra accidentalmente la ventana o se refresca el navegador.
-   - **🔄 Nuevo Arqueo**: Reinicia el formulario para una nueva jornada con confirmación previa.
-   - **🖨️ Impresión Nativa**: Compatible con la función de impresión de cualquier navegador (`Ctrl + P`).
+Sistema web integral desarrollado específicamente para la operación diaria, conciliación de caja, auditoría y análisis de desempeño de **TOTAL BEAUTY SALÓN Y ACADEMIA**.
 
 ---
 
-### 🚀 Cómo Iniciar la Aplicación
+### 🌟 Módulos del Menú de Navegación
 
-Hay tres formas muy sencillas de abrir y utilizar la herramienta:
+El sistema cuenta con una barra lateral (*sidebar*) con accesos directos a todos los módulos:
 
-#### Opción 1: Acceso Directo (Recomendado para el día a día)
-Haga doble clic en el archivo:
-```
-Abrir_Arqueo_Caja.bat
-```
-Esto abrirá la aplicación en modo ventana limpia maximizada (utilizando Microsoft Edge o su navegador predeterminado).
+#### 1. 📝 Arqueo Diario de Caja (Formato Oficial)
+- Cumplimiento estricto al 100% del documento oficial **`FORMATO DE ARQUEO DIARIO DE CAJA.pdf`** de 3 páginas:
+  - **Encabezado**: Fecha, Responsable de caja y Hora.
+  - **1. Fondo Inicial**: Caja y caja chica.
+  - **2. Ingresos del Día**: Servicios, anticipos, cursos, productos, saldos pendientes y otros por método de pago (Efectivo, Tarjeta, Transferencias).
+  - **3. Salidas de Dinero de Caja Chica**: Desglose con motivo, autorización, importe y retiros de resguardo identificados.
+  - **4. Conteo Físico del Efectivo**: Calculadora por denominaciones de billetes ($1,000, $500, $200, $100, $50, $20) y monedas ($10, $5, $2, $1, $0.50).
+  - **5. Conciliación de Caja**: Fórmula automática en tiempo real, detección de estado (**Caja cuadrada**, **Sobrante** o **Faltante**) y campo de aclaraciones.
+  - **6. Control de Transferencias y Tarjetas**: Importe registrado vs. verificado con botón de sincronización de 1 clic.
+  - **7. Anticipos y Saldos Pendientes**: Control dinámico de pagos recibidos por adelantado.
+  - **8. Resumen Final del Día**: Métricas financieras consolidadas y contador de servicios, anticipos y cursos.
+  - **9. Entrega y Validación**: Declaración legal, pad interactivo para **firma digital con mouse/pantalla táctil**, horas y comprobación.
+- **Exportación en PDF**: Genera el archivo oficial de 3 páginas con el nombre automático `Arqueo_Caja_YYYY-MM-DD_[NombreResponsable].pdf`.
+- **Guardado en Firebase**: Sube el arqueo y su información estructurada a la nube de Firebase CRM (`total-beauty-crm`).
 
-#### Opción 2: Abrir en cualquier navegador
-Haga doble clic directamente sobre:
-```
-index.html
-```
+#### 2. 📑 Reportes Diarios de Arqueo (Historial)
+- **Selector de Día / Calendario**: Permite elegir cualquier fecha para consultar el arqueo correspondiente.
+- **Tarjetas de Resumen Histórico**: Visualiza ingresos, conteo físico, salidas y estatus de cuadratura de cada día.
+- **Descarga de PDF Histórico**: Permite reabrir o descargar el PDF oficial de cualquier día archivado.
+- **Cargar en Arqueo**: Permite cargar un arqueo pasado en el formulario para revisión o ajustes.
 
-#### Opción 3: Servidor Local (Para usar en tablets o celulares conectados a la red del salón)
-Haga doble clic en:
-```
-Iniciar_Servidor_Local.bat
-```
-O ejecute en terminal:
-```bash
-python server.py
-```
-Le mostrará la dirección IP para abrir la pantalla en cualquier dispositivo móvil o tablet de la recepción.
+#### 3. 💈 BalanceScore por Estaciones
+Evaluación del desempeño y control de calidad en las 6 estaciones de trabajo del salón:
+1. **Cabello & Colorimetría** (Balayage, tintes, cortes, alisados)
+2. **Uñas & Manicure** (Acrílico, gel semipermanente, diseños)
+3. **Maquillaje Profesional & Peinado** (Social, novias, XV años)
+4. **Lash & Brow Bar** (Pestañas, cejas, lifting, microblading)
+5. **Pedicure & Spa de Pies** (Pedicure clínico y spa)
+6. **Cabina Facial & Estética** (Limpiezas, aparatología facial)
+- **Indicadores por Estación**: Meta financiera vs. Ingreso logrado, clientes atendidos vs. meta, ticket promedio y checklists de estándares (limpieza, puntualidad, hospitalidad, venta cruzada).
+- Cálculo del porcentaje de cumplimiento y score general del salón con guardado en Firebase.
+
+#### 4. 💰 Reporte Diario de Ingresos
+- Desglose porcentual y monetario por método de pago:
+  - 💵 Efectivo
+  - 💳 Tarjeta / Terminal
+  - 📱 Transferencia Bancaria
+- Desglose por unidad de negocio:
+  - 💇‍♀️ Salón de Belleza
+  - 🎓 Academia Total Beauty
+  - 🛍️ Retail / Venta de Productos
+- Comparativo en tiempo real vs. Meta Diaria del salón ($5,000/día).
+- Botón **"Sincronizar con Arqueo de Hoy"** para cargar datos con 1 clic y botón de guardado en Firebase.
+
+#### 5. 🎯 Reporte de Interesadas, Solo Preguntan y Cierres (Embudo de Conversión)
+Conmutador de dos pestañas independientes:
+- 💇‍♀️ **Salón de Belleza** (Citas de belleza y servicios)
+- 🎓 **Academia de Belleza** (Inscripciones a cursos y diplomados)
+- **Métricas del Embudo**:
+  - **Interesadas Totales**: Mensajes o prospectos atendidos por WhatsApp, llamadas, redes o mostrador.
+  - **Solo Preguntan**: Prospectos que cotizaron pero no agendaron cita ni pagaron anticipo (cálculo automático: Interesadas - Cierres).
+  - **Cierres Concretados**: Citas confirmadas con anticipo pagado o alumnas inscritas.
+  - **Tasa de Conversión (%)**: Porcentaje de efectividad comercial.
+  - **Desglose de Motivos**: Registro de objeciones (precios, horarios, etc.).
+- Guardado en tiempo real en Firebase.
+
+#### 6. 🌟 Campaña del Mes y Eventos del Mes
+- **Campaña Activa**: Nombre de campaña, objetivos comerciales del mes y paquetes promocionales autorizados con precios especiales.
+- **Eventos del Mes**: Calendario cronológico de fechas clave (inicio de diplomados, masterclasses, capacitaciones internas del staff y dinámicas promocionales).
+- Posibilidad de agregar nuevos eventos dinámicamente y sincronizarlos en Firebase.
 
 ---
 
-### 📁 Estructura del Proyecto
+### 🔥 Conexión y Guardado en Firebase
 
-```
-ARQUEO DIARIO DE CAJA/
-│
-├── Abrir_Arqueo_Caja.bat         # Lanzador directo para Windows
-├── Iniciar_Servidor_Local.bat    # Lanzador de servidor local
-├── server.py                     # Servidor HTTP ligero en Python
-├── index.html                    # Aplicación principal e interfaz interactiva
-├── styles.css                    # Estilos visuales Total Beauty y formato de impresión
-├── app.js                        # Lógica de cálculo, persistencia y exportación PDF
-│
-├── assets/
-│   ├── logo.png                  # Logo institucional Total Beauty
-│   ├── logoheader.png            # Logotipo de cabecera
-│   └── logo_base64.js            # Representación Base64 para exportación PDF sin CORS
-│
-└── libs/
-    └── html2pdf.bundle.min.js    # Motor de renderizado PDF local y autónomo
-```
+El sistema está configurado y conectado al proyecto de Firebase oficial de Total Beauty:
+- **Proyecto**: `total-beauty-crm`
+- **Base de Datos**: `https://total-beauty-crm-default-rtdb.firebaseio.com/`
+- **Colecciones / Nodos**:
+  - `/arqueos_caja/{fecha}_{responsable}`: Registro completo de arqueos diarios.
+  - `/balancescore/{fecha}`: Evaluaciones del BalanceScore por estación.
+  - `/reportes_ingresos/{fecha}`: Concentrado diario de ingresos.
+  - `/interesadas_cierres/{fecha}`: Registro del embudo de ventas para Salón y Academia.
+  - `/campanas_eventos/{mes_año}`: Campaña mensual y eventos programados.
+- **Respaldo Offline**: Incluye almacenamiento local redundante en `localStorage` para que la recepción nunca se detenga si la conexión a internet es inestable.
+
+---
+
+### 🐙 Sincronización con GitHub
+
+El proyecto ya cuenta con su repositorio Git local inicializado en la rama `main` y su archivo `.gitignore`.
+
+Para subirlo a su cuenta de GitHub:
+1. Cree un nuevo repositorio vacío en [GitHub.com](https://github.com/new) (por ejemplo: `arqueo-diario-caja`).
+2. Haga doble clic en el archivo:
+   ```
+   subir_a_github.bat
+   ```
+3. Ingrese la URL de su repositorio de GitHub cuando se lo solicite (ejemplo: `https://github.com/TU-USUARIO/arqueo-diario-caja.git`).
+4. El script realizará automáticamente el commit y el `git push` a la rama `main`.
+
+---
+
+### 🚀 Cómo Ejecutar la Aplicación
+
+1. **Acceso Rápido (1 clic)**:
+   Haga doble clic en [`Abrir_Arqueo_Caja.bat`](Abrir_Arqueo_Caja.bat) para abrir la aplicación maximizada en Microsoft Edge o su navegador habitual.
+2. **Servidor Local (para tablets o celulares en el salón)**:
+   Haga doble clic en [`Iniciar_Servidor_Local.bat`](Iniciar_Servidor_Local.bat) para compartir la herramienta en la red Wi-Fi de recepción.
