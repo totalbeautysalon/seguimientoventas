@@ -1,110 +1,121 @@
 # TOTAL BEAUTY SALÓN Y ACADEMIA
-## Portal Integral de Gestión: Arqueo de Caja, Firebase Cloud, BalanceScore y Reportes Comerciales
+## Portal Integral de Gestión: Arqueos, Ventas Diarias, Interesadas, Campaña y BalanceScore
 
 Sistema web integral desarrollado específicamente para la operación diaria, conciliación de caja, auditoría y análisis de desempeño de **TOTAL BEAUTY SALÓN Y ACADEMIA**.
 
----
-
-### 🌟 Módulos del Menú de Navegación
-
-El sistema cuenta con una barra lateral (*sidebar*) con accesos directos a todos los módulos:
-
-#### 1. 📝 Arqueo Diario de Caja (Formato Oficial)
-- Cumplimiento estricto al 100% del documento oficial **`FORMATO DE ARQUEO DIARIO DE CAJA.pdf`** de 3 páginas:
-  - **Encabezado**: Fecha, Responsable de caja y Hora.
-  - **1. Fondo Inicial**: Caja y caja chica.
-  - **2. Ingresos del Día**: Servicios, anticipos, cursos, productos, saldos pendientes y otros por método de pago (Efectivo, Tarjeta, Transferencias).
-  - **3. Salidas de Dinero de Caja Chica**: Desglose con motivo, autorización, importe y retiros de resguardo identificados.
-  - **4. Conteo Físico del Efectivo**: Calculadora por denominaciones de billetes ($1,000, $500, $200, $100, $50, $20) y monedas ($10, $5, $2, $1, $0.50).
-  - **5. Conciliación de Caja**: Fórmula automática en tiempo real, detección de estado (**Caja cuadrada**, **Sobrante** o **Faltante**) y campo de aclaraciones.
-  - **6. Control de Transferencias y Tarjetas**: Importe registrado vs. verificado con botón de sincronización de 1 clic.
-  - **7. Anticipos y Saldos Pendientes**: Control dinámico de pagos recibidos por adelantado.
-  - **8. Resumen Final del Día**: Métricas financieras consolidadas y contador de servicios, anticipos y cursos.
-  - **9. Entrega y Validación**: Declaración legal, pad interactivo para **firma digital con mouse/pantalla táctil**, horas y comprobación.
-- **Exportación en PDF**: Genera el archivo oficial de 3 páginas con el nombre automático `Arqueo_Caja_YYYY-MM-DD_[NombreResponsable].pdf`.
-- **Guardado en Firebase**: Sube el arqueo y su información estructurada a la nube de Firebase CRM (`total-beauty-crm`).
-
-#### 2. 📑 Reportes Diarios de Arqueo (Historial)
-- **Selector de Día / Calendario**: Permite elegir cualquier fecha para consultar el arqueo correspondiente.
-- **Tarjetas de Resumen Histórico**: Visualiza ingresos, conteo físico, salidas y estatus de cuadratura de cada día.
-- **Descarga de PDF Histórico**: Permite reabrir o descargar el PDF oficial de cualquier día archivado.
-- **Cargar en Arqueo**: Permite cargar un arqueo pasado en el formulario para revisión o ajustes.
-
-#### 3. 💈 BalanceScore por Estaciones
-Evaluación del desempeño y control de calidad en las 6 estaciones de trabajo del salón:
-1. **Cabello & Colorimetría** (Balayage, tintes, cortes, alisados)
-2. **Uñas & Manicure** (Acrílico, gel semipermanente, diseños)
-3. **Maquillaje Profesional & Peinado** (Social, novias, XV años)
-4. **Lash & Brow Bar** (Pestañas, cejas, lifting, microblading)
-5. **Pedicure & Spa de Pies** (Pedicure clínico y spa)
-6. **Cabina Facial & Estética** (Limpiezas, aparatología facial)
-- **Indicadores por Estación**: Meta financiera vs. Ingreso logrado, clientes atendidos vs. meta, ticket promedio y checklists de estándares (limpieza, puntualidad, hospitalidad, venta cruzada).
-- Cálculo del porcentaje de cumplimiento y score general del salón con guardado en Firebase.
-
-#### 4. 💰 Reporte Diario de Ingresos
-- Desglose porcentual y monetario por método de pago:
-  - 💵 Efectivo
-  - 💳 Tarjeta / Terminal
-  - 📱 Transferencia Bancaria
-- Desglose por unidad de negocio:
-  - 💇‍♀️ Salón de Belleza
-  - 🎓 Academia Total Beauty
-  - 🛍️ Retail / Venta de Productos
-- Comparativo en tiempo real vs. Meta Diaria del salón ($5,000/día).
-- Botón **"Sincronizar con Arqueo de Hoy"** para cargar datos con 1 clic y botón de guardado en Firebase.
-
-#### 5. 🎯 Reporte de Interesadas, Solo Preguntan y Cierres (Embudo de Conversión)
-Conmutador de dos pestañas independientes:
-- 💇‍♀️ **Salón de Belleza** (Citas de belleza y servicios)
-- 🎓 **Academia de Belleza** (Inscripciones a cursos y diplomados)
-- **Métricas del Embudo**:
-  - **Interesadas Totales**: Mensajes o prospectos atendidos por WhatsApp, llamadas, redes o mostrador.
-  - **Solo Preguntan**: Prospectos que cotizaron pero no agendaron cita ni pagaron anticipo (cálculo automático: Interesadas - Cierres).
-  - **Cierres Concretados**: Citas confirmadas con anticipo pagado o alumnas inscritas.
-  - **Tasa de Conversión (%)**: Porcentaje de efectividad comercial.
-  - **Desglose de Motivos**: Registro de objeciones (precios, horarios, etc.).
-- Guardado en tiempo real en Firebase.
-
-#### 6. 🌟 Campaña del Mes y Eventos del Mes
-- **Campaña Activa**: Nombre de campaña, objetivos comerciales del mes y paquetes promocionales autorizados con precios especiales.
-- **Eventos del Mes**: Calendario cronológico de fechas clave (inicio de diplomados, masterclasses, capacitaciones internas del staff y dinámicas promocionales).
-- Posibilidad de agregar nuevos eventos dinámicamente y sincronizarlos en Firebase.
+Conectado 100% a la nube de **Firebase Realtime Database** (`total-beauty-crm`), con exportación automática en PDF oficial y control de versiones en **GitHub**.
 
 ---
 
-### 🔥 Conexión y Guardado en Firebase
+### 🌟 Módulos del Sistema
 
-El sistema está configurado y conectado al proyecto de Firebase oficial de Total Beauty:
+El sistema cuenta con una barra lateral (*sidebar*) interactiva con acceso a todos los módulos:
+
+#### 1. 💵 Arqueo Diario de Caja Principal
+- **Fondo Inicial**: Efectivo base asignado para apertura y cambio.
+- **Ingresos del Día**: Conectado automáticamente con las ventas diarias por método de pago (Efectivo, Tarjeta, Transferencias) para servicios, anticipos, cursos, productos y saldos.
+- **Conteo Físico**: Calculadora por denominación de billetes ($1,000, $500, $200, $100, $50, $20) y monedas ($10, $5, $2, $1, $0.50).
+- **Conciliación Matemática**: `Fondo inicial + Ingresos en efectivo - Retiros para resguardo = Efectivo esperado`. Detección automática de **Caja cuadrada**, **Sobrante** o **Faltante**.
+- **Control de Transferencias y Tarjetas**: Registro vs. verificación bancaria.
+- **Anticipos y Saldos Pendientes**: Desglose con clienta, servicio, anticipo recibido y saldo por cobrar.
+- **Resumen Final y Validación**: Pad de **firma digital interactiva** y declaración legal.
+- **Flujo Automático**: Al dar clic en **"Guardar en Firebase Cloud"**, se guarda en la base de datos, se descarga automáticamente el PDF oficial de 3 páginas y se limpian los campos para el siguiente registro.
+
+#### 2. 🪙 Arqueo Diario de Caja Chica (Independiente)
+- **Fondo Inicial Asignado**: Monto asignado para gastos operativos menores.
+- **Salidas de Dinero de Caja Chica**: Registro con concepto (compra de materiales, productos, gastos operativos, otros), motivo, autorización e importe.
+- **Conteo Físico**: Dinero físico restante en la caja chica.
+- **Conciliación**: `Fondo inicial - Salidas autorizadas = Efectivo esperado`.
+- **Firma Digital y Resguardo**: Firma digital del responsable y justificación de comprobantes.
+- **Guardado y Descarga**: Guarda en Firebase, descarga el PDF oficial de 1 página de Caja Chica y limpia los campos.
+
+#### 3. 💰 Registro Diario de Ventas (100% Interconectado)
+Módulo para capturar cada venta u operación cobrada en recepción:
+- **Campos Solicitados (* = obligatorios)**:
+  - `fecha*` (Fecha de la venta)
+  - `telefono*` (Teléfono celular a 10 dígitos)
+  - `nombre de la clienta` (Opcional)
+  - `servicio o producto*` (Con sugerencias rápidas)
+  - `estacion*` (Cabello, Uñas, Maquillaje, Pestañas, Pedicure, Facial, Academia, Retail)
+  - `especialista*` (Nombre de quien atendió)
+  - `metodo de pago*` (Efectivo, Tarjeta, Transferencia)
+  - `total cobrado*` (Monto en pesos)
+  - `status del pago*` (Pagado completo, Anticipo, Saldo pendiente)
+  - `notas` (Detalles adicionales)
+- **Interconexión Total**:
+  - Al registrar una venta, alimenta en tiempo real la sección **INGRESOS DEL DÍA** en Caja Principal.
+  - Alimenta los clientes y montos reales del **BalanceScore por Estaciones**.
+  - Alimenta las métricas del **Reporte Diario de Ingresos**.
+  - Alimenta el avance de ingresos de la **Campaña Activa**.
+- **Contadores en Vivo**: Total cobrado en el día, desglose en efectivo, tarjeta y transferencia, y total de operaciones cobradas.
+- Tabla con opción de eliminar ventas y botón de sincronización de 1 clic con Caja Principal.
+
+#### 4. 📑 Reportes Diarios de Arqueo (Historial)
+- Conmutador entre **Caja Principal** y **Caja Chica**.
+- Filtro por fecha específica o visualización de todo el historial.
+- Muestra estatus de cuadratura, ingresos, salidas y diferencias.
+
+#### 5. 💈 BalanceScore por Estaciones
+- Medición en tiempo real de las 6 estaciones de trabajo del salón:
+  1. **Cabello & Colorimetría**
+  2. **Uñas & Manicure**
+  3. **Maquillaje Profesional**
+  4. **Lash & Brow Bar (Pestañas/Cejas)**
+  5. **Pedicure & Spa**
+  6. **Cabina Facial**
+- Toma las ventas registradas del día y calcula automáticamente el ingreso logrado vs. meta, clientes atendidos y ticket promedio.
+- Checklists de estándares operativos (limpieza, puntualidad, hospitalidad, venta cruzada).
+- Score general ponderado del salón.
+
+#### 6. 📊 Reporte Diario de Ingresos
+- Desglose porcentual y monetario por método de pago (Efectivo, Tarjeta, Transferencia).
+- Desglose por unidad de negocio (Salón, Academia, Retail).
+- Comparativa en tiempo real vs. Meta Diaria del salón ($5,000.00).
+
+#### 7. 🎯 Interesadas y Cierres (3 Opciones Requeridas)
+Pestañas segmentadas para gestionar el ciclo comercial:
+- **Opción 1: Nuevo Registro & Tipificación**: Formulario para registrar prospectas con fecha, nombre, WhatsApp, unidad (Salón / Academia), servicio de interés, canal de captación y tipificación inicial (*Interesada, Solo pregunta, En seguimiento, Cierre - Agendada/Pagó, No interesada*).
+- **Opción 2: Seguimiento en Tipificación**: Directorio con buscador y filtros para contactar por **WhatsApp directo (1 clic)** o llamada, y actualizar la tipificación en tiempo real en Firebase.
+- **Opción 3: BalanceScore de Conversión**: Embudo visual interactivo, tasa de conversión comercial (%), comparativo Salón vs. Academia y efectividad por canal de captación (Instagram vs WhatsApp vs Facebook vs Recomendación).
+
+#### 8. 🌟 Campaña Activa y Eventos del Mes
+- **Monitoreo en Vivo ("Ver cómo está funcionando")**:
+  - Compara la meta de ingresos vs. las **ventas reales acumuladas** registradas durante la vigencia de la campaña.
+  - Barra de progreso dinámica porcentual.
+  - Contador de días restantes de vigencia.
+  - Conteo de clientas atendidas en salón y alumnas inscritas en academia en el período.
+  - Despliegue de paquetes y promociones autorizadas.
+- **Configurar / Editar Campaña Activa**: Formulario para definir nombre, fechas de vigencia, metas y paquetes.
+- **Eventos del Mes**: Calendario de eventos con fechas, responsables y creación de nuevos eventos.
+
+---
+
+### 🛡️ Cero Datos de Prueba (Producción Limpia)
+El sistema inicia sin datos mock ni registros falsos. Todo inicia en blanco, listo para la operación real del salón y academia. Si se desea visualizar datos de demostración para capacitación, se puede presionar el botón **"⚡ Ejemplo"** en la barra superior.
+
+---
+
+### 🔥 Conexión Firebase Cloud
 - **Proyecto**: `total-beauty-crm`
 - **Base de Datos**: `https://total-beauty-crm-default-rtdb.firebaseio.com/`
-- **Colecciones / Nodos**:
-  - `/arqueos_caja/{fecha}_{responsable}`: Registro completo de arqueos diarios.
-  - `/balancescore/{fecha}`: Evaluaciones del BalanceScore por estación.
-  - `/reportes_ingresos/{fecha}`: Concentrado diario de ingresos.
-  - `/interesadas_cierres/{fecha}`: Registro del embudo de ventas para Salón y Academia.
-  - `/campanas_eventos/{mes_año}`: Campaña mensual y eventos programados.
-- **Respaldo Offline**: Incluye almacenamiento local redundante en `localStorage` para que la recepción nunca se detenga si la conexión a internet es inestable.
+- **Nodos RTDB**:
+  - `/ventas_diarias/{fecha}/{id}`: Registro diario de ventas.
+  - `/arqueos_caja/{key}`: Arqueos de Caja Principal.
+  - `/arqueos_caja_chica/{key}`: Arqueos de Caja Chica.
+  - `/leads_seguimiento/{id}`: Interesadas y tipificaciones.
+  - `/campana_activa`: Configuración y metas de la campaña activa.
+  - `/eventos_mes/{id}`: Eventos y fechas clave.
+  - `/balancescore/{fecha}`: Evaluaciones del BalanceScore.
+  - `/reportes_ingresos/{fecha}`: Reportes diarios de ingresos.
+- **Respaldo Offline**: Persistencia automática en `localStorage` ante fallos de conexión.
 
 ---
 
 ### 🐙 Sincronización con GitHub
 
-El proyecto ya cuenta con su repositorio Git local inicializado en la rama `main` y su archivo `.gitignore`.
-
-Para subirlo a su cuenta de GitHub:
-1. Cree un nuevo repositorio vacío en [GitHub.com](https://github.com/new) (por ejemplo: `arqueo-diario-caja`).
-2. Haga doble clic en el archivo:
+El repositorio local está configurado en la rama `main`. Para sincronizar cambios con GitHub:
+1. Ejecute el archivo:
    ```
    subir_a_github.bat
    ```
-3. Ingrese la URL de su repositorio de GitHub cuando se lo solicite (ejemplo: `https://github.com/TU-USUARIO/arqueo-diario-caja.git`).
-4. El script realizará automáticamente el commit y el `git push` a la rama `main`.
-
----
-
-### 🚀 Cómo Ejecutar la Aplicación
-
-1. **Acceso Rápido (1 clic)**:
-   Haga doble clic en [`Abrir_Arqueo_Caja.bat`](Abrir_Arqueo_Caja.bat) para abrir la aplicación maximizada en Microsoft Edge o su navegador habitual.
-2. **Servidor Local (para tablets o celulares en el salón)**:
-   Haga doble clic en [`Iniciar_Servidor_Local.bat`](Iniciar_Servidor_Local.bat) para compartir la herramienta en la red Wi-Fi de recepción.
+2. Ingrese la URL de su repositorio remoto cuando se le solicite (o presione ENTER si ya está configurado).
