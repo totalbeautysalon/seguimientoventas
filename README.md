@@ -122,6 +122,33 @@ Módulo administrativo para gestionar los catálogos del negocio sincronizados c
   - **Auto-guardado Automático en Firebase**: Cada cambio realizado se guarda automáticamente en Firebase Cloud sin requerir botones manuales de sincronización.
 - **Acceso Rápido**: Enlaces directos `⚙️ Configurar` junto a cada selector del formulario de ventas.
 
+#### 10. 🛡️ Registro de Auditoría y Eventos del Sistema (Bitácora & Reversión)
+Módulo administrativo de alta seguridad para supervisar cada acción y movimiento realizado en el portal:
+- **Bitácora Cronológica en Tiempo Real**:
+  - Registra automáticamente cada operación ejecutada en el sistema:
+    - 💰 **Ventas**: Altas (`ALTA_VENTA`) y eliminaciones (`BAJA_VENTA`) de ventas cobradas.
+    - 💵 **Caja Principal y Chica**: Cierres y arqueos guardados (`ALTA_ARQUEO_PRINCIPAL`, `ALTA_ARQUEO_CHICA`).
+    - ⚙️ **Configuración General**: Altas y bajas de servicios, estaciones, especialistas y vaciados de catálogo (`ALTA_SERVICIO`, `BAJA_SERVICIO`, `ALTA_ESTACION`, `BAJA_ESTACION`, `ALTA_ESPECIALISTA`, `BAJA_ESPECIALISTA`, `VACIAR_CATALOGO`).
+    - 🎯 **Interesadas**: Nuevos prospectos registrados, cambios de tipificación y eliminaciones (`ALTA_LEAD`, `UPDATE_LEAD`, `BAJA_LEAD`).
+    - 🌟 **Campaña y Eventos**: Actualización de campaña activa, altas y bajas de eventos en calendario (`CONFIG_CAMPANA`, `ALTA_EVENTO`, `BAJA_EVENTO`).
+  - **Identificación de Usuario y Temporalidad**: Registra con precisión el correo del usuario autenticado que ejecutó la acción, la fecha y hora exacta (`DD/MM/AAAA HH:MM:SS`), el módulo y una descripción detallada con montos y nombres.
+  - **Filtros Avanzados**: Búsqueda en vivo por texto (usuario, descripción, acción) y filtrado por módulo o por estado (*Todos, Aplicados, Revertidos*).
+  - **Persistencia en Firebase**: Cada evento se almacena de forma inmutable en el nodo `/auditoria_movimientos` de Firebase Realtime Database.
+
+- **🔐 Reversión de Movimientos con Llave Maestra Secreta (`0401`)**:
+  - Cada movimiento activo cuenta con un botón directo `↩️ Deshacer`.
+  - Al solicitar la reversión, el sistema despliega un modal protegido que exige ingresar la **Llave Maestra Secreta**: `0401`.
+  - **Control de Acceso Estricto**:
+    - Si se ingresa una clave distinta a `0401`, el sistema deniega el acceso terminantemente (*"Llave maestra incorrecta. No tiene autorización para deshacer este movimiento"*).
+    - Al validar la llave `0401`, el sistema ejecuta la contra-operación en Firebase Realtime Database y en el estado de la aplicación:
+      - Deshacer alta de venta -> Elimina la venta de Firebase y actualiza ingresos y BalanceScore.
+      - Deshacer eliminación de venta -> Restaura la venta borrada en Firebase.
+      - Deshacer alta/baja de catálogo -> Elimina o reinserta el servicio, estación o especialista en Firebase.
+      - Deshacer vaciado de catálogo -> Reconstituye íntegramente los ítems eliminados.
+      - Deshacer arqueo de caja -> Elimina el arqueo de Firebase y del historial.
+      - Deshacer alta/baja/cambio de prospecto o evento -> Revierte al estado previo en Firebase.
+  - **Trazabilidad de Reversión**: El movimiento revertido cambia su estatus a `⚪ Revertido`, registrando la fecha, hora y usuario ejecutor de la reversión, e insertando un nuevo registro de auditoría `REVERTIR_CON_LLAVE_MAESTRA` para total transparencia operativa.
+
 ---
 
 ### 🛡️ Persistencia Estricta en BD y Cero Datos de Prueba
