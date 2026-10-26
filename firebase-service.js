@@ -606,7 +606,7 @@ const TB_FIREBASE = (function () {
 
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const res = await fetch(getDbUrl('.info/connected'), { signal: controller.signal });
+      const res = await fetch(getDbUrl('ping'), { signal: controller.signal });
 
       clearTimeout(timeoutId);
 
@@ -1715,8 +1715,8 @@ const TB_FIREBASE = (function () {
 
 
   // Inicializar conexión
-
   setTimeout(testConnection, 500);
+  setInterval(testConnection, 25000);
 
 
 
@@ -1751,13 +1751,13 @@ const TB_FIREBASE = (function () {
 
       return {
         success: false,
-        error: translateAuthError(data.error?.message || 'INVALID_PASSWORD')
+        error: 'Contraseña incorrecta.'
       };
     } catch (e) {
       console.error('Error verificando contraseña:', e);
       return {
         success: false,
-        error: 'Error de conexión con Firebase al validar credenciales.'
+        error: 'Contraseña incorrecta.'
       };
     }
   }

@@ -11,12 +11,7 @@ echo.
 echo Abriendo aplicacion interactiva de arqueo de caja...
 echo.
 
-:: Intentar abrir en modo App de Microsoft Edge (experiencia limpia tipo app nativa)
-start msedge.exe --app="%~dp0index.html" --start-maximized 2>nul
-
-if errorlevel 1 (
-    :: Si Edge no esta disponible o fallo, abrir en navegador predeterminado
-    start "" "%~dp0index.html"
-)
+:: Abrir en navegador predeterminado
+start "" "%~dp0index.html"
 
 exit

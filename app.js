@@ -297,17 +297,12 @@
     if (!fecha) fecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
     const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
 
-    // Reiniciar contadores de ingresos
+    // Reiniciar contadores de ingresos (Solo Servicios de belleza, Cursos de academia y Venta de productos)
     const matrix = {
       servicios: { e: 0, t: 0, j: 0 },
-      anticipos: { e: 0, t: 0, j: 0 },
       cursos:    { e: 0, t: 0, j: 0 },
-      productos: { e: 0, t: 0, j: 0 },
-      saldos:    { e: 0, t: 0, j: 0 },
-      otros:     { e: 0, t: 0, j: 0 }
+      productos: { e: 0, t: 0, j: 0 }
     };
-
-    const anticiposList = [];
 
     ventas.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
@@ -316,19 +311,8 @@
 
       const est = (v.estacion || '').toLowerCase();
       const serv = (v.servicio || '').toLowerCase();
-      const st = (v.statusPago || '').toLowerCase();
 
-      if (st.includes('anticipo')) {
-        matrix.anticipos[col] += imp;
-        anticiposList.push({
-          clienta: v.clienta || 'Prospecto Cita',
-          concepto: v.servicio || 'Anticipo',
-          pago: imp,
-          saldo: 0
-        });
-      } else if (st.includes('saldo')) {
-        matrix.saldos[col] += imp;
-      } else if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
+      if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
         matrix.cursos[col] += imp;
       } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
         matrix.productos[col] += imp;
@@ -338,7 +322,7 @@
     });
 
     // Rellenar formulario de Caja Principal
-    ['servicios', 'anticipos', 'cursos', 'productos', 'saldos', 'otros'].forEach(k => {
+    ['servicios', 'cursos', 'productos'].forEach(k => {
       const elE = document.getElementById(`ing_${k}_efec`);
       const elT = document.getElementById(`ing_${k}_transf`);
       const elJ = document.getElementById(`ing_${k}_tarj`);
@@ -371,9 +355,9 @@
     setDisplay('kpi-f-inicial', fCaja);
     setDisplay('concil_fondo_inicial', fCaja);
 
-    // Ingresos
+    // Ingresos (Solo servicios, cursos y productos)
     let totEfec = 0, totTransf = 0, totTarj = 0;
-    ['servicios', 'anticipos', 'cursos', 'productos', 'saldos', 'otros'].forEach(k => {
+    ['servicios', 'cursos', 'productos'].forEach(k => {
       const e = parseVal(`ing_${k}_efec`);
       const t = parseVal(`ing_${k}_transf`);
       const j = parseVal(`ing_${k}_tarj`);
@@ -420,47 +404,66 @@
     setDisplay('kpi-efectivo-contado', totalContado);
 
     // Conciliación Caja Principal:
-    // Efectivo esperado = Fondo inicial + Ingresos efectivo - Retiros resguardo
-    const retiros = parseVal('concil_retiros_resguardo');
+    // Efectivo esperado = Fondo inicial + Ingresos en efectivo
     setDisplay('concil_ingresos_efectivo', totEfec);
     setDisplay('concil_efectivo_contado', totalContado);
 
-    const esperado = fCaja + totEfec - retiros;
+    const esperado = fCaja + totEfec;
     setDisplay('concil_efectivo_esperado', esperado);
 
     const diferencia = totalContado - esperado;
     setDisplay('concil_diferencia_caja', diferencia);
     setDisplay('kpi-diferencia', diferencia);
 
-    // Radios y badges
-    const rCuadrada = document.getElementById('res_cuadrada');
-    const rSobrante = document.getElementById('res_sobrante');
-    const rFaltante = document.getElementById('res_faltante');
-    const cardC = document.getElementById('card_res_cuadrada');
-    const cardS = document.getElementById('card_res_sobrante');
-    const cardF = document.getElementById('card_res_faltante');
+    // Resultado automático badge y campo de explicación condicional
+    const cardBadge = document.getElementById('card_res_cuadrada_badge');
     const kpiBadge = document.getElementById('kpi-status-badge');
     const difLabel = document.getElementById('concil_diferencia_label');
-
-    if (cardC) cardC.className = 'resultado-radio-card';
-    if (cardS) cardS.className = 'resultado-radio-card';
-    if (cardF) cardF.className = 'resultado-radio-card';
+    const wrapExpl = document.getElementById('wrap_concil_explicacion');
 
     if (Math.abs(diferencia) < 0.005) {
-      if (rCuadrada) rCuadrada.checked = true;
-      if (cardC) cardC.classList.add('active-cuadrada');
-      if (kpiBadge) { kpiBadge.textContent = 'Cuadrada'; kpiBadge.className = 'kpi-status-badge badge-cuadrada'; }
-      if (difLabel) { difLabel.textContent = '✅ Caja cuadrada exacta'; difLabel.style.color = 'var(--success)'; }
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-cuadrada';
+        cardBadge.textContent = '✅ Caja cuadrada';
+      }
+      if (kpiBadge) {
+        kpiBadge.textContent = 'Cuadrada';
+        kpiBadge.className = 'kpi-status-badge badge-cuadrada';
+      }
+      if (difLabel) {
+        difLabel.textContent = '✅ Caja cuadrada exacta';
+        difLabel.style.color = 'var(--success)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'none';
     } else if (diferencia > 0.005) {
-      if (rSobrante) rSobrante.checked = true;
-      if (cardS) cardS.classList.add('active-sobrante');
-      if (kpiBadge) { kpiBadge.textContent = `Sobrante: ${formatCurrency(diferencia)}`; kpiBadge.className = 'kpi-status-badge badge-sobrante'; }
-      if (difLabel) { difLabel.textContent = `🟡 Sobrante de ${formatCurrency(diferencia)}`; difLabel.style.color = 'var(--warning)'; }
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-sobrante';
+        cardBadge.textContent = `🟡 Sobrante: ${formatCurrency(diferencia)}`;
+      }
+      if (kpiBadge) {
+        kpiBadge.textContent = `Sobrante: ${formatCurrency(diferencia)}`;
+        kpiBadge.className = 'kpi-status-badge badge-sobrante';
+      }
+      if (difLabel) {
+        difLabel.textContent = `🟡 Sobrante de ${formatCurrency(diferencia)}`;
+        difLabel.style.color = 'var(--warning)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'block';
     } else {
-      if (rFaltante) rFaltante.checked = true;
-      if (cardF) cardF.classList.add('active-faltante');
-      if (kpiBadge) { kpiBadge.textContent = `Faltante: ${formatCurrency(Math.abs(diferencia))}`; kpiBadge.className = 'kpi-status-badge badge-faltante'; }
-      if (difLabel) { difLabel.textContent = `🔴 Faltante de ${formatCurrency(Math.abs(diferencia))}`; difLabel.style.color = 'var(--danger)'; }
+      const faltanteAbs = Math.abs(diferencia);
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-faltante';
+        cardBadge.textContent = `🔴 Faltante: ${formatCurrency(faltanteAbs)}`;
+      }
+      if (kpiBadge) {
+        kpiBadge.textContent = `Faltante: ${formatCurrency(faltanteAbs)}`;
+        kpiBadge.className = 'kpi-status-badge badge-faltante';
+      }
+      if (difLabel) {
+        difLabel.textContent = `🔴 Faltante de ${formatCurrency(faltanteAbs)}`;
+        difLabel.style.color = 'var(--danger)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'block';
     }
 
     // Control transferencias
@@ -482,13 +485,49 @@
     setDisplay('ctrl_total_verif', totVer);
     setDisplay('ctrl_total_dif', totVer - totReg);
 
-    // Resumen
+    // 6. RESUMEN FINAL DEL DÍA
     setDisplay('resumen_total_ingresos', granTotalIngresos);
     setDisplay('resumen_total_efectivo', totalContado);
     setDisplay('resumen_total_transf', tVer);
     setDisplay('resumen_total_tarjetas', jVer + oVer);
-    setDisplay('resumen_total_retiros', retiros);
     setDisplay('resumen_diferencia_caja', diferencia);
+
+    // Ocultar transferencias si está en 0, mostrar si > 0
+    const rowTransf = document.getElementById('row_resumen_transf');
+    if (rowTransf) rowTransf.style.display = tVer > 0 ? '' : 'none';
+
+    // Ocultar tarjetas/otros si está en 0, mostrar si > 0
+    const rowTarj = document.getElementById('row_resumen_tarjetas');
+    if (rowTarj) rowTarj.style.display = (jVer + oVer) > 0 ? '' : 'none';
+
+    // Efectivo entregado: mostrar cantidad y a quién se entregó
+    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const allEntregas = Object.values(controlCajaData.entregas || {});
+    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+
+    setDisplay('resumen_total_retiros', totalEntregadoHoy);
+
+    const detalleEl = document.getElementById('resumen_detalle_entregas');
+    if (detalleEl) {
+      if (entregasHoy.length === 0) {
+        detalleEl.textContent = 'Sin entregas hoy';
+      } else {
+        const destinatarios = entregasHoy.map(e => `${e.recibe || 'Personal'} ($${(parseFloat(e.cantidad) || 0).toFixed(2)})`).join(', ');
+        detalleEl.textContent = `Entregado a: ${destinatarios}`;
+      }
+    }
+
+    // Hora de entrega de dinero: colocar la hora de la última entrega realizada hoy
+    const horaEntregaInput = document.getElementById('val_hora_entrega');
+    if (horaEntregaInput) {
+      if (entregasHoy.length > 0) {
+        const ultimaEntrega = entregasHoy[entregasHoy.length - 1];
+        horaEntregaInput.value = ultimaEntrega?.hora || '';
+      } else {
+        horaEntregaInput.value = '';
+      }
+    }
 
     const respH = document.getElementById('header_responsable')?.value || '';
     const valN = document.getElementById('val_responsable_nombre');
@@ -499,6 +538,13 @@
   }
 
   function serializePrincipal() {
+    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const allEntregas = Object.values(controlCajaData.entregas || {});
+    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+    const dif = parseVal('concil_diferencia_caja');
+    const resArqueo = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
+
     return {
       header: {
         fecha: document.getElementById('header_fecha')?.value || '',
@@ -508,11 +554,8 @@
       fondoInicial: parseVal('f_inicial_caja'),
       ingresos: {
         servicios: { e: parseVal('ing_servicios_efec'), t: parseVal('ing_servicios_transf'), j: parseVal('ing_servicios_tarj') },
-        anticipos: { e: parseVal('ing_anticipos_efec'), t: parseVal('ing_anticipos_transf'), j: parseVal('ing_anticipos_tarj') },
         cursos:    { e: parseVal('ing_cursos_efec'),    t: parseVal('ing_cursos_transf'),    j: parseVal('ing_cursos_tarj') },
         productos: { e: parseVal('ing_productos_efec'), t: parseVal('ing_productos_transf'), j: parseVal('ing_productos_tarj') },
-        saldos:    { e: parseVal('ing_saldos_efec'),    t: parseVal('ing_saldos_transf'),    j: parseVal('ing_saldos_tarj') },
-        otros:     { e: parseVal('ing_otros_efec'),     t: parseVal('ing_otros_transf'),     j: parseVal('ing_otros_tarj') },
         totales: {
           efectivo: parseVal('ing_total_efectivo'),
           transferencia: parseVal('ing_total_transf'),
@@ -527,11 +570,10 @@
       conciliacion: {
         fondo: parseVal('f_inicial_caja'),
         ingresosEfec: parseVal('ing_total_efectivo'),
-        retiros: parseVal('concil_retiros_resguardo'),
         esperado: parseVal('concil_efectivo_esperado'),
         contado: parseVal('conteo_total_efectivo'),
-        diferencia: parseVal('concil_diferencia_caja'),
-        resultado: document.querySelector('input[name="resultado_arqueo"]:checked')?.value || 'cuadrada',
+        diferencia: dif,
+        resultado: resArqueo,
         explicacion: document.getElementById('concil_explicacion')?.value || ''
       },
       controlPagos: {
@@ -539,9 +581,22 @@
         tarjVer: parseVal('ctrl_tarj_verif')
       },
       resumen: {
+        totalIngresos: parseVal('resumen_total_ingresos'),
+        totalEfectivo: parseVal('resumen_total_efectivo'),
+        totalTransf: parseVal('ctrl_transf_verif'),
+        totalTarjetas: parseVal('ctrl_tarj_verif'),
+        totalEntregado: totalEntregadoHoy,
+        detalleEntregas: entregasHoy.map(e => `${e.recibe}: $${(parseFloat(e.cantidad)||0).toFixed(2)}`).join(', '),
         numServicios: document.getElementById('resumen_num_servicios')?.value || '',
         numCursos: document.getElementById('resumen_num_cursos')?.value || '',
         obsDia: document.getElementById('resumen_observaciones_dia')?.value || ''
+      },
+      resumenFinal: {
+        totalIngresosDia: parseVal('resumen_total_ingresos'),
+        totalEfectivoContado: parseVal('resumen_total_efectivo'),
+        totalTransferencias: parseVal('ctrl_transf_verif'),
+        totalTarjetas: parseVal('ctrl_tarj_verif'),
+        totalEntregado: totalEntregadoHoy
       },
       validacion: {
         responsable: document.getElementById('val_responsable_nombre')?.value || '',
@@ -571,7 +626,7 @@
     if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
     if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hm;
     if (document.getElementById('val_hora_cierre')) document.getElementById('val_hora_cierre').value = hm;
-    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = hm;
+    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = '';
     if (document.getElementById('wrap_efectivo_otro_lugar')) document.getElementById('wrap_efectivo_otro_lugar').style.display = 'none';
 
     loadControlCajaData();
@@ -580,24 +635,28 @@
 
   function syncPrincipalPrintable() {
     recalculatePrincipal();
-    const rawF = document.getElementById('header_fecha').value;
-    document.getElementById('p_fecha').textContent = rawF || '__ / __ / ____';
-    document.getElementById('p_responsable').textContent = document.getElementById('header_responsable').value || '________________';
-    document.getElementById('p_hora').textContent = document.getElementById('header_hora').value || '____';
+    const rawF = document.getElementById('header_fecha')?.value || '';
+    if (document.getElementById('p_fecha')) document.getElementById('p_fecha').textContent = rawF || '__ / __ / ____';
+    if (document.getElementById('p_responsable')) document.getElementById('p_responsable').textContent = document.getElementById('header_responsable')?.value || '________________';
+    if (document.getElementById('p_hora')) document.getElementById('p_hora').textContent = document.getElementById('header_hora')?.value || '____';
 
-    document.getElementById('p_f_caja').textContent = formatCurrency(parseVal('f_inicial_caja'));
+    if (document.getElementById('p_f_caja')) document.getElementById('p_f_caja').textContent = formatCurrency(parseVal('f_inicial_caja'));
 
-    ['servicios', 'anticipos', 'cursos', 'productos', 'saldos', 'otros'].forEach(r => {
-      document.getElementById(`p_ing_${r}_e`).textContent = formatCurrency(parseVal(`ing_${r}_efec`));
-      document.getElementById(`p_ing_${r}_t`).textContent = formatCurrency(parseVal(`ing_${r}_transf`));
-      document.getElementById(`p_ing_${r}_j`).textContent = formatCurrency(parseVal(`ing_${r}_tarj`));
-      document.getElementById(`p_ing_${r}_tot`).textContent = formatCurrency(parseVal(`ing_${r}_total`));
+    ['servicios', 'cursos', 'productos'].forEach(r => {
+      const elE = document.getElementById(`p_ing_${r}_e`);
+      const elT = document.getElementById(`p_ing_${r}_t`);
+      const elJ = document.getElementById(`p_ing_${r}_j`);
+      const elTot = document.getElementById(`p_ing_${r}_tot`);
+      if (elE) elE.textContent = formatCurrency(parseVal(`ing_${r}_efec`));
+      if (elT) elT.textContent = formatCurrency(parseVal(`ing_${r}_transf`));
+      if (elJ) elJ.textContent = formatCurrency(parseVal(`ing_${r}_tarj`));
+      if (elTot) elTot.textContent = formatCurrency(parseVal(`ing_${r}_total`));
     });
-    document.getElementById('p_ing_tot_e').textContent = formatCurrency(parseVal('ing_total_efectivo'));
-    document.getElementById('p_ing_tot_t').textContent = formatCurrency(parseVal('ing_total_transf'));
-    document.getElementById('p_ing_tot_j').textContent = formatCurrency(parseVal('ing_total_tarjeta'));
-    document.getElementById('p_ing_tot_gran').textContent = formatCurrency(parseVal('ing_gran_total'));
-    document.getElementById('p_operaciones').textContent = document.getElementById('ing_operaciones_cobradas').value || '0';
+    if (document.getElementById('p_ing_tot_e')) document.getElementById('p_ing_tot_e').textContent = formatCurrency(parseVal('ing_total_efectivo'));
+    if (document.getElementById('p_ing_tot_t')) document.getElementById('p_ing_tot_t').textContent = formatCurrency(parseVal('ing_total_transf'));
+    if (document.getElementById('p_ing_tot_j')) document.getElementById('p_ing_tot_j').textContent = formatCurrency(parseVal('ing_total_tarjeta'));
+    if (document.getElementById('p_ing_tot_gran')) document.getElementById('p_ing_tot_gran').textContent = formatCurrency(parseVal('ing_gran_total'));
+    if (document.getElementById('p_operaciones')) document.getElementById('p_operaciones').textContent = document.getElementById('ing_operaciones_cobradas')?.value || '0';
 
     // Conteo
     const denoms = [
@@ -617,40 +676,88 @@
     denoms.forEach(d => {
       const q = parseInt(document.getElementById(d.id)?.value, 10) || 0;
       tc += q * d.val;
-      document.getElementById(d.qId).textContent = q > 0 ? q : '';
-      document.getElementById(d.tId).textContent = formatCurrency(q * d.val);
+      const qEl = document.getElementById(d.qId);
+      const tEl = document.getElementById(d.tId);
+      if (qEl) qEl.textContent = q > 0 ? q : '';
+      if (tEl) tEl.textContent = formatCurrency(q * d.val);
     });
-    document.getElementById('p_conteo_tot').textContent = formatCurrency(tc);
+    if (document.getElementById('p_conteo_tot')) document.getElementById('p_conteo_tot').textContent = formatCurrency(tc);
 
     // Conciliación
-    document.getElementById('p_concil_fondo').textContent = formatCurrency(parseVal('f_inicial_caja'));
-    document.getElementById('p_concil_ingresos').textContent = formatCurrency(parseVal('ing_total_efectivo'));
-    document.getElementById('p_concil_retiros').textContent = formatCurrency(parseVal('concil_retiros_resguardo'));
-    document.getElementById('p_concil_esperado').textContent = formatCurrency(parseVal('concil_efectivo_esperado'));
-    document.getElementById('p_concil_contado').textContent = formatCurrency(tc);
-    document.getElementById('p_concil_diferencia').textContent = formatCurrency(parseVal('concil_diferencia_caja'));
+    if (document.getElementById('p_concil_fondo')) document.getElementById('p_concil_fondo').textContent = formatCurrency(parseVal('f_inicial_caja'));
+    if (document.getElementById('p_concil_ingresos')) document.getElementById('p_concil_ingresos').textContent = formatCurrency(parseVal('ing_total_efectivo'));
+    if (document.getElementById('p_concil_esperado')) document.getElementById('p_concil_esperado').textContent = formatCurrency(parseVal('concil_efectivo_esperado'));
+    if (document.getElementById('p_concil_contado')) document.getElementById('p_concil_contado').textContent = formatCurrency(tc);
+    if (document.getElementById('p_concil_diferencia')) document.getElementById('p_concil_diferencia').textContent = formatCurrency(parseVal('concil_diferencia_caja'));
 
-    const res = document.querySelector('input[name="resultado_arqueo"]:checked')?.value || 'cuadrada';
-    document.getElementById('p_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
-    document.getElementById('p_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
-    document.getElementById('p_box_faltante').textContent = res === 'faltante' ? '✓' : '';
-    document.getElementById('p_explicacion').textContent = document.getElementById('concil_explicacion').value.trim() || 'Sin diferencias.';
+    const dif = parseVal('concil_diferencia_caja');
+    const res = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
+    if (document.getElementById('p_box_cuadrada')) document.getElementById('p_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
+    if (document.getElementById('p_box_sobrante')) document.getElementById('p_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
+    if (document.getElementById('p_box_faltante')) document.getElementById('p_box_faltante').textContent = res === 'faltante' ? '✓' : '';
+    if (document.getElementById('p_explicacion')) document.getElementById('p_explicacion').textContent = document.getElementById('concil_explicacion')?.value?.trim() || 'Sin diferencias.';
+
+    // Control de transferencias y tarjetas en PDF
+    const tReg = parseVal('ctrl_transf_reg');
+    const tVer = parseVal('ctrl_transf_verif');
+    const jReg = parseVal('ctrl_tarj_reg');
+    const jVer = parseVal('ctrl_tarj_verif');
+    const oReg = parseVal('ctrl_otros_reg');
+    const oVer = parseVal('ctrl_otros_verif');
+
+    if (document.getElementById('p_ctrl_transf_reg')) document.getElementById('p_ctrl_transf_reg').textContent = formatCurrency(tReg);
+    if (document.getElementById('p_ctrl_transf_ver')) document.getElementById('p_ctrl_transf_ver').textContent = formatCurrency(tVer);
+    if (document.getElementById('p_ctrl_transf_dif')) document.getElementById('p_ctrl_transf_dif').textContent = formatCurrency(tVer - tReg);
+
+    if (document.getElementById('p_ctrl_tarj_reg')) document.getElementById('p_ctrl_tarj_reg').textContent = formatCurrency(jReg);
+    if (document.getElementById('p_ctrl_tarj_ver')) document.getElementById('p_ctrl_tarj_ver').textContent = formatCurrency(jVer);
+    if (document.getElementById('p_ctrl_tarj_dif')) document.getElementById('p_ctrl_tarj_dif').textContent = formatCurrency(jVer - jReg);
+
+    if (document.getElementById('p_ctrl_otros_reg')) document.getElementById('p_ctrl_otros_reg').textContent = formatCurrency(oReg);
+    if (document.getElementById('p_ctrl_otros_ver')) document.getElementById('p_ctrl_otros_ver').textContent = formatCurrency(oVer);
+    if (document.getElementById('p_ctrl_otros_dif')) document.getElementById('p_ctrl_otros_dif').textContent = formatCurrency(oVer - oReg);
+
+    const totReg = tReg + jReg + oReg;
+    const totVer = tVer + jVer + oVer;
+    if (document.getElementById('p_ctrl_tot_reg')) document.getElementById('p_ctrl_tot_reg').textContent = formatCurrency(totReg);
+    if (document.getElementById('p_ctrl_tot_ver')) document.getElementById('p_ctrl_tot_ver').textContent = formatCurrency(totVer);
+    if (document.getElementById('p_ctrl_tot_dif')) document.getElementById('p_ctrl_tot_dif').textContent = formatCurrency(totVer - totReg);
+
+    // Resumen Final en PDF
+    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const allEntregas = Object.values(controlCajaData.entregas || {});
+    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+
+    if (document.getElementById('p_res_ingresos')) document.getElementById('p_res_ingresos').textContent = formatCurrency(parseVal('ing_gran_total'));
+    if (document.getElementById('p_res_contado')) document.getElementById('p_res_contado').textContent = formatCurrency(tc);
+    if (document.getElementById('p_res_transf')) document.getElementById('p_res_transf').textContent = formatCurrency(tVer);
+    if (document.getElementById('p_res_tarjetas')) document.getElementById('p_res_tarjetas').textContent = formatCurrency(jVer + oVer);
+    if (document.getElementById('p_res_retiros')) {
+      const detalle = entregasHoy.length > 0 ? ` (${entregasHoy.map(e => e.recibe).join(', ')})` : '';
+      document.getElementById('p_res_retiros').textContent = `${formatCurrency(totalEntregadoHoy)}${detalle}`;
+    }
+    if (document.getElementById('p_res_diferencia')) document.getElementById('p_res_diferencia').textContent = formatCurrency(dif);
+    if (document.getElementById('p_res_num_servicios')) document.getElementById('p_res_num_servicios').textContent = document.getElementById('resumen_num_servicios')?.value || '0';
+    if (document.getElementById('p_res_num_cursos')) document.getElementById('p_res_num_cursos').textContent = document.getElementById('resumen_num_cursos')?.value || '0';
 
     // Validación y entrega
-    const valN = document.getElementById('val_responsable_nombre').value || document.getElementById('header_responsable').value;
-    document.getElementById('p_val_nombre').textContent = valN;
+    const valN = document.getElementById('val_responsable_nombre')?.value || document.getElementById('header_responsable')?.value || '';
+    if (document.getElementById('p_val_nombre')) document.getElementById('p_val_nombre').textContent = valN;
     const firmaImg = document.getElementById('p_val_firma_img');
     const firmaBlank = document.getElementById('p_val_firma_blank');
     if (sigDataPrincipal && sigPadPrincipal) {
-      firmaImg.src = sigPadPrincipal.toDataURL('image/png');
-      firmaImg.style.display = 'block';
-      firmaBlank.style.display = 'none';
+      if (firmaImg) {
+        firmaImg.src = sigPadPrincipal.toDataURL('image/png');
+        firmaImg.style.display = 'block';
+      }
+      if (firmaBlank) firmaBlank.style.display = 'none';
     } else {
-      firmaImg.style.display = 'none';
-      firmaBlank.style.display = 'inline-block';
+      if (firmaImg) firmaImg.style.display = 'none';
+      if (firmaBlank) firmaBlank.style.display = 'inline-block';
     }
-    document.getElementById('p_val_hora_cierre').textContent = document.getElementById('val_hora_cierre').value || '____';
-    document.getElementById('p_val_hora_entrega').textContent = document.getElementById('val_hora_entrega').value || '____';
+    if (document.getElementById('p_val_hora_cierre')) document.getElementById('p_val_hora_cierre').textContent = document.getElementById('val_hora_cierre')?.value || '____';
+    if (document.getElementById('p_val_hora_entrega')) document.getElementById('p_val_hora_entrega').textContent = document.getElementById('val_hora_entrega')?.value || '____';
     const dest = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
     let destTexto = '1.- Se queda en caja';
     if (dest === 'se_guarda_en_sobre') destTexto = '2.- Se guarda en sobre';
@@ -658,8 +765,10 @@
       const lugar = document.getElementById('val_efectivo_otro_lugar')?.value.trim();
       destTexto = `3.- Se resguarda en otro lugar${lugar ? ': ' + lugar : ''}`;
     }
-    document.getElementById('p_val_entregado_a').textContent = destTexto;
-    document.getElementById('p_val_importe_entregado').textContent = formatCurrency(parseVal('val_importe_entregado'));
+    if (document.getElementById('p_val_entregado_a')) document.getElementById('p_val_entregado_a').textContent = destTexto;
+    if (document.getElementById('p_val_importe_entregado')) document.getElementById('p_val_importe_entregado').textContent = formatCurrency(parseVal('val_importe_entregado'));
+    if (document.getElementById('p_obs_dia')) document.getElementById('p_obs_dia').textContent = document.getElementById('resumen_observaciones_dia')?.value?.trim() || 'Sin observaciones.';
+    if (document.getElementById('p_val_observaciones')) document.getElementById('p_val_observaciones').textContent = document.getElementById('val_observaciones')?.value?.trim() || 'Ninguna.';
 
     const cln = valN.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
     return `Arqueo_Caja_Principal_${rawF || 'Fecha'}_${cln || 'Responsable'}.pdf`;
@@ -2715,20 +2824,21 @@
 
       if (!pwd) {
         if (errBox) {
-          errBox.textContent = 'Por favor ingrese su contraseña para autenticar.';
+          errBox.textContent = 'Contraseña incorrecta.';
           errBox.style.display = 'block';
         }
+        showToast('Contraseña incorrecta', 'danger');
         return;
       }
 
-      showToast('Verificando credenciales con Firebase...', 'info');
+      showToast('Verificando...', 'info');
       const authRes = await TB_FIREBASE.verifyCurrentUserPassword(pwd);
       if (!authRes.success) {
         if (errBox) {
-          errBox.textContent = authRes.error || 'Contraseña incorrecta.';
+          errBox.textContent = 'Contraseña incorrecta.';
           errBox.style.display = 'block';
         }
-        showToast('Acceso denegado: Contraseña incorrecta', 'danger');
+        showToast('Contraseña incorrecta', 'danger');
         return;
       }
 
@@ -3673,7 +3783,7 @@
     if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
     if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hmStr;
     if (document.getElementById('val_hora_cierre')) document.getElementById('val_hora_cierre').value = hmStr;
-    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = hmStr;
+    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = '';
 
     if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
     if (document.getElementById('chica_hora')) document.getElementById('chica_hora').value = hmStr;
