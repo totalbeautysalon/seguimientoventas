@@ -23,14 +23,31 @@ El sistema cuenta con una pantalla de inicio de sesión (*login barrier*) conect
 El sistema cuenta con una barra lateral (*sidebar*) interactiva con acceso a todos los módulos:
 
 #### 1. 💵 Arqueo Diario de Caja Principal
-- **Fondo Inicial**: Efectivo base asignado para apertura y cambio.
-- **Ingresos del Día**: Conectado automáticamente con las ventas diarias por método de pago (Efectivo, Tarjeta, Transferencias) para servicios, anticipos, cursos, productos y saldos.
+- **Fondo Inicial Inteligente y Control de Caja**:
+  - Carga automática del dinero total en caja de acuerdo a los registros de la base de datos (último arqueo cerrado con efectivo en caja).
+  - **💸 Entregar Dinero (Control de Caja)**: Módulo integrado para registrar cuando se entrega dinero en efectivo:
+    - Solicita a quién se le entrega, cantidad ($) y concepto.
+    - **Fotografía Obligatoria de Recepción**: Captura directa con la cámara del dispositivo móvil/tablet o subida de archivo para comprobar visualmente la entrega del efectivo.
+    - **Descuento Automático**: La cantidad entregada se descuenta de inmediato del **Fondo Inicial de Caja**, recalculando la conciliación contable.
+    - Modal con historial de entregas de hoy y visor de fotografías en tamaño completo (*lightbox*).
+- **Sincronización en Segundo Plano Cada 30 Segundos**:
+  - Actualización periódica silenciosa cada 30 segundos sin necesidad de recargar la página:
+    - **INGRESOS DEL DÍA**: Conecta automáticamente los cobros de ventas diarias por método de pago (Efectivo, Tarjeta, Transferencias).
+    - **CONTROL DE TRANSFERENCIAS Y OTROS PAGOS**: Se sincroniza automáticamente con los totales verificados.
+- **Fechas, Horas y Responsable No Editables**:
+  - La fecha, hora de registro, hora de cierre y hora de entrega se configuran automáticamente con los datos actuales del sistema y no permiten edición manual.
+  - El **Responsable de Caja** se fija automáticamente con el correo de la cuenta autenticada en Firebase sin permitir modificación.
+- **Destino del Efectivo ("El efectivo:")**:
+  - Selector con 3 opciones estandarizadas:
+    1. *Se queda en caja*.
+    2. *Se guarda en sobre*.
+    3. *Se resguarda en otro lugar* (despliega campo para especificar ubicación exacta).
 - **Conteo Físico**: Calculadora por denominación de billetes ($1,000, $500, $200, $100, $50, $20) y monedas ($10, $5, $2, $1, $0.50).
-- **Conciliación Matemática**: `Fondo inicial + Ingresos en efectivo - Retiros para resguardo = Efectivo esperado`. Detección automática de **Caja cuadrada**, **Sobrante** o **Faltante**.
-- **Control de Transferencias y Tarjetas**: Registro vs. verificación bancaria.
-- **Anticipos y Saldos Pendientes**: Desglose con clienta, servicio, anticipo recibido y saldo por cobrar.
-- **Resumen Final y Validación**: Pad de **firma digital interactiva** y declaración legal.
-- **Flujo Automático**: Al dar clic en **"Guardar en Firebase Cloud"**, se guarda en la base de datos, se descarga automáticamente el PDF oficial de 3 páginas y se limpian los campos para el siguiente registro.
+- **Conciliación Matemática**: `Fondo inicial disponible + Ingresos en efectivo - Retiros para resguardo = Efectivo esperado`. Detección automática de **Caja cuadrada**, **Sobrante** o **Faltante**.
+- **Autenticación con Contraseña para Cierre y Guardado**:
+  - Al hacer clic en **"Guardar en Firebase Cloud, Descargar PDF y Limpiar"**, el sistema despliega un modal protegido que solicita la contraseña de la cuenta activa.
+  - Se valida directamente con Firebase Authentication antes de permitir el cierre oficial.
+  - Guarda en Firebase Cloud, genera y descarga el PDF oficial perfectamente estructurado (sin secciones vacías ni anticipos redundantes) y limpia los campos para la siguiente jornada.
 
 #### 2. 🪙 Arqueo Diario de Caja Chica (Independiente)
 - **Fondo Inicial Asignado**: Monto asignado para gastos operativos menores.
@@ -61,7 +78,9 @@ Módulo para capturar cada venta u operación cobrada en recepción:
 - **Contadores en Vivo**: Total cobrado en el día, desglose en efectivo, tarjeta y transferencia, y total de operaciones cobradas.
 - Tabla con opción de eliminar ventas y botón de sincronización de 1 clic con Caja Principal.
 
-#### 4. 📑 Reportes Diarios de Arqueo (Historial)
+#### 4. 📑 Reportes Diarios de Arqueo (Historial Multi-Dispositivo)
+- **Persistencia en la Nube Multi-Dispositivo**: Consulta directa y en tiempo real a Firebase Realtime Database (`/arqueos_caja` y `/arqueos_caja_chica`). Cualquier dispositivo (PC, tablet, celular) que inicie sesión visualiza de inmediato la totalidad del historial sin depender del almacenamiento local.
+- **Auto-respaldo y Recuperación**: Mecanismo de sincronización bidireccional que asegura la disponibilidad universal de los arqueos cerrados.
 - Conmutador entre **Caja Principal** y **Caja Chica**.
 - Filtro por fecha específica o visualización de todo el historial.
 - Muestra estatus de cuadratura, ingresos, salidas y diferencias.

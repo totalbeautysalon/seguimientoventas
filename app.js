@@ -350,25 +350,11 @@
     const opEl = document.getElementById('ing_operaciones_cobradas');
     if (opEl) opEl.value = ventas.length > 0 ? ventas.length : '';
 
-    // Sincronizar anticipos si hay
-    if (anticiposList.length > 0) {
-      const tbodyAnt = document.getElementById('tbody-anticipos');
-      if (tbodyAnt) {
-        tbodyAnt.innerHTML = '';
-        anticiposList.forEach(a => {
-          const tr = document.createElement('tr');
-          tr.className = 'anticipo-row';
-          tr.innerHTML = `
-            <td><input type="text" class="input-text ant-clienta" value="${a.clienta}"></td>
-            <td><input type="text" class="input-text ant-concepto" value="${a.concepto}"></td>
-            <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-pago" value="${a.pago.toFixed(2)}"></div></td>
-            <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-saldo" value="${a.saldo.toFixed(2)}"></div></td>
-            <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm btn-del-row">✕</button></td>
-          `;
-          tbodyAnt.appendChild(tr);
-        });
-      }
-    }
+    // Sincronizar en segundo plano el Control de Transferencias y Tarjetas
+    const transfEl = document.getElementById('ctrl_transf_reg');
+    const tarjEl = document.getElementById('ctrl_tarj_reg');
+    if (transfEl) transfEl.value = parseVal('ing_total_transf').toFixed(2);
+    if (tarjEl) tarjEl.value = parseVal('ing_total_tarjeta').toFixed(2);
 
     recalculatePrincipal();
 
@@ -496,15 +482,6 @@
     setDisplay('ctrl_total_verif', totVer);
     setDisplay('ctrl_total_dif', totVer - totReg);
 
-    // Anticipos
-    let totAntP = 0, totAntS = 0;
-    document.querySelectorAll('.anticipo-row').forEach(r => {
-      totAntP += parseFloat(r.querySelector('.ant-pago')?.value) || 0;
-      totAntS += parseFloat(r.querySelector('.ant-saldo')?.value) || 0;
-    });
-    setDisplay('ant_total_pago', totAntP);
-    setDisplay('ant_total_saldo', totAntS);
-
     // Resumen
     setDisplay('resumen_total_ingresos', granTotalIngresos);
     setDisplay('resumen_total_efectivo', totalContado);
@@ -563,7 +540,6 @@
       },
       resumen: {
         numServicios: document.getElementById('resumen_num_servicios')?.value || '',
-        numAnticipos: document.getElementById('resumen_num_anticipos')?.value || '',
         numCursos: document.getElementById('resumen_num_cursos')?.value || '',
         obsDia: document.getElementById('resumen_observaciones_dia')?.value || ''
       },
@@ -571,7 +547,8 @@
         responsable: document.getElementById('val_responsable_nombre')?.value || '',
         horaCierre: document.getElementById('val_hora_cierre')?.value || '',
         horaEntrega: document.getElementById('val_hora_entrega')?.value || '',
-        entregadoA: document.getElementById('val_entregado_a')?.value || '',
+        destinoEfectivo: document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja',
+        lugarResguardo: document.getElementById('val_efectivo_otro_lugar')?.value || '',
         importeEntregado: parseVal('val_importe_entregado'),
         signatureData: sigDataPrincipal && sigPadPrincipal ? sigPadPrincipal.toDataURL() : null
       }
@@ -585,10 +562,19 @@
       sigDataPrincipal = false;
     }
     const now = new Date();
-    document.getElementById('header_fecha').value = now.toISOString().split('T')[0];
+    const dStr = now.toISOString().split('T')[0];
     const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('header_hora').value = hm;
-    document.getElementById('val_hora_cierre').value = hm;
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || '';
+
+    if (document.getElementById('header_responsable')) document.getElementById('header_responsable').value = userEmail;
+    if (document.getElementById('val_responsable_nombre')) document.getElementById('val_responsable_nombre').value = userEmail;
+    if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
+    if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hm;
+    if (document.getElementById('val_hora_cierre')) document.getElementById('val_hora_cierre').value = hm;
+    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = hm;
+    if (document.getElementById('wrap_efectivo_otro_lugar')) document.getElementById('wrap_efectivo_otro_lugar').style.display = 'none';
+
+    loadControlCajaData();
     recalculatePrincipal();
   }
 
@@ -665,7 +651,14 @@
     }
     document.getElementById('p_val_hora_cierre').textContent = document.getElementById('val_hora_cierre').value || '____';
     document.getElementById('p_val_hora_entrega').textContent = document.getElementById('val_hora_entrega').value || '____';
-    document.getElementById('p_val_entregado_a').textContent = document.getElementById('val_entregado_a').value || '________________';
+    const dest = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
+    let destTexto = '1.- Se queda en caja';
+    if (dest === 'se_guarda_en_sobre') destTexto = '2.- Se guarda en sobre';
+    else if (dest === 'se_resguarda_otro') {
+      const lugar = document.getElementById('val_efectivo_otro_lugar')?.value.trim();
+      destTexto = `3.- Se resguarda en otro lugar${lugar ? ': ' + lugar : ''}`;
+    }
+    document.getElementById('p_val_entregado_a').textContent = destTexto;
     document.getElementById('p_val_importe_entregado').textContent = formatCurrency(parseVal('val_importe_entregado'));
 
     const cln = valN.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
@@ -2125,11 +2118,92 @@
   // 11. INICIALIZACIÓN Y EVENT LISTENERS
   // =========================================================================
   // =========================================================================
+  // CONTROL DE CAJA, FONDO INICIAL Y ENTREGAS DE DINERO (CON FOTOGRAFÍA)
+  // =========================================================================
+  async function loadControlCajaData() {
+    try {
+      controlCajaData = await TB_FIREBASE.getControlCaja();
+      
+      // Si el fondo base no está fijado, consultar el último arqueo cerrado
+      if (!controlCajaData.fondoBase || controlCajaData.fondoBase === 0) {
+        const list = await TB_FIREBASE.getArqueosList();
+        const keys = Object.keys(list).sort().reverse();
+        if (keys.length > 0) {
+          const lastArqueo = list[keys[0]];
+          const dest = lastArqueo.validacion?.destinoEfectivo;
+          if (dest === 'se_queda_en_caja' || !dest) {
+            controlCajaData.fondoBase = parseFloat(lastArqueo.conteo?.total || lastArqueo.conciliacion?.contado || 0) || 0;
+          }
+        }
+      }
+
+      renderControlCajaFondo();
+    } catch (e) {
+      console.warn('Error en loadControlCajaData:', e);
+    }
+  }
+
+  function renderControlCajaFondo() {
+    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const allEntregas = Object.values(controlCajaData.entregas || {});
+    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+
+    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+    const fondoBase = parseFloat(controlCajaData.fondoBase || 0);
+    const fondoDisponible = Math.max(0, fondoBase - totalEntregadoHoy);
+
+    const fInput = document.getElementById('f_inicial_caja');
+    if (fInput) fInput.value = fondoDisponible.toFixed(2);
+
+    const lblBase = document.getElementById('lbl-fondo-base');
+    const lblEntr = document.getElementById('lbl-total-entregado');
+    const lblDisp = document.getElementById('lbl-fondo-disponible');
+    const countBadge = document.getElementById('count-entregas-hoy');
+
+    if (lblBase) lblBase.textContent = formatCurrency(fondoBase);
+    if (lblEntr) lblEntr.textContent = formatCurrency(totalEntregadoHoy);
+    if (lblDisp) lblDisp.textContent = formatCurrency(fondoDisponible);
+    if (countBadge) countBadge.textContent = String(entregasHoy.length);
+
+    recalculatePrincipal();
+  }
+
+  function openAuthConfirmModal(isChica = false) {
+    pendingAuthIsChica = isChica;
+    const modal = document.getElementById('modal-auth-confirm');
+    const emailEl = document.getElementById('auth-confirm-email');
+    const pwdInput = document.getElementById('input-auth-confirm-pwd');
+    const errBox = document.getElementById('auth-confirm-error');
+
+    const curUser = TB_FIREBASE.getCurrentUser();
+    if (emailEl) emailEl.textContent = curUser?.email || 'Usuario';
+    if (pwdInput) {
+      pwdInput.value = '';
+      pwdInput.type = 'password';
+    }
+    if (errBox) errBox.style.display = 'none';
+    if (modal) modal.style.display = 'flex';
+    setTimeout(() => { if (pwdInput) pwdInput.focus(); }, 100);
+  }
+
+  function closeAuthConfirmModal() {
+    const modal = document.getElementById('modal-auth-confirm');
+    if (modal) modal.style.display = 'none';
+    const pwdInput = document.getElementById('input-auth-confirm-pwd');
+    if (pwdInput) pwdInput.value = '';
+  }
+
+  // =========================================================================
   // 12. REGISTRO DE AUDITORÍA Y CONTROL CON LLAVE MAESTRA (0401)
   // =========================================================================
   const MASTER_KEY = '0401';
   let currentAuditLogs = [];
   let currentUndoLogId = null;
+
+  // Estado de Control de Caja y Entrega de Dinero
+  let controlCajaData = { fondoBase: 0, entregas: {} };
+  let fotoEntregaBase64 = null;
+  let pendingAuthIsChica = false;
 
   async function logAuditMovement({ modulo, accion, descripcion, payload, reversible = true, meta = {} }) {
     try {
@@ -2480,6 +2554,13 @@
         }
         break;
 
+      case 'ENTREGA_DINERO':
+        if (payload.entrega && payload.entrega.id) {
+          await TB_FIREBASE.deleteEntregaDinero(payload.entrega.id);
+          await loadControlCajaData();
+        }
+        break;
+
       default:
         throw new Error(`Acción "${accion}" no reconocida para reversión.`);
     }
@@ -2593,21 +2674,6 @@
       recalculateChica();
     });
 
-    document.getElementById('btn-add-anticipo')?.addEventListener('click', () => {
-      const tbody = document.getElementById('tbody-anticipos');
-      const tr = document.createElement('tr');
-      tr.className = 'anticipo-row';
-      tr.innerHTML = `
-        <td><input type="text" class="input-text ant-clienta" placeholder="Nombre..."></td>
-        <td><input type="text" class="input-text ant-concepto" placeholder="Servicio / cita..."></td>
-        <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-pago" value="0.00"></div></td>
-        <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger ant-saldo" value="0.00"></div></td>
-        <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm btn-del-row">✕</button></td>
-      `;
-      tbody.appendChild(tr);
-      recalculatePrincipal();
-    });
-
     document.addEventListener('click', (e) => {
       if (e.target.matches('.btn-del-row')) {
         const tr = e.target.closest('tr');
@@ -2619,51 +2685,243 @@
       }
     });
 
-    // Guardado unificado: Firebase + Descargar PDF + Limpiar
+    // Guardado con autenticación obligatoria (contraseña de la cuenta)
     document.getElementById('btn-save-firebase-bottom')?.addEventListener('click', () => {
-      saveFirebaseAndDownload(false);
+      openAuthConfirmModal(false);
     });
 
     document.getElementById('btn-save-firebase-chica')?.addEventListener('click', () => {
-      saveFirebaseAndDownload(true);
+      openAuthConfirmModal(true);
     });
 
-    document.getElementById('btn-save-firebase-top')?.addEventListener('click', () => {
-      const isChica = (currentModule === 'arqueo-chica');
-      saveFirebaseAndDownload(isChica);
+    document.getElementById('btn-cancel-auth-confirm')?.addEventListener('click', () => {
+      closeAuthConfirmModal();
     });
 
-    document.getElementById('btn-export-pdf-top')?.addEventListener('click', () => {
-      const isChica = (currentModule === 'arqueo-chica');
-      exportPDF(isChica);
+    document.getElementById('btn-toggle-auth-confirm-pwd')?.addEventListener('click', () => {
+      const inp = document.getElementById('input-auth-confirm-pwd');
+      const btn = document.getElementById('btn-toggle-auth-confirm-pwd');
+      if (inp) {
+        const isPwd = inp.type === 'password';
+        inp.type = isPwd ? 'text' : 'password';
+        if (btn) btn.textContent = isPwd ? '🙈' : '👁️';
+      }
     });
 
-    document.getElementById('btn-clear-active-form')?.addEventListener('click', () => {
-      if (currentModule === 'arqueo-chica') clearChicaForm();
-      else clearPrincipalForm();
-      showToast('Formulario limpiado', 'info');
+    document.getElementById('btn-submit-auth-confirm')?.addEventListener('click', async () => {
+      const pwdInput = document.getElementById('input-auth-confirm-pwd');
+      const errBox = document.getElementById('auth-confirm-error');
+      const pwd = pwdInput ? pwdInput.value : '';
+
+      if (!pwd) {
+        if (errBox) {
+          errBox.textContent = 'Por favor ingrese su contraseña para autenticar.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      showToast('Verificando credenciales con Firebase...', 'info');
+      const authRes = await TB_FIREBASE.verifyCurrentUserPassword(pwd);
+      if (!authRes.success) {
+        if (errBox) {
+          errBox.textContent = authRes.error || 'Contraseña incorrecta.';
+          errBox.style.display = 'block';
+        }
+        showToast('Acceso denegado: Contraseña incorrecta', 'danger');
+        return;
+      }
+
+      closeAuthConfirmModal();
+      showToast('Autenticación confirmada', 'success');
+      await saveFirebaseAndDownload(pendingAuthIsChica);
+    });
+
+    document.getElementById('input-auth-confirm-pwd')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btn-submit-auth-confirm')?.click();
+      }
+    });
+
+    // Control de destino de efectivo
+    document.getElementById('val_destino_efectivo')?.addEventListener('change', (e) => {
+      const wrap = document.getElementById('wrap_efectivo_otro_lugar');
+      if (wrap) wrap.style.display = (e.target.value === 'se_resguarda_otro') ? 'block' : 'none';
+    });
+
+    // Control de Caja: Entrega de Dinero con Fotografía
+    document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', () => {
+      const modal = document.getElementById('modal-entrega-dinero');
+      const form = document.getElementById('form-entrega-dinero');
+      const prevWrap = document.getElementById('ent_preview_wrap');
+      if (form) form.reset();
+      if (prevWrap) prevWrap.style.display = 'none';
+      fotoEntregaBase64 = null;
+      if (modal) modal.style.display = 'flex';
+      setTimeout(() => { document.getElementById('ent_recibe')?.focus(); }, 100);
+    });
+
+    document.getElementById('btn-cancel-entrega-dinero')?.addEventListener('click', () => {
+      document.getElementById('modal-entrega-dinero').style.display = 'none';
+      fotoEntregaBase64 = null;
+    });
+
+    // Captura y compresión de fotografía
+    document.getElementById('ent_foto')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > h && w > maxDim) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else if (h > maxDim) {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          fotoEntregaBase64 = canvas.toDataURL('image/jpeg', 0.72);
+
+          const prevWrap = document.getElementById('ent_preview_wrap');
+          const prevImg = document.getElementById('ent_preview_img');
+          if (prevImg) prevImg.src = fotoEntregaBase64;
+          if (prevWrap) prevWrap.style.display = 'block';
+        };
+        img.src = re.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('form-entrega-dinero')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const recibe = document.getElementById('ent_recibe').value.trim();
+      const cantidad = parseFloat(document.getElementById('ent_cantidad').value) || 0;
+      const concepto = document.getElementById('ent_concepto').value.trim();
+
+      if (!recibe || cantidad <= 0 || !concepto) {
+        showToast('Complete todos los campos obligatorios (*)', 'warning');
+        return;
+      }
+
+      if (!fotoEntregaBase64) {
+        showToast('Es obligatorio tomar o subir la fotografía de recepción del dinero', 'warning');
+        return;
+      }
+
+      showToast('Guardando entrega de dinero...', 'info');
+      const curUser = TB_FIREBASE.getCurrentUser();
+      const now = new Date();
+      const entrega = {
+        id: `ent_${Date.now()}`,
+        fechaHora: now.toISOString(),
+        fecha: now.toISOString().split('T')[0],
+        hora: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        recibe,
+        cantidad,
+        concepto,
+        fotoBase64: fotoEntregaBase64,
+        registradoPor: curUser?.email || 'Usuario'
+      };
+
+      await TB_FIREBASE.saveEntregaDinero(entrega);
+      logAuditMovement({
+        modulo: 'Arqueo Principal',
+        accion: 'ENTREGA_DINERO',
+        descripcion: `Entrega de dinero en efectivo: $${cantidad.toFixed(2)} a "${recibe}" por "${concepto}" (Con fotografía)`,
+        payload: { entrega }
+      });
+
+      document.getElementById('modal-entrega-dinero').style.display = 'none';
+      showToast(`✅ Entrega de $${cantidad.toFixed(2)} registrada y descontada de caja`, 'success');
+      await loadControlCajaData();
+    });
+
+    // Ver entregas de hoy y lightbox de fotos
+    document.getElementById('btn-ver-entregas-hoy')?.addEventListener('click', () => {
+      const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+      const allEntregas = Object.values(controlCajaData.entregas || {});
+      const entregasHoy = allEntregas.filter(e => e.fecha === today);
+      const tbody = document.getElementById('tbody-entregas-hoy');
+
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (entregasHoy.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--muted);">No hay entregas registradas hoy.</td></tr>';
+        } else {
+          entregasHoy.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><span style="font-family:monospace; font-weight:600;">${item.hora || '--:--'}</span></td>
+              <td><strong>${item.recibe}</strong></td>
+              <td>${item.concepto}</td>
+              <td class="text-right"><strong style="color:#b91c1c;">$${parseFloat(item.cantidad).toFixed(2)}</strong></td>
+              <td class="text-center">
+                ${item.fotoBase64 ? `<img src="${item.fotoBase64}" class="btn-thumb-foto" data-id="${item.id}" title="Ver fotografía ampliada">` : '--'}
+              </td>
+              <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-del-entrega" data-id="${item.id}" title="Eliminar registro">✕</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      }
+
+      document.getElementById('modal-lista-entregas').style.display = 'flex';
+    });
+
+    document.getElementById('btn-close-lista-entregas')?.addEventListener('click', () => {
+      document.getElementById('modal-lista-entregas').style.display = 'none';
+    });
+
+    // Clic en thumbnail para lightbox de foto
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('.btn-thumb-foto')) {
+        const id = e.target.dataset.id;
+        const entrega = controlCajaData.entregas?.[id];
+        if (entrega && entrega.fotoBase64) {
+          document.getElementById('img-ver-foto-full').src = entrega.fotoBase64;
+          document.getElementById('ver-foto-titulo').textContent = `Entrega a ${entrega.recibe} ($${parseFloat(entrega.cantidad).toFixed(2)})`;
+          document.getElementById('ver-foto-meta').textContent = `Registrado por: ${entrega.registradoPor || 'Usuario'} a las ${entrega.hora || ''} (${entrega.concepto})`;
+          document.getElementById('modal-ver-foto').style.display = 'flex';
+        }
+      }
+      if (e.target.matches('.btn-del-entrega')) {
+        const id = e.target.dataset.id;
+        if (confirm('¿Está seguro de eliminar este registro de entrega de dinero? El importe volverá al fondo disponible de caja.')) {
+          TB_FIREBASE.deleteEntregaDinero(id).then(async () => {
+            await loadControlCajaData();
+            document.getElementById('btn-ver-entregas-hoy')?.click();
+            showToast('Entrega eliminada', 'info');
+          });
+        }
+      }
+    });
+
+    document.getElementById('btn-close-ver-foto')?.addEventListener('click', () => {
+      document.getElementById('modal-ver-foto').style.display = 'none';
     });
 
     document.getElementById('header_fecha')?.addEventListener('change', (e) => {
       syncVentasToCajaPrincipal(e.target.value, false);
-    });
-
-    document.getElementById('btn-pull-ventas')?.addEventListener('click', () => {
-      const fecha = document.getElementById('header_fecha')?.value;
-      syncVentasToCajaPrincipal(fecha, true);
+      renderControlCajaFondo();
     });
 
     document.getElementById('btn-sync-ventas-caja')?.addEventListener('click', () => {
       const fecha = document.getElementById('ventas_filtro_fecha')?.value;
       syncVentasToCajaPrincipal(fecha, true);
       switchModule('arqueo-principal');
-    });
-
-    document.getElementById('btn-sync-transf')?.addEventListener('click', () => {
-      document.getElementById('ctrl_transf_reg').value = parseVal('ing_total_transf').toFixed(2);
-      document.getElementById('ctrl_tarj_reg').value = parseVal('ing_total_tarjeta').toFixed(2);
-      recalculatePrincipal();
-      showToast('Montos registrados sincronizados de Ingresos', 'success');
     });
 
     document.getElementById('btn-copy-entregado')?.addEventListener('click', () => {
@@ -3415,6 +3673,7 @@
     if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
     if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hmStr;
     if (document.getElementById('val_hora_cierre')) document.getElementById('val_hora_cierre').value = hmStr;
+    if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = hmStr;
 
     if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
     if (document.getElementById('chica_hora')) document.getElementById('chica_hora').value = hmStr;
@@ -3436,6 +3695,7 @@
 
     recalculatePrincipal();
     recalculateChica();
+    loadControlCajaData();
 
     // -----------------------------------------------------------------------
     // EVENTOS: REGISTRO DE AUDITORÍA Y LLAVE MAESTRA (0401)
@@ -3533,6 +3793,24 @@
         document.getElementById('btn-confirm-master-key')?.click();
       }
     });
+
+    // =========================================================================
+    // ACTUALIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO (CADA 30 SEGUNDOS)
+    // =========================================================================
+    setInterval(async () => {
+      try {
+        const curFecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+        if (currentModule === 'arqueo-principal') {
+          await syncVentasToCajaPrincipal(curFecha, false);
+          await loadControlCajaData();
+        } else if (currentModule === 'ventas') {
+          const vf = document.getElementById('ventas_filtro_fecha')?.value || curFecha;
+          renderVentas(vf);
+        }
+      } catch (e) {
+        console.warn('Sync en segundo plano:', e);
+      }
+    }, 30000);
     // Inicializar Sistema de Autenticación Firebase Auth
     // (La carga de catálogos y datos reales se dispara una vez validada la sesión con Firebase)
     initAuthSystem();
@@ -3585,19 +3863,16 @@
 
       showToast(`Bienvenido(a) ${user.email}`, 'success');
 
-      // Si no hay responsable escrito, sugerir nombre derivado del correo
+      // Responsables obligatorios no editables fijados con el correo de inicio de sesión
       const respEl = document.getElementById('header_responsable');
-      if (respEl && !respEl.value) {
-        const username = user.email.split('@')[0].replace(/[._-]/g, ' ');
-        const cap = username.charAt(0).toUpperCase() + username.slice(1);
-        respEl.value = cap;
-      }
+      if (respEl) respEl.value = user.email;
+      const respValEl = document.getElementById('val_responsable_nombre');
+      if (respValEl) respValEl.value = user.email;
       const respChica = document.getElementById('chica_responsable');
-      if (respChica && !respChica.value) {
-        const username = user.email.split('@')[0].replace(/[._-]/g, ' ');
-        const cap = username.charAt(0).toUpperCase() + username.slice(1);
-        respChica.value = cap;
-      }
+      if (respChica) respChica.value = user.email;
+
+      // Cargar control de caja y fondo de caja de registros
+      await loadControlCajaData();
 
       // CARGA ESTRICTA DESDE FIREBASE: Cargar catálogos reales con sesión activa
       await loadCatalogsData();
