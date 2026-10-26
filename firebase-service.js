@@ -1504,6 +1504,42 @@ const TB_FIREBASE = (function () {
 
   }
 
+  // Configuración del Fondo Base de Caja Chica
+  async function saveCajaChicaConfig(cfg) {
+    const payload = {
+      fondoBase: parseFloat(cfg?.fondoBase || 0) || 0,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem('tb_cfg_caja_chica', JSON.stringify(payload));
+    try {
+      await fetch(getDbUrl('configuracion/caja_chica'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return { success: true };
+    } catch (e) {
+      console.warn('Error al guardar configuración de caja chica en Firebase:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  async function getCajaChicaConfig() {
+    try {
+      const res = await fetch(getDbUrl('configuracion/caja_chica'));
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          localStorage.setItem('tb_cfg_caja_chica', JSON.stringify(cloud));
+          return cloud;
+        }
+      }
+    } catch (e) {
+      console.warn('Error al consultar configuración de caja chica de Firebase:', e);
+    }
+    return JSON.parse(localStorage.getItem('tb_cfg_caja_chica') || '{"fondoBase":0}');
+  }
+
 
 
 
@@ -1921,7 +1957,9 @@ const TB_FIREBASE = (function () {
     getControlCaja,
     saveEntregaDinero,
     deleteEntregaDinero,
-    saveFondoBaseCaja
+    saveFondoBaseCaja,
+    saveCajaChicaConfig,
+    getCajaChicaConfig
 
   };
 

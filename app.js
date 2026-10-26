@@ -136,6 +136,9 @@
     document.getElementById('app-sidebar')?.classList.remove('open');
 
     // Carga de datos correspondientes
+    if (modKey === 'arqueo-chica') {
+      loadCajaChicaFundData();
+    }
     if (modKey === 'ventas') {
       const vFecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
       renderVentas(vFecha);
@@ -630,6 +633,7 @@
     if (document.getElementById('wrap_efectivo_otro_lugar')) document.getElementById('wrap_efectivo_otro_lugar').style.display = 'none';
 
     loadControlCajaData();
+    loadCajaChicaFundData();
     recalculatePrincipal();
   }
 
@@ -775,8 +779,74 @@
   }
 
   // =========================================================================
-  // 3. LÓGICA DE CAJA CHICA
+  // 3. LÓGICA DE CAJA CHICA Y CONTROL DE FONDO INICIAL MENSUAL
   // =========================================================================
+  let cajaChicaFundData = { fondoBase: 0, salidasMes: 0, fondoDisponible: 0 };
+
+  async function loadCajaChicaFundData() {
+    try {
+      const cfg = await TB_FIREBASE.getCajaChicaConfig();
+      const fondoBase = parseFloat(cfg?.fondoBase || 0) || 0;
+
+      // Obtener todos los arqueos de caja chica guardados
+      const arqueosObj = await TB_FIREBASE.getArqueosChicaList();
+      const arqueosList = Object.values(arqueosObj || {});
+
+      // Determinar mes en curso (YYYY-MM)
+      const curFecha = document.getElementById('chica_fecha')?.value || new Date().toISOString().split('T')[0];
+      const currentMonth = curFecha.slice(0, 7); // ej. "2026-10"
+
+      // Sumar salidas de arqueos de este mes
+      const arqueosMes = arqueosList.filter(a => {
+        const f = a.header?.fecha || '';
+        return f.startsWith(currentMonth);
+      });
+
+      const totalSalidasMes = arqueosMes.reduce((acc, a) => {
+        return acc + (parseFloat(a.totalSalidas || a.conciliacion?.salidas || 0) || 0);
+      }, 0);
+
+      const fondoDisponible = Math.max(0, fondoBase - totalSalidasMes);
+
+      cajaChicaFundData = {
+        fondoBase,
+        salidasMes: totalSalidasMes,
+        fondoDisponible
+      };
+
+      // Actualizar labels en vista Caja Chica
+      const lblBase = document.getElementById('lbl-chica-base');
+      const lblDesc = document.getElementById('lbl-chica-descuentos');
+      const fInput = document.getElementById('chica_fondo_inicial');
+
+      if (lblBase) lblBase.textContent = formatCurrency(fondoBase);
+      if (lblDesc) lblDesc.textContent = totalSalidasMes > 0 ? `-${formatCurrency(totalSalidasMes)}` : '$0.00';
+      if (fInput) fInput.value = fondoDisponible.toFixed(2);
+
+      // Actualizar en Configuración si está abierto
+      renderConfigCajaChicaValues(fondoBase, totalSalidasMes, fondoDisponible);
+
+      recalculateChica();
+    } catch (e) {
+      console.warn('Error en loadCajaChicaFundData:', e);
+    }
+  }
+
+  function renderConfigCajaChicaValues(base, salidas, disp) {
+    const inp = document.getElementById('cfg_chica_fondo_base');
+    const lBase = document.getElementById('cfg_lbl_chica_base');
+    const lSal = document.getElementById('cfg_lbl_chica_salidas');
+    const lDisp = document.getElementById('cfg_lbl_chica_disponible');
+
+    if (inp && (!inp.value || inp.dataset.loaded !== 'true')) {
+      inp.value = base > 0 ? base.toFixed(2) : '';
+      inp.dataset.loaded = 'true';
+    }
+    if (lBase) lBase.textContent = formatCurrency(base);
+    if (lSal) lSal.textContent = salidas > 0 ? `-${formatCurrency(salidas)}` : '$0.00';
+    if (lDisp) lDisp.textContent = formatCurrency(disp);
+  }
+
   function recalculateChica() {
     const fChica = parseVal('chica_fondo_inicial');
     setDisplay('kpi-chica-fondo', fChica);
@@ -829,40 +899,62 @@
     setDisplay('chica_concil_diferencia', dif);
     setDisplay('kpi-chica-diferencia', dif);
 
-    // Badges caja chica
-    const rC = document.getElementById('chica_res_cuadrada');
-    const rS = document.getElementById('chica_res_sobrante');
-    const rF = document.getElementById('chica_res_faltante');
-    const cardC = document.getElementById('card_chica_cuadrada');
-    const cardS = document.getElementById('card_chica_sobrante');
-    const cardF = document.getElementById('card_chica_faltante');
+    // Badges automáticos no modificables y explicación condicional
+    const cardBadge = document.getElementById('card_chica_cuadrada_badge');
     const kBadge = document.getElementById('kpi-chica-status-badge');
     const dLabel = document.getElementById('chica_diferencia_label');
-
-    if (cardC) cardC.className = 'resultado-radio-card';
-    if (cardS) cardS.className = 'resultado-radio-card';
-    if (cardF) cardF.className = 'resultado-radio-card';
+    const wrapExpl = document.getElementById('wrap_chica_explicacion');
 
     if (Math.abs(dif) < 0.005) {
-      if (rC) rC.checked = true;
-      if (cardC) cardC.classList.add('active-cuadrada');
-      if (kBadge) { kBadge.textContent = 'Cuadrada'; kBadge.className = 'kpi-status-badge badge-cuadrada'; }
-      if (dLabel) { dLabel.textContent = '✅ Caja cuadrada exacta'; dLabel.style.color = 'var(--success)'; }
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-cuadrada';
+        cardBadge.textContent = '✅ Caja cuadrada';
+      }
+      if (kBadge) {
+        kBadge.textContent = 'Cuadrada';
+        kBadge.className = 'kpi-status-badge badge-cuadrada';
+      }
+      if (dLabel) {
+        dLabel.textContent = '✅ Caja cuadrada exacta';
+        dLabel.style.color = 'var(--success)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'none';
     } else if (dif > 0.005) {
-      if (rS) rS.checked = true;
-      if (cardS) cardS.classList.add('active-sobrante');
-      if (kBadge) { kBadge.textContent = `Sobrante: ${formatCurrency(dif)}`; kBadge.className = 'kpi-status-badge badge-sobrante'; }
-      if (dLabel) { dLabel.textContent = `🟡 Sobrante de ${formatCurrency(dif)}`; dLabel.style.color = 'var(--warning)'; }
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-sobrante';
+        cardBadge.textContent = `🟡 Sobrante: ${formatCurrency(dif)}`;
+      }
+      if (kBadge) {
+        kBadge.textContent = `Sobrante: ${formatCurrency(dif)}`;
+        kBadge.className = 'kpi-status-badge badge-sobrante';
+      }
+      if (dLabel) {
+        dLabel.textContent = `🟡 Sobrante de ${formatCurrency(dif)}`;
+        dLabel.style.color = 'var(--warning)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'block';
     } else {
-      if (rF) rF.checked = true;
-      if (cardF) cardF.classList.add('active-faltante');
-      if (kBadge) { kBadge.textContent = `Faltante: ${formatCurrency(Math.abs(dif))}`; kBadge.className = 'kpi-status-badge badge-faltante'; }
-      if (dLabel) { dLabel.textContent = `🔴 Faltante de ${formatCurrency(Math.abs(dif))}`; dLabel.style.color = 'var(--danger)'; }
+      const faltanteAbs = Math.abs(dif);
+      if (cardBadge) {
+        cardBadge.className = 'kpi-status-badge badge-faltante';
+        cardBadge.textContent = `🔴 Faltante: ${formatCurrency(faltanteAbs)}`;
+      }
+      if (kBadge) {
+        kBadge.textContent = `Faltante: ${formatCurrency(faltanteAbs)}`;
+        kBadge.className = 'kpi-status-badge badge-faltante';
+      }
+      if (dLabel) {
+        dLabel.textContent = `🔴 Faltante de ${formatCurrency(faltanteAbs)}`;
+        dLabel.style.color = 'var(--danger)';
+      }
+      if (wrapExpl) wrapExpl.style.display = 'block';
     }
 
-    const respChica = document.getElementById('chica_responsable')?.value || '';
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || '';
+    const respChica = document.getElementById('chica_responsable');
     const valNC = document.getElementById('chica_val_nombre');
-    if (valNC && !valNC.value) valNC.value = respChica;
+    if (respChica) respChica.value = userEmail;
+    if (valNC) valNC.value = userEmail;
   }
 
   function serializeChica() {
@@ -872,9 +964,13 @@
         concepto: r.querySelector('.chica-concepto')?.value || '',
         motivo: r.querySelector('.chica-motivo')?.value || '',
         autorizo: r.querySelector('.chica-autorizo')?.value || '',
-        importe: parseFloat(r.querySelector('.chica-importe')?.value) || 0
+        importe: parseFloat(r.querySelector('.chica-importe')?.value) || 0,
+        evidencia: r.dataset.evidenciaBase64 || ''
       });
     });
+
+    const dif = parseVal('chica_concil_diferencia');
+    const resArqueo = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
 
     return {
       header: {
@@ -891,8 +987,8 @@
         salidas: parseVal('chica_total_salidas'),
         esperado: parseVal('chica_concil_esperado'),
         contado: parseVal('chica_total_contado'),
-        diferencia: parseVal('chica_concil_diferencia'),
-        resultado: document.querySelector('input[name="chica_resultado"]:checked')?.value || 'cuadrada',
+        diferencia: dif,
+        resultado: resArqueo,
         explicacion: document.getElementById('chica_explicacion')?.value || ''
       },
       validacion: {
@@ -909,35 +1005,77 @@
       sigDataChica = false;
     }
     const now = new Date();
-    document.getElementById('chica_fecha').value = now.toISOString().split('T')[0];
+    const dStr = now.toISOString().split('T')[0];
     const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('chica_hora').value = hm;
-    recalculateChica();
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || '';
+
+    if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
+    if (document.getElementById('chica_hora')) document.getElementById('chica_hora').value = hm;
+    if (document.getElementById('chica_responsable')) document.getElementById('chica_responsable').value = userEmail;
+    if (document.getElementById('chica_val_nombre')) document.getElementById('chica_val_nombre').value = userEmail;
+
+    // Reiniciar tabla de salidas a una fila limpia
+    const tbody = document.getElementById('tbody-chica-salidas');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr class="chica-salida-row">
+          <td><input type="text" class="input-text chica-concepto" placeholder="Ej. Materiales, insumos..."></td>
+          <td><input type="text" class="input-text chica-motivo" placeholder="Para qué se utilizó..."></td>
+          <td><input type="text" class="input-text chica-autorizo" placeholder="Persona que autorizó..."></td>
+          <td>
+            <div class="currency-input-wrap"><span class="currency-prefix">$</span>
+              <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger chica-importe" value="0.00">
+            </div>
+          </td>
+          <td class="text-center">
+            <input type="file" accept="image/*" class="chica-file-input" style="display:none;">
+            <button type="button" class="btn btn-secondary btn-sm btn-subir-evidencia" style="padding:4px 8px; font-size:0.75rem;">📷 Ticket</button>
+            <div class="chica-preview-wrap" style="display:none; margin-top:3px;">
+              <img class="chica-thumb-img btn-thumb-foto" src="" style="width:32px; height:32px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1; cursor:pointer;" title="Clic para ampliar ticket">
+            </div>
+          </td>
+          <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm btn-del-row" title="Eliminar fila">✕</button>
+          </td>
+        </tr>
+      `;
+    }
+
+    loadCajaChicaFundData();
   }
 
   function syncChicaPrintable() {
     recalculateChica();
-    const rawF = document.getElementById('chica_fecha').value;
-    document.getElementById('pc_fecha').textContent = rawF || '__ / __ / ____';
-    const resp = document.getElementById('chica_responsable').value || '________________';
-    document.getElementById('pc_responsable').textContent = resp;
-    document.getElementById('pc_hora').textContent = document.getElementById('chica_hora').value || '____';
+    const rawF = document.getElementById('chica_fecha')?.value || '';
+    if (document.getElementById('pc_fecha')) document.getElementById('pc_fecha').textContent = rawF || '__ / __ / ____';
+    const resp = document.getElementById('chica_responsable')?.value || TB_FIREBASE.getCurrentUser()?.email || '________________';
+    if (document.getElementById('pc_responsable')) document.getElementById('pc_responsable').textContent = resp;
+    if (document.getElementById('pc_hora')) document.getElementById('pc_hora').textContent = document.getElementById('chica_hora')?.value || '____';
 
-    document.getElementById('pc_fondo_inicial').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
+    if (document.getElementById('pc_fondo_inicial')) document.getElementById('pc_fondo_inicial').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
 
     // Salidas
     const pcTbody = document.getElementById('pc_tbody_salidas');
-    pcTbody.innerHTML = '';
-    document.querySelectorAll('.chica-salida-row').forEach(row => {
-      const c = row.querySelector('.chica-concepto')?.value || '';
-      const m = row.querySelector('.chica-motivo')?.value || '';
-      const a = row.querySelector('.chica-autorizo')?.value || '';
-      const imp = parseFloat(row.querySelector('.chica-importe')?.value) || 0;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${c}</td><td>${m}</td><td>${a}</td><td class="amount">${formatCurrency(imp)}</td>`;
-      pcTbody.appendChild(tr);
-    });
-    document.getElementById('pc_total_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
+    if (pcTbody) {
+      pcTbody.innerHTML = '';
+      document.querySelectorAll('.chica-salida-row').forEach(row => {
+        const c = row.querySelector('.chica-concepto')?.value || '';
+        const m = row.querySelector('.chica-motivo')?.value || '';
+        const a = row.querySelector('.chica-autorizo')?.value || '';
+        const imp = parseFloat(row.querySelector('.chica-importe')?.value) || 0;
+        const hasEv = Boolean(row.dataset.evidenciaBase64);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${c}</td>
+          <td>${m}</td>
+          <td>${a}</td>
+          <td class="amount">${formatCurrency(imp)}</td>
+          <td style="text-align:center;">${hasEv ? '📎 Adjunta' : '--'}</td>
+        `;
+        pcTbody.appendChild(tr);
+      });
+    }
+    if (document.getElementById('pc_total_salidas')) document.getElementById('pc_total_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
 
     // Conteo
     const denoms = [
@@ -957,35 +1095,40 @@
     denoms.forEach(d => {
       const q = parseInt(document.getElementById(d.id)?.value, 10) || 0;
       tc += q * d.val;
-      document.getElementById(d.qId).textContent = q > 0 ? q : '';
-      document.getElementById(d.tId).textContent = formatCurrency(q * d.val);
+      const qEl = document.getElementById(d.qId);
+      const tEl = document.getElementById(d.tId);
+      if (qEl) qEl.textContent = q > 0 ? q : '';
+      if (tEl) tEl.textContent = formatCurrency(q * d.val);
     });
-    document.getElementById('pc_total_contado').textContent = formatCurrency(tc);
+    if (document.getElementById('pc_total_contado')) document.getElementById('pc_total_contado').textContent = formatCurrency(tc);
 
     // Conciliación
-    document.getElementById('pc_concil_fondo').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
-    document.getElementById('pc_concil_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
-    document.getElementById('pc_concil_esperado').textContent = formatCurrency(parseVal('chica_concil_esperado'));
-    document.getElementById('pc_concil_contado').textContent = formatCurrency(tc);
-    document.getElementById('pc_concil_diferencia').textContent = formatCurrency(parseVal('chica_concil_diferencia'));
+    if (document.getElementById('pc_concil_fondo')) document.getElementById('pc_concil_fondo').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
+    if (document.getElementById('pc_concil_salidas')) document.getElementById('pc_concil_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
+    if (document.getElementById('pc_concil_esperado')) document.getElementById('pc_concil_esperado').textContent = formatCurrency(parseVal('chica_concil_esperado'));
+    if (document.getElementById('pc_concil_contado')) document.getElementById('pc_concil_contado').textContent = formatCurrency(tc);
+    if (document.getElementById('pc_concil_diferencia')) document.getElementById('pc_concil_diferencia').textContent = formatCurrency(parseVal('chica_concil_diferencia'));
 
-    const res = document.querySelector('input[name="chica_resultado"]:checked')?.value || 'cuadrada';
-    document.getElementById('pc_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
-    document.getElementById('pc_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
-    document.getElementById('pc_box_faltante').textContent = res === 'faltante' ? '✓' : '';
-    document.getElementById('pc_explicacion').textContent = document.getElementById('chica_explicacion').value.trim() || 'Sin observaciones.';
+    const dif = parseVal('chica_concil_diferencia');
+    const res = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
+    if (document.getElementById('pc_box_cuadrada')) document.getElementById('pc_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
+    if (document.getElementById('pc_box_sobrante')) document.getElementById('pc_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
+    if (document.getElementById('pc_box_faltante')) document.getElementById('pc_box_faltante').textContent = res === 'faltante' ? '✓' : '';
+    if (document.getElementById('pc_explicacion')) document.getElementById('pc_explicacion').textContent = document.getElementById('chica_explicacion')?.value?.trim() || 'Sin observaciones.';
 
-    const valN = document.getElementById('chica_val_nombre').value || resp;
-    document.getElementById('pc_val_nombre').textContent = valN;
+    const valN = document.getElementById('chica_val_nombre')?.value || resp;
+    if (document.getElementById('pc_val_nombre')) document.getElementById('pc_val_nombre').textContent = valN;
     const fImg = document.getElementById('pc_val_firma_img');
     const fBlank = document.getElementById('pc_val_firma_blank');
     if (sigDataChica && sigPadChica) {
-      fImg.src = sigPadChica.toDataURL('image/png');
-      fImg.style.display = 'inline-block';
-      fBlank.style.display = 'none';
+      if (fImg) {
+        fImg.src = sigPadChica.toDataURL('image/png');
+        fImg.style.display = 'inline-block';
+      }
+      if (fBlank) fBlank.style.display = 'none';
     } else {
-      fImg.style.display = 'none';
-      fBlank.style.display = 'inline-block';
+      if (fImg) fImg.style.display = 'none';
+      if (fBlank) fBlank.style.display = 'inline-block';
     }
 
     const cln = valN.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
@@ -1868,11 +2011,12 @@
       else btn.classList.remove('active');
     });
 
-    ['servicios', 'estaciones', 'especialistas', 'metas'].forEach(k => {
+    ['servicios', 'estaciones', 'especialistas', 'metas', 'cajachica'].forEach(k => {
       const el = document.getElementById(`config-subview-${k}`);
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
     if (tabKey === 'metas') renderCatMetasTable();
+    if (tabKey === 'cajachica') loadCajaChicaFundData();
   }
 
   async function loadCatalogsData() {
@@ -2773,14 +2917,118 @@
       const tr = document.createElement('tr');
       tr.className = 'chica-salida-row';
       tr.innerHTML = `
-        <td><input type="text" class="input-text chica-concepto" placeholder="Concepto..."></td>
-        <td><input type="text" class="input-text chica-motivo" placeholder="Descripción..."></td>
-        <td><input type="text" class="input-text chica-autorizo" placeholder="Nombre..."></td>
-        <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger chica-importe" value="0.00"></div></td>
-        <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm btn-del-row">✕</button></td>
+        <td><input type="text" class="input-text chica-concepto" placeholder="Ej. Materiales, insumos..."></td>
+        <td><input type="text" class="input-text chica-motivo" placeholder="Para qué se utilizó..."></td>
+        <td><input type="text" class="input-text chica-autorizo" placeholder="Persona que autorizó..."></td>
+        <td>
+          <div class="currency-input-wrap"><span class="currency-prefix">$</span>
+            <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger chica-importe" value="0.00">
+          </div>
+        </td>
+        <td class="text-center">
+          <input type="file" accept="image/*" class="chica-file-input" style="display:none;">
+          <button type="button" class="btn btn-secondary btn-sm btn-subir-evidencia" style="padding:4px 8px; font-size:0.75rem;">📷 Ticket</button>
+          <div class="chica-preview-wrap" style="display:none; margin-top:3px;">
+            <img class="chica-thumb-img btn-thumb-foto" src="" style="width:32px; height:32px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1; cursor:pointer;" title="Clic para ampliar ticket">
+          </div>
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-row" title="Eliminar fila">✕</button>
+        </td>
       `;
       tbody.appendChild(tr);
       recalculateChica();
+    });
+
+    
+    // Delegación para subida de evidencia en salidas de caja chica
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-subir-evidencia');
+      if (btn) {
+        const row = btn.closest('.chica-salida-row');
+        const fileInput = row?.querySelector('.chica-file-input');
+        if (fileInput) fileInput.click();
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('.chica-file-input')) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const row = e.target.closest('.chica-salida-row');
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let w = img.width, h = img.height;
+            if (w > h && w > maxDim) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const base64 = canvas.toDataURL('image/jpeg', 0.75);
+
+            if (row) {
+              row.dataset.evidenciaBase64 = base64;
+              const prevWrap = row.querySelector('.chica-preview-wrap');
+              const prevImg = row.querySelector('.chica-thumb-img');
+              const btnSubir = row.querySelector('.btn-subir-evidencia');
+              if (prevImg) prevImg.src = base64;
+              if (prevWrap) prevWrap.style.display = 'block';
+              if (btnSubir) {
+                btnSubir.innerHTML = '✅ Cambiar';
+                btnSubir.className = 'btn btn-outline-success btn-sm btn-subir-evidencia';
+              }
+            }
+            showToast('Ticket/Comprobante adjuntado con éxito', 'success');
+          };
+          img.src = re.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Clic en foto de evidencia de caja chica para ampliar en lightbox
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('.chica-thumb-img')) {
+        const src = e.target.src;
+        const modal = document.getElementById('modal-ver-foto');
+        const img = document.getElementById('img-ver-foto-full');
+        const tit = document.getElementById('ver-foto-titulo');
+        const meta = document.getElementById('ver-foto-meta');
+        if (img) img.src = src;
+        if (tit) tit.textContent = 'Evidencia de Gasto de Caja Chica';
+        if (meta) meta.textContent = 'Comprobante / Ticket adjunto';
+        if (modal) modal.style.display = 'flex';
+      }
+    });
+
+    // Guardar Fondo de Caja Chica en Configuración General
+    document.getElementById('form-config-cajachica')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = parseFloat(document.getElementById('cfg_chica_fondo_base')?.value) || 0;
+      if (val < 0) {
+        showToast('El fondo base no puede ser negativo', 'warning');
+        return;
+      }
+      showToast('Guardando fondo base de Caja Chica en Firebase...', 'info');
+      await TB_FIREBASE.saveCajaChicaConfig({ fondoBase: val });
+      logAuditMovement({
+        modulo: 'Configuración General',
+        accion: 'CONFIG_CAJA_CHICA_FONDO',
+        descripcion: `Actualización de Fondo Base de Caja Chica: $${val.toFixed(2)}`,
+        payload: { fondoBase: val }
+      });
+      showToast('✅ Fondo de Caja Chica guardado en Firebase', 'success');
+      await loadCajaChicaFundData();
     });
 
     document.addEventListener('click', (e) => {
