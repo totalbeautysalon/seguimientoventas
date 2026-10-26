@@ -2215,45 +2215,30 @@
       <section class="module-view" id="view-configuracion">
 
         <!-- Barra Superior con Subpestañas Modernizadas -->
-        <div class="bs-main-panel" style="padding:14px 18px; margin-bottom:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            
-            <div class="cfg-ribbon-bar" style="margin-bottom:0; flex:1; max-width:850px;">
+        <div class="bs-main-panel" style="padding:10px 14px; margin-bottom:20px;">
+          <div class="cfg-ribbon-container">
+            <div class="cfg-ribbon-bar" id="cfg-subtabs-pills">
               <button type="button" class="cfg-nav-btn config-nav-pill active" data-cfgtab="servicios">
-                <span>✨</span>
-                <span>1. Servicios & Productos</span>
-                <span class="cfg-count-pill" id="pill-count-servicios">0</span>
+                <span class="ribbon-icon">✨</span>
+                <span class="ribbon-text">1. Servicios & Productos</span>
               </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="estaciones">
-                <span>💈</span>
-                <span>2. Estaciones de Trabajo</span>
-                <span class="cfg-count-pill" id="pill-count-estaciones">0</span>
+                <span class="ribbon-icon">💈</span>
+                <span class="ribbon-text">2. Estaciones de Trabajo</span>
               </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="especialistas">
-                <span>👩‍🎨</span>
-                <span>3. Especialistas</span>
-                <span class="cfg-count-pill" id="pill-count-especialistas">0</span>
+                <span class="ribbon-icon">👩‍🎨</span>
+                <span class="ribbon-text">3. Especialistas</span>
               </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="metas">
-                <span>🎯</span>
-                <span>4. Metas Quincenales</span>
+                <span class="ribbon-icon">🎯</span>
+                <span class="ribbon-text">4. Metas Quincenales</span>
               </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="cajachica">
-                <span>🪙</span>
-                <span>5. Fondo Caja Chica</span>
+                <span class="ribbon-icon">🪙</span>
+                <span class="ribbon-text">5. Fondo Caja Chica</span>
               </button>
             </div>
-
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <span style="font-size:0.78rem; color:#065f46; font-weight:700; background:#ecfdf5; padding:6px 12px; border-radius:12px; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:6px;">
-                <span style="width:7px; height:7px; background:#10b981; border-radius:50%; display:inline-block;"></span>
-                Auto-guardado en Firebase
-              </span>
-              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-limpiar-todo-config" style="font-weight:700; font-size:0.78rem; padding:6px 12px;">
-                🧹 Limpiar Todo
-              </button>
-            </div>
-
           </div>
         </div>
 
@@ -2563,10 +2548,8 @@
                 </div>
               </div>
 
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="kpi-status-badge badge-cuadrada" id="badge-autosave-metas" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:0.82rem; padding:5px 14px; font-weight:700;">
-                  ⚡ Auto-guardado en Firebase
-                </span>
+              <div style="display:none;">
+                <span id="badge-autosave-metas"></span>
               </div>
             </div>
 
