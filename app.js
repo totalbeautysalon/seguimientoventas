@@ -116,6 +116,14 @@
   };
 
   function switchModule(modKey) {
+    if (modKey === 'configuracion' && !isConfigUnlocked) {
+      openUnlockConfigModal('servicios');
+      return;
+    }
+    if (!hasModulePermission(modKey)) {
+      showToast('⛔ Acceso restringido. Su rol no tiene permiso para este módulo.', 'warning');
+      return;
+    }
     currentModule = modKey;
 
     document.querySelectorAll('.menu-item-link').forEach(link => {
@@ -3262,6 +3270,63 @@
   let catServicios = [];
   let catEstaciones = [];
   let catEspecialistas = [];
+  let catUsuariosRoles = [];
+  let isConfigUnlocked = (sessionStorage.getItem('tb_cfg_unlocked') === 'true');
+  let pendingConfigTab = 'servicios';
+
+  const ALL_MODULE_KEYS = [
+    'arqueo-principal',
+    'arqueo-chica',
+    'historial',
+    'ventas',
+    'balancescore',
+    'ingresos',
+    'interesadas',
+    'campana',
+    'configuracion',
+    'auditoria'
+  ];
+
+  const MODULE_DEFINITIONS = [
+    { id: 'arqueo-principal', icono: '💵', label: 'Arqueo Caja Principal', desc: 'Fondo, conteo físico, conciliación y entrega de dinero' },
+    { id: 'arqueo-chica', icono: '🪙', label: 'Arqueo Caja Chica', desc: 'Fondo base mensual, gastos menores y comprobantes' },
+    { id: 'historial', icono: '📑', label: 'Reportes Diarios Arqueo', desc: 'Historial de arqueos guardados y visor PDF oficial' },
+    { id: 'ventas', icono: '💰', label: 'Registro Diario de Ventas', desc: 'Captura visual de operaciones, métodos de pago y caja' },
+    { id: 'balancescore', icono: '💈', label: 'BalanceScore Estaciones', desc: 'Balanced Scorecard por estación y academia por períodos' },
+    { id: 'ingresos', icono: '💰', label: 'Reporte Diario Ingresos', desc: 'Desglose detallado de servicios, montos y exportación PDF' },
+    { id: 'interesadas', icono: '🎯', label: 'Interesadas y Cierres', desc: 'BalanceScore de conversión, registro y tipificación' },
+    { id: 'campana', icono: '🌟', label: 'Campaña y Eventos', desc: 'Monitoreo de metas mensuales y calendario' },
+    { id: 'configuracion', icono: '⚙️', label: 'Configuración General', desc: 'Servicios, estaciones, especialistas, metas y roles' },
+    { id: 'auditoria', icono: '🛡️', label: 'Registro de Auditoría', desc: 'Bitácora de movimientos y reversión con llave maestra' }
+  ];
+
+  const ROLE_PRESETS = {
+    'Administrador': {
+      nombre: 'Administrador',
+      modulos: [
+        'arqueo-principal', 'arqueo-chica', 'historial', 'ventas',
+        'balancescore', 'ingresos', 'interesadas', 'campana',
+        'configuracion', 'auditoria'
+      ]
+    },
+    'Encargado de Caja': {
+      nombre: 'Encargado de Caja',
+      modulos: ['arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'ingresos']
+    },
+    'Recepción y Ventas': {
+      nombre: 'Recepción y Ventas',
+      modulos: ['ventas', 'ingresos', 'interesadas']
+    },
+    'Ventas y Crecimiento': {
+      nombre: 'Ventas y Crecimiento',
+      modulos: ['ventas', 'balancescore', 'interesadas', 'campana']
+    },
+    'Personalizado': {
+      nombre: 'Personalizado',
+      modulos: []
+    }
+  };
+
   let catCursosMeta = {
     id: 'Cursos',
     nombre: 'Cursos & Talleres Academia',
@@ -3278,12 +3343,14 @@
       else btn.classList.remove('active');
     });
 
-    ['servicios', 'estaciones', 'especialistas', 'metas', 'cajachica'].forEach(k => {
+    ['servicios', 'estaciones', 'especialistas', 'metas', 'cajachica', 'usuarios'].forEach(k => {
       const el = document.getElementById(`config-subview-${k}`);
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
     if (tabKey === 'metas') renderCatMetasTable();
+    renderUsuariosRolesView();
     if (tabKey === 'cajachica') loadCajaChicaFundData();
+    if (tabKey === 'usuarios') renderUsuariosRolesView();
   }
 
   async function loadCatalogsData() {
@@ -3291,6 +3358,26 @@
     catEstaciones = await TB_FIREBASE.getCatalogo('estaciones');
     catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas');
     catServicios = await TB_FIREBASE.getCatalogo('servicios');
+    catUsuariosRoles = await TB_FIREBASE.getCatalogo('usuarios_roles');
+
+    if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
+    let franUser = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
+    if (!franUser) {
+      franUser = {
+        email: 'francisco@totalb.com',
+        nombre: 'Francisco (Admin Principal)',
+        rol: 'Administrador',
+        isAdmin: true,
+        modulos: [...ALL_MODULE_KEYS],
+        updatedAt: new Date().toISOString()
+      };
+      catUsuariosRoles.unshift(franUser);
+      await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+    } else {
+      franUser.rol = 'Administrador';
+      franUser.isAdmin = true;
+      franUser.modulos = [...ALL_MODULE_KEYS];
+    }
     
     // Normalizar estaciones para asegurar metaQuincenal y clientesMeta
     catEstaciones.forEach(est => {
@@ -4735,6 +4822,10 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const tab = btn.dataset.configTab || 'servicios';
+        if (!isConfigUnlocked) {
+          openUnlockConfigModal(tab);
+          return;
+        }
         switchModule('configuracion');
         switchConfigTab(tab);
       });
@@ -5462,6 +5553,10 @@
 
     // Enlace a configuración de metas
     document.getElementById('btn-bs-config-metas')?.addEventListener('click', () => {
+      if (!isConfigUnlocked) {
+        openUnlockConfigModal('metas');
+        return;
+      }
       switchModule('configuracion');
       switchConfigTab('metas');
     });
@@ -5741,12 +5836,546 @@
     }, 30000);
     // Inicializar Sistema de Autenticación Firebase Auth
     // (La carga de catálogos y datos reales se dispara una vez validada la sesión con Firebase)
+    initConfigSecurityAndRoles();
     initAuthSystem();
   });
 
   // =========================================================================
   // SISTEMA DE AUTENTICACIÓN FIREBASE AUTH (CORREO / CONTRASEÑA)
   // =========================================================================
+
+  // =========================================================================
+  // GESTIÓN DE ROLES, PERMISOS DE USUARIOS Y SEGURIDAD DE CONFIGURACIÓN
+  // =========================================================================
+
+  function hasModulePermission(modKey) {
+    const curUser = TB_FIREBASE.getCurrentUser();
+    if (!curUser || !curUser.email) return true;
+    const email = (curUser.email || '').toLowerCase().trim();
+    if (email === 'francisco@totalb.com') return true;
+
+    const userCfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
+    if (!userCfg) {
+      return ['ventas', 'ingresos', 'interesadas'].includes(modKey);
+    }
+    if (userCfg.isAdmin || userCfg.rol === 'Administrador') return true;
+    return Array.isArray(userCfg.modulos) && userCfg.modulos.includes(modKey);
+  }
+
+  function getAllowedModulesForCurrentUser() {
+    const curUser = TB_FIREBASE.getCurrentUser();
+    const email = (curUser?.email || '').toLowerCase().trim();
+    if (email === 'francisco@totalb.com') return ALL_MODULE_KEYS;
+    const cfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
+    if (!cfg) return ['ventas', 'ingresos', 'interesadas'];
+    if (cfg.isAdmin || cfg.rol === 'Administrador') return ALL_MODULE_KEYS;
+    return cfg.modulos || ['ventas', 'ingresos', 'interesadas'];
+  }
+
+  async function syncAndApplyUserPermissions(userEmail) {
+    const email = (userEmail || '').toLowerCase().trim();
+    if (!email) return;
+
+    if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
+    let userEntry = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === email);
+    const isFran = (email === 'francisco@totalb.com');
+
+    if (!userEntry) {
+      userEntry = {
+        email: email,
+        nombre: isFran ? 'Francisco (Admin Principal)' : email.split('@')[0],
+        rol: isFran ? 'Administrador' : 'Recepción y Ventas',
+        isAdmin: isFran,
+        modulos: isFran ? [...ALL_MODULE_KEYS] : ['ventas', 'ingresos', 'interesadas'],
+        fechaAlta: new Date().toISOString(),
+        ultimoAcceso: new Date().toISOString()
+      };
+      catUsuariosRoles.push(userEntry);
+      await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+    } else {
+      if (isFran) {
+        userEntry.rol = 'Administrador';
+        userEntry.isAdmin = true;
+        userEntry.modulos = [...ALL_MODULE_KEYS];
+      }
+      userEntry.ultimoAcceso = new Date().toISOString();
+      await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+    }
+
+    applyUserPermissions(email);
+  }
+
+  function applyUserPermissions(userEmail) {
+    const email = (userEmail || TB_FIREBASE.getCurrentUser()?.email || '').toLowerCase().trim();
+    if (!email) {
+      document.querySelectorAll('.sidebar-menu li').forEach(li => li.style.display = '');
+      return;
+    }
+
+    const isFran = (email === 'francisco@totalb.com');
+    let userCfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
+
+    let allowed = ALL_MODULE_KEYS;
+    if (!isFran) {
+      if (userCfg && (userCfg.isAdmin || userCfg.rol === 'Administrador')) {
+        allowed = ALL_MODULE_KEYS;
+      } else if (userCfg && Array.isArray(userCfg.modulos)) {
+        allowed = userCfg.modulos;
+      } else {
+        allowed = ['ventas', 'ingresos', 'interesadas'];
+      }
+    }
+
+    // Filtrar enlaces de módulos en el menú lateral
+    document.querySelectorAll('.sidebar-menu a.menu-item-link').forEach(link => {
+      const mod = link.dataset.module;
+      const li = link.closest('li');
+      if (!li) return;
+      if (allowed.includes(mod)) {
+        li.style.display = '';
+      } else {
+        li.style.display = 'none';
+      }
+    });
+
+    // Ocultar categorías si todos sus módulos están ocultos
+    document.querySelectorAll('.sidebar-menu-category').forEach(catLi => {
+      let nextEl = catLi.nextElementSibling;
+      let hasVisibleChild = false;
+      while (nextEl && !nextEl.classList.contains('sidebar-menu-category')) {
+        if (nextEl.style.display !== 'none') {
+          hasVisibleChild = true;
+          break;
+        }
+        nextEl = nextEl.nextElementSibling;
+      }
+      catLi.style.display = hasVisibleChild ? '' : 'none';
+    });
+
+    // Si el módulo activo quedó oculto, redirigir al primer módulo permitido
+    if (!allowed.includes(currentModule)) {
+      const fallback = allowed[0] || 'ventas';
+      switchModule(fallback);
+    }
+  }
+
+  function openUnlockConfigModal(targetTab) {
+    pendingConfigTab = targetTab || 'servicios';
+    const modal = document.getElementById('modal-unlock-configuracion');
+    const input = document.getElementById('input-unlock-config-pwd');
+    const errBox = document.getElementById('unlock-config-error');
+    if (!modal) return;
+    if (input) {
+      input.value = '';
+      input.type = 'password';
+    }
+    if (errBox) errBox.style.display = 'none';
+    modal.style.display = 'flex';
+    setTimeout(() => { if (input) input.focus(); }, 120);
+  }
+
+  function renderUserPermModuleCheckboxes(selectedModules = [], isEmailAdmin = false) {
+    const container = document.getElementById('grid-user-modules-perms');
+    if (!container) return;
+    container.innerHTML = MODULE_DEFINITIONS.map(mod => {
+      const isChecked = isEmailAdmin || selectedModules.includes(mod.id);
+      const isDisabled = isEmailAdmin ? 'disabled' : '';
+      return `
+        <label for="chk-perm-${mod.id}" class="perm-module-card ${isChecked ? 'checked' : ''} ${isEmailAdmin ? 'disabled' : ''}">
+          <div style="display:flex; align-items:flex-start; gap:8px;">
+            <input type="checkbox" class="user-perm-check" value="${mod.id}" id="chk-perm-${mod.id}" ${isChecked ? 'checked' : ''} ${isDisabled} style="margin-top:3px; cursor:pointer;">
+            <div style="flex:1;">
+              <div style="font-weight:700; font-size:0.83rem; color:var(--dark);">
+                ${mod.icono} ${mod.label}
+              </div>
+              <div style="font-size:0.71rem; color:var(--muted); line-height:1.25; margin-top:2px;">
+                ${mod.desc}
+              </div>
+            </div>
+          </div>
+        </label>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.user-perm-check').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const card = chk.closest('.perm-module-card');
+        if (card) {
+          if (chk.checked) card.classList.add('checked');
+          else card.classList.remove('checked');
+        }
+        updateRolPresetFromCheckboxes();
+      });
+    });
+  }
+
+  function applyRolePresetToCheckboxes(roleName) {
+    const preset = ROLE_PRESETS[roleName];
+    if (!preset) return;
+    const container = document.getElementById('grid-user-modules-perms');
+    if (!container) return;
+    const modKeys = preset.modulos;
+    container.querySelectorAll('.user-perm-check').forEach(chk => {
+      if (chk.disabled) return;
+      const shouldCheck = (roleName === 'Administrador') || modKeys.includes(chk.value);
+      chk.checked = shouldCheck;
+      const card = chk.closest('.perm-module-card');
+      if (card) {
+        if (shouldCheck) card.classList.add('checked');
+        else card.classList.remove('checked');
+      }
+    });
+  }
+
+  function updateRolPresetFromCheckboxes() {
+    const container = document.getElementById('grid-user-modules-perms');
+    if (!container) return;
+    const checkedVals = Array.from(container.querySelectorAll('.user-perm-check:checked')).map(c => c.value);
+    const rolSelect = document.getElementById('cfg_user_rol_select');
+    if (!rolSelect || rolSelect.disabled) return;
+
+    if (checkedVals.length === ALL_MODULE_KEYS.length) {
+      rolSelect.value = 'Administrador';
+    } else {
+      rolSelect.value = 'Personalizado';
+    }
+  }
+
+  function renderUsuariosRolesTable() {
+    const tbody = document.getElementById('tbody-usuarios-roles');
+    const badgeCount = document.getElementById('badge-total-usuarios');
+    const searchVal = (document.getElementById('cfg_user_search')?.value || '').trim().toLowerCase();
+    if (badgeCount) badgeCount.textContent = `${catUsuariosRoles.length} Usuarios`;
+    if (!tbody) return;
+
+    let filtered = catUsuariosRoles || [];
+    if (searchVal) {
+      filtered = filtered.filter(u => {
+        const em = (u.email || '').toLowerCase();
+        const nom = (u.nombre || '').toLowerCase();
+        const rol = (u.rol || '').toLowerCase();
+        return em.includes(searchVal) || nom.includes(searchVal) || rol.includes(searchVal);
+      });
+    }
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:24px; color:var(--muted);">No se encontraron usuarios que coincidan con la búsqueda.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(user => {
+      const isFran = (user.email || '').toLowerCase().trim() === 'francisco@totalb.com';
+      const tr = document.createElement('tr');
+      if (isFran) {
+        tr.style.background = '#f0fdf4';
+      }
+
+      let rolBadgeClass = 'background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;';
+      if (isFran || user.rol === 'Administrador') {
+        rolBadgeClass = 'background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;';
+      } else if (user.rol === 'Encargado de Caja') {
+        rolBadgeClass = 'background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd;';
+      } else if (user.rol === 'Recepción y Ventas') {
+        rolBadgeClass = 'background:#faf5ff; color:#7e22ce; border:1px solid #e9d5ff;';
+      } else if (user.rol === 'Ventas y Crecimiento') {
+        rolBadgeClass = 'background:#fffbeb; color:#b45309; border:1px solid #fde68a;';
+      }
+
+      const userModules = isFran ? ALL_MODULE_KEYS : (user.modulos || []);
+      const hiddenCount = ALL_MODULE_KEYS.length - userModules.length;
+
+      let modulesHtml = '';
+      if (isFran || userModules.length === ALL_MODULE_KEYS.length) {
+        modulesHtml = `<span class="module-chip chip-admin">🌟 Acceso Total (10 Módulos)</span>`;
+      } else if (userModules.length === 0) {
+        modulesHtml = `<span style="color:#ef4444; font-size:0.75rem; font-weight:700;">Sin módulos asignados</span>`;
+      } else {
+        modulesHtml = userModules.map(mId => {
+          const def = MODULE_DEFINITIONS.find(d => d.id === mId);
+          return `<span class="module-chip">${def ? def.icono + ' ' + def.label.split(' ')[0] : mId}</span>`;
+        }).join(' ');
+      }
+
+      const hiddenHtml = (hiddenCount <= 0)
+        ? `<span style="color:#059669; font-weight:700; font-size:0.75rem;">✓ 0 Ocultos</span>`
+        : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:10px; font-weight:700; font-size:0.75rem;">🚫 ${hiddenCount} Ocultos</span>`;
+
+      tr.innerHTML = `
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.15rem;">${isFran ? '👑' : '👤'}</span>
+            <div>
+              <div style="font-weight:800; color:var(--dark); font-size:0.88rem;">${user.email}</div>
+              ${user.nombre ? `<div style="font-size:0.75rem; color:var(--muted);">${user.nombre}</div>` : ''}
+              ${isFran ? `<span style="font-size:0.68rem; color:#b45309; font-weight:800; background:#fef3c7; border:1px solid #fde68a; padding:1px 6px; border-radius:4px; display:inline-block; margin-top:2px;">⭐ Super Administrador</span>` : ''}
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="kpi-status-badge badge-cuadrada" style="${rolBadgeClass} font-size:0.78rem; padding:4px 10px; font-weight:700;">
+            ${user.rol || 'Personalizado'}
+          </span>
+        </td>
+        <td>
+          <div style="display:flex; flex-wrap:wrap; gap:3px;">
+            ${modulesHtml}
+          </div>
+        </td>
+        <td style="text-align:center;">
+          ${hiddenHtml}
+        </td>
+        <td style="text-align:center;">
+          <div style="display:inline-flex; align-items:center; gap:6px;">
+            <button type="button" class="btn btn-outline-primary btn-sm btn-edit-user-perms" data-email="${user.email}" title="Editar permisos" style="font-size:0.75rem; padding:4px 8px; font-weight:700;">
+              ✏️ Editar
+            </button>
+            ${!isFran ? `
+              <button type="button" class="btn-cat-del btn-del-user-perms" data-email="${user.email}" title="Eliminar usuario">
+                🗑️
+              </button>
+            ` : `
+              <span title="Usuario protegido" style="font-size:0.85rem; opacity:0.4; cursor:not-allowed;">🔒</span>
+            `}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.btn-edit-user-perms').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editUserPermissions(btn.dataset.email);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-del-user-perms').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deleteUserPermissions(btn.dataset.email);
+      });
+    });
+  }
+
+  function editUserPermissions(email) {
+    const user = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+    if (!user) return;
+    const isFran = (email.toLowerCase().trim() === 'francisco@totalb.com');
+
+    const emailInput = document.getElementById('cfg_user_email');
+    const nombreInput = document.getElementById('cfg_user_nombre');
+    const rolSelect = document.getElementById('cfg_user_rol_select');
+    const adminMsg = document.getElementById('msg-user-admin-fixed');
+    const cancelBtn = document.getElementById('btn-cancel-user-edit');
+    const formTitle = document.getElementById('cfg-user-form-title');
+    const formIcon = document.getElementById('cfg-user-form-icon');
+    const editIndex = document.getElementById('cfg_user_edit_index');
+
+    if (editIndex) editIndex.value = email;
+    if (emailInput) {
+      emailInput.value = user.email;
+      emailInput.readOnly = isFran;
+    }
+    if (nombreInput) nombreInput.value = user.nombre || '';
+    if (rolSelect) {
+      rolSelect.value = user.rol || 'Personalizado';
+      rolSelect.disabled = isFran;
+    }
+    if (adminMsg) adminMsg.style.display = isFran ? 'block' : 'none';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    if (formTitle) formTitle.textContent = `Editar Permisos de: ${user.email}`;
+    if (formIcon) formIcon.textContent = '✏️';
+
+    renderUserPermModuleCheckboxes(isFran ? ALL_MODULE_KEYS : (user.modulos || []), isFran);
+    document.getElementById('form-user-permissions')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function resetUserPermissionsForm() {
+    const form = document.getElementById('form-user-permissions');
+    if (form) form.reset();
+    const editIndex = document.getElementById('cfg_user_edit_index');
+    if (editIndex) editIndex.value = '-1';
+    const emailInput = document.getElementById('cfg_user_email');
+    if (emailInput) emailInput.readOnly = false;
+    const rolSelect = document.getElementById('cfg_user_rol_select');
+    if (rolSelect) {
+      rolSelect.disabled = false;
+      rolSelect.value = 'Recepción y Ventas';
+    }
+    const adminMsg = document.getElementById('msg-user-admin-fixed');
+    if (adminMsg) adminMsg.style.display = 'none';
+    const cancelBtn = document.getElementById('btn-cancel-user-edit');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    const formTitle = document.getElementById('cfg-user-form-title');
+    if (formTitle) formTitle.textContent = 'Asignar o Modificar Permisos de Usuario';
+    const formIcon = document.getElementById('cfg-user-form-icon');
+    if (formIcon) formIcon.textContent = '➕';
+
+    renderUserPermModuleCheckboxes(ROLE_PRESETS['Recepción y Ventas'].modulos, false);
+  }
+
+  async function handleUserPermissionsSubmit(e) {
+    e.preventDefault();
+    const emailInput = document.getElementById('cfg_user_email');
+    const nombreInput = document.getElementById('cfg_user_nombre');
+    const rolSelect = document.getElementById('cfg_user_rol_select');
+
+    const email = (emailInput?.value || '').trim();
+    const nombre = (nombreInput?.value || '').trim();
+    const rol = rolSelect?.value || 'Personalizado';
+
+    if (!email) {
+      showToast('Por favor ingrese un correo válido de Firebase Auth', 'warning');
+      return;
+    }
+
+    const isFran = (email.toLowerCase() === 'francisco@totalb.com');
+    let selectedModules = [];
+    if (isFran || rol === 'Administrador') {
+      selectedModules = [...ALL_MODULE_KEYS];
+    } else {
+      const chks = document.querySelectorAll('#grid-user-modules-perms .user-perm-check:checked');
+      selectedModules = Array.from(chks).map(c => c.value);
+    }
+
+    let existingIndex = catUsuariosRoles.findIndex(u => (u.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+    if (existingIndex >= 0) {
+      catUsuariosRoles[existingIndex].nombre = nombre;
+      catUsuariosRoles[existingIndex].rol = isFran ? 'Administrador' : rol;
+      catUsuariosRoles[existingIndex].isAdmin = isFran ? true : (rol === 'Administrador');
+      catUsuariosRoles[existingIndex].modulos = isFran ? [...ALL_MODULE_KEYS] : selectedModules;
+      catUsuariosRoles[existingIndex].updatedAt = new Date().toISOString();
+    } else {
+      catUsuariosRoles.push({
+        email: email,
+        nombre: nombre,
+        rol: isFran ? 'Administrador' : rol,
+        isAdmin: isFran ? true : (rol === 'Administrador'),
+        modulos: isFran ? [...ALL_MODULE_KEYS] : selectedModules,
+        fechaAlta: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+    showToast(`Permisos guardados para ${email}`, 'success');
+
+    const cur = TB_FIREBASE.getCurrentUser();
+    if (cur && (cur.email || '').toLowerCase().trim() === email.toLowerCase().trim()) {
+      applyUserPermissions(cur.email);
+    }
+
+    resetUserPermissionsForm();
+    renderUsuariosRolesTable();
+  }
+
+  async function deleteUserPermissions(email) {
+    if ((email || '').toLowerCase().trim() === 'francisco@totalb.com') {
+      showToast('francisco@totalb.com es el Administrador Principal y no puede ser eliminado', 'error');
+      return;
+    }
+    if (confirm(`¿Está seguro de eliminar los permisos configurados para ${email}?`)) {
+      catUsuariosRoles = catUsuariosRoles.filter(u => (u.email || '').toLowerCase().trim() !== email.toLowerCase().trim());
+      await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+      renderUsuariosRolesTable();
+      showToast(`Usuario ${email} eliminado de la configuración`, 'info');
+    }
+  }
+
+  function renderUsuariosRolesView() {
+    renderUsuariosRolesTable();
+    const curEmailInForm = document.getElementById('cfg_user_email')?.value;
+    if (!curEmailInForm) {
+      renderUserPermModuleCheckboxes(ROLE_PRESETS['Recepción y Ventas'].modulos, false);
+    }
+  }
+
+  function initConfigSecurityAndRoles() {
+    const unlockModal = document.getElementById('modal-unlock-configuracion');
+    const unlockForm = document.getElementById('form-unlock-configuracion');
+    const unlockInput = document.getElementById('input-unlock-config-pwd');
+    const unlockError = document.getElementById('unlock-config-error');
+    const btnCancelUnlock = document.getElementById('btn-cancel-unlock-config');
+    const btnToggleUnlock = document.getElementById('btn-toggle-unlock-config-pwd');
+    const btnLockConfig = document.getElementById('btn-lock-config');
+
+    unlockForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const pwd = (unlockInput?.value || '').trim();
+      if (pwd === '04012021') {
+        isConfigUnlocked = true;
+        sessionStorage.setItem('tb_cfg_unlocked', 'true');
+        if (unlockModal) unlockModal.style.display = 'none';
+        if (unlockError) unlockError.style.display = 'none';
+        switchModule('configuracion');
+        switchConfigTab(pendingConfigTab || 'servicios');
+        pendingConfigTab = 'servicios';
+        showToast('🔓 Configuración General desbloqueada con éxito', 'success');
+      } else {
+        if (unlockError) {
+          unlockError.textContent = 'Contraseña incorrecta.';
+          unlockError.style.display = 'block';
+        }
+        if (unlockInput) {
+          unlockInput.classList.add('shake');
+          setTimeout(() => unlockInput.classList.remove('shake'), 400);
+        }
+      }
+    });
+
+    btnCancelUnlock?.addEventListener('click', () => {
+      if (unlockModal) unlockModal.style.display = 'none';
+    });
+
+    btnToggleUnlock?.addEventListener('click', () => {
+      if (unlockInput) {
+        const isPwd = unlockInput.type === 'password';
+        unlockInput.type = isPwd ? 'text' : 'password';
+        btnToggleUnlock.textContent = isPwd ? '🙈' : '👁️';
+      }
+    });
+
+    btnLockConfig?.addEventListener('click', () => {
+      isConfigUnlocked = false;
+      sessionStorage.removeItem('tb_cfg_unlocked');
+      showToast('🔒 Configuración General ha sido bloqueada', 'info');
+      const allowed = getAllowedModulesForCurrentUser();
+      const fallback = allowed.length > 0 ? allowed[0] : 'ventas';
+      switchModule(fallback);
+    });
+
+    document.getElementById('cfg_user_rol_select')?.addEventListener('change', (e) => {
+      applyRolePresetToCheckboxes(e.target.value);
+    });
+
+    document.getElementById('btn-perm-sel-all')?.addEventListener('click', () => {
+      applyRolePresetToCheckboxes('Administrador');
+      const sel = document.getElementById('cfg_user_rol_select');
+      if (sel && !sel.disabled) sel.value = 'Administrador';
+    });
+
+    document.getElementById('btn-perm-desel-all')?.addEventListener('click', () => {
+      const container = document.getElementById('grid-user-modules-perms');
+      if (!container) return;
+      container.querySelectorAll('.user-perm-check').forEach(chk => {
+        if (chk.disabled) return;
+        chk.checked = false;
+        chk.closest('.perm-module-card')?.classList.remove('checked');
+      });
+      const sel = document.getElementById('cfg_user_rol_select');
+      if (sel && !sel.disabled) sel.value = 'Personalizado';
+    });
+
+    document.getElementById('cfg_user_search')?.addEventListener('input', () => {
+      renderUsuariosRolesTable();
+    });
+
+    document.getElementById('btn-cancel-user-edit')?.addEventListener('click', () => {
+      resetUserPermissionsForm();
+    });
+
+    document.getElementById('form-user-permissions')?.addEventListener('submit', handleUserPermissionsSubmit);
+  }
+
   function initAuthSystem() {
     const authOverlay = document.getElementById('auth-overlay');
     const authForm = document.getElementById('form-auth-login');
@@ -5804,6 +6433,9 @@
 
       // CARGA ESTRICTA DESDE FIREBASE: Cargar catálogos reales con sesión activa
       await loadCatalogsData();
+
+      // Sincronizar y aplicar roles y permisos de acceso para este usuario
+      await syncAndApplyUserPermissions(user.email);
       if (currentModule === 'configuracion') loadAndRenderConfiguracion();
       else if (currentModule === 'balancescore') renderBalanceScoreStations();
       else if (currentModule === 'ventas') {
@@ -5816,6 +6448,10 @@
     }
 
     function onLogoutSuccess() {
+      isConfigUnlocked = false;
+      sessionStorage.removeItem('tb_cfg_unlocked');
+      document.querySelectorAll('.sidebar-menu li').forEach(li => li.style.display = '');
+
       if (authOverlay) authOverlay.classList.remove('hidden');
       if (topbarUserBadge) topbarUserBadge.style.display = 'none';
       if (sidebarUserCard) sidebarUserCard.style.display = 'none';

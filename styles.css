@@ -3126,3 +3126,61 @@ body {
   border-color: #dc2626;
   transform: scale(1.08);
 }
+
+/* ==========================================================================
+   ESTILOS DE GESTIÓN DE USUARIOS, ROLES Y PERMISOS (FIREBASE AUTH)
+   ========================================================================== */
+.perm-module-card {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.perm-module-card:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.perm-module-card.checked,
+.perm-module-card:has(input:checked) {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
+}
+.perm-module-card.disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.module-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  margin: 1px;
+}
+.module-chip.chip-admin {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+@keyframes shakeInput {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake {
+  animation: shakeInput 0.35s ease;
+  border-color: #ef4444 !important;
+}

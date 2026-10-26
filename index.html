@@ -2214,8 +2214,21 @@
            ================================================================ -->
       <section class="module-view" id="view-configuracion">
 
-        <!-- Barra Superior con Subpestañas Modernizadas -->
-        <div class="bs-main-panel" style="padding:10px 14px; margin-bottom:20px;">
+        <!-- Barra Superior con Subpestañas Modernizadas y Botón de Bloqueo -->
+        <div class="bs-main-panel" style="padding:12px 16px; margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.1rem;">⚙️</span>
+              <span style="font-size:0.88rem; font-weight:800; color:var(--dark);">Configuración del Sistema</span>
+              <span style="font-size:0.75rem; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 10px; border-radius:12px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+                <span style="width:6px; height:6px; background:#10b981; border-radius:50%; display:inline-block;"></span>
+                Desbloqueado
+              </span>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-lock-config" title="Bloquear Configuración General" style="font-size:0.75rem; font-weight:700; padding:5px 12px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+              <span>🔒</span> Bloquear Acceso
+            </button>
+          </div>
           <div class="cfg-ribbon-container">
             <div class="cfg-ribbon-bar" id="cfg-subtabs-pills">
               <button type="button" class="cfg-nav-btn config-nav-pill active" data-cfgtab="servicios">
@@ -2237,6 +2250,10 @@
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="cajachica">
                 <span class="ribbon-icon">🪙</span>
                 <span class="ribbon-text">5. Fondo Caja Chica</span>
+              </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="usuarios">
+                <span class="ribbon-icon">👥</span>
+                <span class="ribbon-text">6. Usuarios & Roles</span>
               </button>
             </div>
           </div>
@@ -2635,6 +2652,158 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+      
+        <!-- SUBPESTAÑA 6: GESTIÓN DE USUARIOS, ROLES Y PERMISOS DE ACCESO -->
+        <div class="config-subview" id="config-subview-usuarios" style="display:none;">
+          <div class="cfg-card">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #eff6ff, #dbeafe); color:#2563eb;">👥</div>
+                <div>
+                  <h3 class="cfg-title">Gestión de Usuarios, Roles y Permisos de Acceso</h3>
+                  <p class="cfg-subtitle">
+                    Configure los roles de los usuarios registrados en Firebase Authentication y defina exactamente qué módulos pueden ver y cuáles estarán ocultos.
+                  </p>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span style="font-size:0.8rem; font-weight:800; color:#1e40af; background:#dbeafe; padding:6px 14px; border-radius:12px; border:1px solid #bfdbfe; display:inline-flex; align-items:center; gap:6px;">
+                  👑 Super Admin: <strong>francisco@totalb.com</strong>
+                </span>
+                <span style="font-size:0.8rem; font-weight:700; color:#065f46; background:#ecfdf5; padding:6px 14px; border-radius:12px; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:6px;">
+                  🔐 Clave Módulo: 04012021
+                </span>
+              </div>
+            </div>
+
+            <!-- Formulario para Agregar o Editar Permisos de Usuario -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.1rem;" id="cfg-user-form-icon">➕</span>
+                  <h4 style="margin:0; font-size:0.95rem; font-weight:800; color:var(--dark);" id="cfg-user-form-title">
+                    Asignar o Modificar Permisos de Usuario
+                  </h4>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cancel-user-edit" style="display:none; font-size:0.75rem; font-weight:700;">
+                  ✕ Cancelar Edición
+                </button>
+              </div>
+
+              <form id="form-user-permissions" autocomplete="off">
+                <input type="hidden" id="cfg_user_edit_index" value="-1">
+
+                <div class="cfg-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:16px;">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label for="cfg_user_email" class="cfg-field-label">
+                      <span>✉️</span> Correo Registrado en Firebase Auth <span class="required">*</span>
+                    </label>
+                    <input type="email" id="cfg_user_email" class="input-text styled-input" placeholder="ejemplo@totalb.com" required>
+                    <small style="color:var(--muted); font-size:0.72rem; margin-top:2px; display:block;">
+                      Debe coincidir con la cuenta de acceso de Firebase Authentication
+                    </small>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label for="cfg_user_nombre" class="cfg-field-label">
+                      <span>👤</span> Nombre / Cargo (Identificador)
+                    </label>
+                    <input type="text" id="cfg_user_nombre" class="input-text styled-input" placeholder="Ej. Marbella - Recepción">
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label for="cfg_user_rol_select" class="cfg-field-label">
+                      <span>🏷️</span> Rol del Usuario <span class="required">*</span>
+                    </label>
+                    <select id="cfg_user_rol_select" class="input-text styled-select" required>
+                      <option value="Administrador">👑 Administrador (Acceso Total a Todos los Módulos)</option>
+                      <option value="Encargado de Caja">💵 Encargado de Caja (Arqueo y Conciliación)</option>
+                      <option value="Recepción y Ventas" selected>💰 Recepción y Ventas (Registro e Ingresos)</option>
+                      <option value="Ventas y Crecimiento">🎯 Ventas y Crecimiento (Interesadas y Campaña)</option>
+                      <option value="Personalizado">⚙️ Personalizado (Selección Manual)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Botones Rápidos de Selección de Módulos -->
+                <div style="margin-bottom:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                    <label style="font-size:0.82rem; font-weight:800; color:var(--dark); margin:0;">
+                      Módulos Visibles / Permitidos para este Usuario:
+                    </label>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-perm-sel-all" style="font-size:0.72rem; padding:3px 8px; font-weight:700;">
+                        ✓ Marcar Todos
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-perm-desel-all" style="font-size:0.72rem; padding:3px 8px; font-weight:700;">
+                        ✕ Desmarcar Todos
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Grid de Módulos con Checkboxes Interactivos -->
+                  <div id="grid-user-modules-perms" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px;">
+                    <!-- Se inyecta dinámicamente con los 10 módulos del sistema -->
+                  </div>
+                </div>
+
+                <div id="msg-user-admin-fixed" style="display:none; background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:8px 14px; border-radius:8px; font-size:0.8rem; font-weight:700; margin-bottom:12px;">
+                  👑 francisco@totalb.com es el Administrador Principal del sistema. Sus permisos y acceso total a los 10 módulos no pueden ser modificados.
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+                  <button type="reset" class="btn btn-secondary btn-sm" id="btn-reset-user-form" style="font-weight:700;">Limpiar</button>
+                  <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-user-perms" style="font-weight:800; padding:8px 22px;">
+                    <span>💾</span> Guardar Permisos en Firebase
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Tabla de Usuarios Registrados y Permisos -->
+            <div class="cfg-table-card">
+              <div class="cfg-table-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="font-size:1.3rem;">📋</span>
+                  <div>
+                    <h2 style="font-size:0.95rem; font-weight:800; color:var(--dark); margin:0;">
+                      Usuarios con Roles y Permisos en el Sistema
+                    </h2>
+                    <span style="font-size:0.75rem; color:var(--muted);">
+                      Sincronizado en tiempo real con Firebase Cloud Realtime Database
+                    </span>
+                  </div>
+                </div>
+
+                <div class="cfg-table-tools">
+                  <input type="text" id="cfg_user_search" class="input-text styled-input" placeholder="🔍 Buscar usuario..." style="max-width:220px; font-size:0.8rem; padding:4px 10px;">
+                  <span class="kpi-status-badge badge-cuadrada" id="badge-total-usuarios" style="font-size:0.8rem; padding:4px 10px;">
+                    0 Usuarios
+                  </span>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="tb-table" id="tabla-usuarios-roles">
+                  <thead>
+                    <tr>
+                      <th style="min-width:200px;">Usuario / Correo</th>
+                      <th style="min-width:140px;">Rol Asignado</th>
+                      <th style="min-width:240px;">Módulos Permitidos (Visibles)</th>
+                      <th style="min-width:120px; text-align:center;">Módulos Ocultos</th>
+                      <th style="min-width:130px; text-align:center;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-usuarios-roles">
+                    <!-- Renderizado dinámicamente -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -3167,7 +3336,53 @@
         </div>
       </div>
     </div>
+</div>
+
+  <!-- ========================================================================
+       MODAL DE SEGURIDAD: DESBLOQUEO DE CONFIGURACIÓN GENERAL (04012021)
+       ======================================================================== -->
+  <div class="modal-backdrop-custom" id="modal-unlock-configuracion" style="display:none; z-index:99999;">
+    <div class="master-modal-card" style="max-width:440px;">
+      <div class="master-modal-header" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
+        <div class="master-modal-icon">⚙️</div>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#fff;">Configuración General</h3>
+          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#94a3b8;">Módulo Administrativo Protegido</p>
+        </div>
+      </div>
+      <div class="master-modal-body">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px 14px; border-radius:8px; margin-bottom:16px;">
+          <div style="font-size:0.82rem; color:var(--dark); font-weight:600; line-height:1.4;">
+            🔒 Este módulo contiene parámetros confidenciales del sistema y gestión de usuarios. Ingrese la clave de seguridad para continuar:
+          </div>
+        </div>
+
+        <form id="form-unlock-configuracion" autocomplete="off">
+          <div style="margin-bottom:14px;">
+            <label for="input-unlock-config-pwd" style="font-size:0.85rem; font-weight:700; color:var(--dark); display:block; margin-bottom:6px;">
+              Contraseña de Acceso:
+            </label>
+            <div style="position:relative; width:100%;">
+              <input type="password" id="input-unlock-config-pwd" class="input-text" placeholder="••••••••" maxlength="20" autocomplete="off" style="width:100%; padding-left:14px; padding-right:42px; font-size:1.1rem; height:44px; border-radius:8px; letter-spacing:3px; font-weight:800;">
+              <button type="button" class="btn-toggle-pwd" id="btn-toggle-unlock-config-pwd" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem;">👁️</button>
+            </div>
+          </div>
+
+          <div id="unlock-config-error" style="display:none; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; padding:8px 12px; border-radius:6px; font-size:0.85rem; font-weight:700; margin-bottom:14px; text-align:center;">
+            Contraseña incorrecta.
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-unlock-config">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 22px;">
+              <span>🔓</span> Desbloquear
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
+
 
   <!-- ========================================================================
        MODAL PARA REGISTRAR ENTREGA DE DINERO (CONTROL DE CAJA CON FOTO)
