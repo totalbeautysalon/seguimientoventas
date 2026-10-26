@@ -1456,63 +1456,265 @@
            MÓDULO 5: REPORTE DIARIO DE INGRESOS
            ================================================================ -->
       <section class="module-view" id="view-ingresos">
-        <div class="filter-bar">
-          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label for="rep_ingresos_fecha" style="font-weight:700; color:var(--dark);">Fecha:</label>
-            <input type="date" id="rep_ingresos_fecha" class="input-date" style="max-width:200px;">
+        
+        <!-- Barra Principal de Control y Fechas -->
+        <div class="filter-bar" style="margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <label for="rep_ingresos_fecha" style="font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px;">
+              <span>📅</span> Fecha del Reporte:
+            </label>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rep-dia-prev" title="Día anterior">◀</button>
+              <input type="date" id="rep_ingresos_fecha" class="input-date styled-input" style="max-width:160px; font-weight:700;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rep-dia-next" title="Día siguiente">▶</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rep-dia-hoy" style="font-weight:700;">Hoy</button>
+            </div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-ingresos-arqueo">
-              <span>🔄</span> Sincronizar de Caja Principal
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-sync-ingresos-arqueo" style="font-weight:700; padding:6px 14px;">
+              <span>🔄</span> Actualizar Datos
             </button>
-            <button type="button" class="btn btn-firebase btn-sm" id="btn-save-ingresos">
-              <span>💾</span> Guardar en Firebase
+            <button type="button" class="btn btn-firebase btn-sm" id="btn-export-pdf-ingresos" style="font-weight:700; padding:6px 14px;">
+              <span>📥</span> Descargar Reporte PDF
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-save-ingresos" style="font-weight:700; padding:6px 14px;">
+              <span>💾</span> Guardar Resumen
             </button>
           </div>
         </div>
 
-        <div class="kpi-grid">
-          <div class="kpi-card"><span class="kpi-label">Ingreso Total Hoy</span><span class="kpi-value" id="kpi-ingreso-total">$0.00</span></div>
-          <div class="kpi-card"><span class="kpi-label">Meta Diaria Salón</span><span class="kpi-value" style="color:var(--gold);">$5,000.00</span></div>
-          <div class="kpi-card"><span class="kpi-label">% Cumplimiento</span><span class="kpi-value" id="kpi-ingreso-cumplimiento">0%</span></div>
-          <div class="kpi-card"><span class="kpi-label">Método Predominante</span><span class="kpi-value" style="font-size:1.1rem; color:var(--primary);" id="kpi-ingreso-metodo">Efectivo</span></div>
+        <!-- Cinta de Filtros Rápidos por Unidad y Búsqueda -->
+        <div class="bs-main-panel" style="padding:12px 16px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            
+            <div class="bs-ribbon-bar" id="rep-unidad-pills" style="margin-bottom:0; flex:1; max-width:650px;">
+              <button type="button" class="bs-ribbon-btn rep-filter-pill active" data-unit="todas">
+                <span class="ribbon-icon">🌐</span>
+                <span class="ribbon-text">Todos (<span id="count-rep-todas">0</span>)</span>
+              </button>
+              <button type="button" class="bs-ribbon-btn rep-filter-pill" data-unit="salon">
+                <span class="ribbon-icon">💇‍♀️</span>
+                <span class="ribbon-text">Salón (<span id="count-rep-salon">0</span>)</span>
+              </button>
+              <button type="button" class="bs-ribbon-btn rep-filter-pill" data-unit="academia">
+                <span class="ribbon-icon">🎓</span>
+                <span class="ribbon-text">Academia (<span id="count-rep-academia">0</span>)</span>
+              </button>
+              <button type="button" class="bs-ribbon-btn rep-filter-pill" data-unit="retail">
+                <span class="ribbon-icon">🛍️</span>
+                <span class="ribbon-text">Retail (<span id="count-rep-retail">0</span>)</span>
+              </button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:240px; max-width:380px;">
+              <input type="text" id="rep_ingresos_search" class="input-text styled-input" placeholder="🔍 Buscar servicio, cliente o especialista..." style="width:100%; font-size:0.85rem;">
+            </div>
+
+          </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; margin-top:16px;">
-          <div class="form-section">
-            <div class="section-header"><h2 class="section-title">Por Método de Pago</h2></div>
+        <!-- KPIs Resumen del Día -->
+        <div class="ventas-kpi-grid" style="margin-bottom:20px;">
+          <div class="ventas-kpi-card kpi-cobrado">
+            <div class="ventas-kpi-icon">💰</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Ingreso Total Hoy</span>
+              <span class="ventas-kpi-val" id="kpi-ingreso-total">$0.00</span>
+              <small style="font-size:0.72rem; color:var(--muted); font-weight:600;" id="kpi-ingreso-total-sub">0 servicios cobrados</small>
+            </div>
+          </div>
+          <div class="ventas-kpi-card kpi-salon">
+            <div class="ventas-kpi-icon">💇‍♀️</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Salón de Belleza</span>
+              <span class="ventas-kpi-val" id="rep_salon_val">$0.00</span>
+              <small style="font-size:0.72rem; color:#9d174d; font-weight:700;" id="rep_salon_pct">0% del total</small>
+            </div>
+          </div>
+          <div class="ventas-kpi-card kpi-academia">
+            <div class="ventas-kpi-icon">🎓</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Academia Total Beauty</span>
+              <span class="ventas-kpi-val" id="rep_academia_val">$0.00</span>
+              <small style="font-size:0.72rem; color:#065f46; font-weight:700;" id="rep_academia_pct">0% del total</small>
+            </div>
+          </div>
+          <div class="ventas-kpi-card kpi-retail">
+            <div class="ventas-kpi-icon">🛍️</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Retail / Productos</span>
+              <span class="ventas-kpi-val" id="rep_retail_val">$0.00</span>
+              <small style="font-size:0.72rem; color:#0369a1; font-weight:700;" id="rep_retail_pct">0% del total</small>
+            </div>
+          </div>
+          <div class="ventas-kpi-card kpi-efectivo">
+            <div class="ventas-kpi-icon">🏷️</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Ticket Promedio</span>
+              <span class="ventas-kpi-val" id="kpi-ingreso-ticket">$0.00</span>
+              <small style="font-size:0.72rem; color:var(--muted); font-weight:600;">Por servicio/curso</small>
+            </div>
+          </div>
+          <div class="ventas-kpi-card kpi-tarjeta">
+            <div class="ventas-kpi-icon">💳</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Método Predominante</span>
+              <span class="ventas-kpi-val" id="kpi-ingreso-metodo" style="font-size:1.1rem;">Efectivo</span>
+              <small style="font-size:0.72rem; color:var(--primary); font-weight:700;" id="kpi-ingreso-metodo-sub">$0.00</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paneles de Análisis (Métodos de Pago y Desglose por Estación/Academia) -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:18px; margin-bottom:20px;">
+          
+          <!-- Desglose por Método de Pago -->
+          <div class="form-section" style="margin-bottom:0;">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 class="section-title">💳 Por Método de Pago</h2>
+              <span style="font-size:0.75rem; color:var(--muted); font-weight:600;">Corte del día</span>
+            </div>
             <div class="section-body">
               <div class="table-responsive">
                 <table class="tb-table">
-                  <thead><tr><th>Método</th><th class="text-right">Monto</th><th class="text-right">%</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Método</th>
+                      <th class="text-center">Operaciones</th>
+                      <th class="text-right">Monto</th>
+                      <th class="text-right">%</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    <tr><td>💵 Efectivo</td><td class="text-right" id="rep_efectivo_val">$0.00</td><td class="text-right" id="rep_efectivo_pct">0%</td></tr>
-                    <tr><td>💳 Tarjeta / Terminal</td><td class="text-right" id="rep_tarjeta_val">$0.00</td><td class="text-right" id="rep_tarjeta_pct">0%</td></tr>
-                    <tr><td>📱 Transferencia</td><td class="text-right" id="rep_transf_val">$0.00</td><td class="text-right" id="rep_transf_pct">0%</td></tr>
+                    <tr>
+                      <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981; margin-right:6px;"></span>💵 Efectivo</td>
+                      <td class="text-center font-bold" id="rep_efectivo_count">0</td>
+                      <td class="text-right font-bold" id="rep_efectivo_val">$0.00</td>
+                      <td class="text-right" id="rep_efectivo_pct">0%</td>
+                    </tr>
+                    <tr>
+                      <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#3b82f6; margin-right:6px;"></span>💳 Tarjeta / Terminal</td>
+                      <td class="text-center font-bold" id="rep_tarjeta_count">0</td>
+                      <td class="text-right font-bold" id="rep_tarjeta_val">$0.00</td>
+                      <td class="text-right" id="rep_tarjeta_pct">0%</td>
+                    </tr>
+                    <tr>
+                      <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#8b5cf6; margin-right:6px;"></span>📱 Transferencia</td>
+                      <td class="text-center font-bold" id="rep_transf_count">0</td>
+                      <td class="text-right font-bold" id="rep_transf_val">$0.00</td>
+                      <td class="text-right" id="rep_transf_pct">0%</td>
+                    </tr>
                   </tbody>
-                  <tfoot><tr><td>TOTAL</td><td class="text-right" id="rep_metodos_total">$0.00</td><td class="text-right">100%</td></tr></tfoot>
+                  <tfoot>
+                    <tr>
+                      <td>TOTAL</td>
+                      <td class="text-center font-bold" id="rep_metodos_count">0</td>
+                      <td class="text-right font-bold" id="rep_metodos_total">$0.00</td>
+                      <td class="text-right font-bold">100%</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
           </div>
 
-          <div class="form-section">
-            <div class="section-header"><h2 class="section-title">Por Unidad de Negocio</h2></div>
+          <!-- Desglose por Estación de Trabajo & Academia -->
+          <div class="form-section" style="margin-bottom:0;">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 class="section-title">💈 Por Estación & Academia</h2>
+              <span style="font-size:0.75rem; color:var(--muted); font-weight:600;">Rendimiento del día</span>
+            </div>
             <div class="section-body">
               <div class="table-responsive">
                 <table class="tb-table">
-                  <thead><tr><th>Unidad</th><th class="text-right">Monto</th><th class="text-right">%</th></tr></thead>
-                  <tbody>
-                    <tr><td>💇‍♀️ Salón de Belleza</td><td class="text-right" id="rep_salon_val">$0.00</td><td class="text-right" id="rep_salon_pct">0%</td></tr>
-                    <tr><td>🎓 Academia Total Beauty</td><td class="text-right" id="rep_academia_val">$0.00</td><td class="text-right" id="rep_academia_pct">0%</td></tr>
-                    <tr><td>🛍️ Retail / Productos</td><td class="text-right" id="rep_retail_val">$0.00</td><td class="text-right" id="rep_retail_pct">0%</td></tr>
+                  <thead>
+                    <tr>
+                      <th>Área / Estación</th>
+                      <th class="text-center">Servicios</th>
+                      <th class="text-right">Monto</th>
+                      <th class="text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rep_estaciones_tbody">
+                    <tr><td colspan="4" class="text-center" style="color:var(--muted); padding:16px;">Cargando estaciones...</td></tr>
                   </tbody>
-                  <tfoot><tr><td>TOTAL</td><td class="text-right" id="rep_unidades_total">$0.00</td><td class="text-right">100%</td></tr></tfoot>
+                  <tfoot>
+                    <tr>
+                      <td>TOTAL UNIDADES</td>
+                      <td class="text-center font-bold" id="rep_unidades_count">0</td>
+                      <td class="text-right font-bold" id="rep_unidades_total">$0.00</td>
+                      <td class="text-right font-bold">100%</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
           </div>
+
         </div>
+
+        <!-- Ranking / Resumen de Servicios y Cursos Más Vendidos -->
+        <div class="form-section" style="margin-bottom:20px;">
+          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 class="section-title">⭐ Ranking de Servicios y Cursos Vendidos Hoy</h2>
+            <span style="font-size:0.8rem; color:var(--muted); font-weight:600;" id="rep-ranking-count">0 servicios diferentes</span>
+          </div>
+          <div class="section-body" id="rep-ranking-container" style="padding:14px 18px;">
+            <div style="text-align:center; padding:20px; color:var(--muted);">Sin servicios registrados en esta fecha</div>
+          </div>
+        </div>
+
+        <!-- DETALLE INDIVIDUAL DE SERVICIOS Y CURSOS VENDIDOS (REPORTE DETALLADO) -->
+        <div class="form-section">
+          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h2 class="section-title" style="margin-bottom:2px;">📋 Detalle de Operaciones y Servicios del Día</h2>
+              <span style="font-size:0.8rem; color:var(--muted);" id="rep-ventas-subtitulo">Listado cronológico de cobros e ingresos</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="kpi-status-badge badge-cuadrada" id="rep-ventas-count-badge" style="font-size:0.8rem; padding:4px 10px;">0 Operaciones</span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rep-toggle-view" style="font-weight:700;">
+                <span id="btn-rep-view-icon">📇</span> <span id="btn-rep-view-text">Ver Tarjetas</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="section-body" style="padding:0;">
+            
+            <!-- Vista de Tabla Detallada -->
+            <div class="table-responsive" id="rep-tabla-view" style="display:block;">
+              <table class="tb-table">
+                <thead>
+                  <tr>
+                    <th># / Hora</th>
+                    <th>Unidad</th>
+                    <th>Servicio / Curso Vendido</th>
+                    <th class="text-right">Monto Cobrado</th>
+                    <th>Clienta / Alumna</th>
+                    <th>Especialista</th>
+                    <th>Estación</th>
+                    <th>Método de Pago</th>
+                    <th>Estatus</th>
+                    <th>Notas</th>
+                  </tr>
+                </thead>
+                <tbody id="rep-ventas-tbody">
+                  <tr>
+                    <td colspan="10" class="text-center" style="padding:30px; color:var(--muted);">
+                      Cargando detalle de ingresos...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Vista de Tarjetas Visuales (para móviles o vista rápida) -->
+            <div id="rep-cards-view" class="ventas-cards-container" style="display:none; padding:16px;"></div>
+
+          </div>
+        </div>
+
       </section>
 
       <!-- ================================================================
@@ -2741,6 +2943,97 @@
             <img id="pc_val_firma_img" class="pdf-signature-img" style="display:none; max-height:45px;" alt="Firma">
             <span id="pc_val_firma_blank" class="underlined" style="min-width: 180px; display:inline-block; height:25px;"></span>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       PLANTILLA DE IMPRESIÓN Y PDF OFICIAL: REPORTE DIARIO DE INGRESOS
+       ======================================================================== -->
+  <div id="printable-report-ingresos" style="display:none;">
+    <div class="pdf-page" style="page-break-after:avoid;">
+      <div class="pdf-header">
+        <div class="pdf-brand">
+          <img src="assets/logoheader.png" alt="Logo" class="pdf-logo-img" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+          <div class="pdf-brand-titles">
+            <h1>TOTAL BEAUTY SALÓN & ACADEMIA</h1>
+            <h2>REPORTE DIARIO DE INGRESOS Y OPERACIONES</h2>
+          </div>
+        </div>
+        <div class="pdf-meta-box">
+          <div class="meta-line"><strong>Fecha:</strong> <span class="underlined" id="pi_fecha">__ / __ / ____</span></div>
+          <div class="meta-line"><strong>Generó:</strong> <span class="underlined" id="pi_responsable" style="min-width: 170px;">____________________</span></div>
+          <div class="meta-line"><strong>Emisión:</strong> <span class="underlined" id="pi_hora">______</span></div>
+        </div>
+      </div>
+
+      <div class="pdf-section-title">1. RESUMEN EJECUTIVO DE INGRESOS</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th>Unidad de Negocio</th>
+            <th class="amount">Operaciones</th>
+            <th class="amount">Total Cobrado</th>
+            <th class="amount">% Part.</th>
+          </tr>
+        </thead>
+        <tbody id="pi_resumen_tbody">
+          <!-- Dinámico -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>TOTAL GENERAL INGRESOS DEL DÍA</td>
+            <td class="amount" id="pi_total_ops">0</td>
+            <td class="amount" id="pi_total_ingreso">$0.00</td>
+            <td class="amount">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="pdf-section-title" style="margin-top:12px;">2. DESGLOSE POR MÉTODO DE PAGO</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th>Método de Pago</th>
+            <th class="amount">Cobros</th>
+            <th class="amount">Importe</th>
+            <th class="amount">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>💵 Efectivo en Caja</td><td class="amount" id="pi_efec_ops">0</td><td class="amount" id="pi_efec_val">$0.00</td><td class="amount" id="pi_efec_pct">0%</td></tr>
+          <tr><td>💳 Tarjeta Bancaria / Terminal</td><td class="amount" id="pi_tarj_ops">0</td><td class="amount" id="pi_tarj_val">$0.00</td><td class="amount" id="pi_tarj_pct">0%</td></tr>
+          <tr><td>📱 Transferencia Electrónica</td><td class="amount" id="pi_transf_ops">0</td><td class="amount" id="pi_transf_val">$0.00</td><td class="amount" id="pi_transf_pct">0%</td></tr>
+        </tbody>
+      </table>
+
+      <div class="pdf-section-title" style="margin-top:12px;">3. DETALLE DE SERVICIOS Y CURSOS VENDIDOS</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th style="width:12%;">Hora</th>
+            <th style="width:30%;">Servicio / Curso</th>
+            <th style="width:18%;">Clienta / Alumna</th>
+            <th style="width:16%;">Especialista</th>
+            <th style="width:12%;">Método</th>
+            <th class="amount" style="width:12%;">Importe</th>
+          </tr>
+        </thead>
+        <tbody id="pi_detalle_tbody">
+          <!-- Filas de detalle -->
+        </tbody>
+      </table>
+
+      <div class="pdf-section-title" style="margin-top:16px;">4. VALIDACIÓN DEL REPORTE</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:12px;">
+        <div style="border-top:1px solid #333; padding-top:4px; text-align:center; font-size:0.75rem;">
+          <strong id="pi_firma_resp_lbl">Responsable de Caja / Elaboró</strong><br>
+          <span style="color:#666;" id="pi_firma_resp_name">Firma y Sello</span>
+        </div>
+        <div style="border-top:1px solid #333; padding-top:4px; text-align:center; font-size:0.75rem;">
+          <strong>Administración Total Beauty / Revisó</strong><br>
+          <span style="color:#666;">Firma de Aprobación</span>
         </div>
       </div>
     </div>

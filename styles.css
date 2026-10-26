@@ -1105,12 +1105,12 @@ body {
 /* ==========================================================================
    PRINTABLE REPORT (PDF EXACT REPLICA)
    ========================================================================== */
-#printable-report, #printable-report-chica { display: none; }
+#printable-report, #printable-report-chica, #printable-report-ingresos { display: none; }
 
 @media print {
   body { background: #ffffff !important; color: #000000 !important; font-size: 11pt !important; line-height: 1.25 !important; }
   .app-sidebar, .main-topbar, .no-print, #toast-container, .module-view, .modal-backdrop-custom { display: none !important; }
-  #printable-report.printing-active, #printable-report-chica.printing-active,
+  #printable-report.printing-active, #printable-report-chica.printing-active, #printable-report-ingresos.printing-active,
   #printable-report:not([style*="display: none"]), #printable-report-chica:not([style*="display: none"]) {
     display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important;
   }
@@ -2654,4 +2654,108 @@ body {
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px dashed #e2e8f0;
+}
+
+/* ==========================================================================
+   ESTILOS ADICIONALES: REPORTE DIARIO DE INGRESOS (SALÓN Y ACADEMIA)
+   ========================================================================== */
+.kpi-salon { border-left: 4px solid #ec4899; }
+.kpi-salon .ventas-kpi-icon { background: #fdf2f8; color: #ec4899; }
+
+.kpi-academia { border-left: 4px solid #059669; }
+.kpi-academia .ventas-kpi-icon { background: #ecfdf5; color: #059669; }
+
+.kpi-retail { border-left: 4px solid #0284c7; }
+.kpi-retail .ventas-kpi-icon { background: #f0f9ff; color: #0284c7; }
+
+/* Badges de Unidad de Negocio */
+.badge-unit-salon {
+  background: #fdf2f8;
+  color: #be185d;
+  border: 1px solid #fbcfe8;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-unit-academia {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-unit-retail {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Ranking de Servicios y Cursos */
+.rep-ranking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.rep-ranking-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.rep-ranking-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+.rep-ranking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.rep-ranking-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--dark);
+  line-height: 1.2;
+}
+.rep-ranking-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.rep-ranking-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.rep-ranking-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }

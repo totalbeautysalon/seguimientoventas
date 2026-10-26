@@ -95,7 +95,7 @@
     },
     'ingresos': {
       title: 'Reporte Diario de Ingresos',
-      desc: 'Análisis de ventas por método de pago y unidad de negocio'
+      desc: 'Detalle de servicios, montos, métodos de pago, Academia Total Beauty y desglose operativo del día'
     },
     'interesadas': {
       title: 'Interesadas, Solo Preguntan y Cierres',
@@ -1604,12 +1604,18 @@
 
   async function downloadPdfFromViewer() {
     if (!activeViewingReport) return;
-    const { isChica, item, fileName } = activeViewingReport;
-    const el = document.getElementById(isChica ? 'printable-report-chica' : 'printable-report');
-
-    // Repoblar para asegurar datos exactos
-    if (isChica) populateChicaPrintable(item);
-    else populatePrincipalPrintable(item);
+    const { isChica, isIngresos, item, fileName } = activeViewingReport;
+    let el;
+    if (isIngresos) {
+      populateIngresosPrintable();
+      el = document.getElementById('printable-report-ingresos');
+    } else if (isChica) {
+      populateChicaPrintable(item);
+      el = document.getElementById('printable-report-chica');
+    } else {
+      populatePrincipalPrintable(item);
+      el = document.getElementById('printable-report');
+    }
 
     showToast('Generando y descargando PDF oficial...', 'info');
 
@@ -1640,14 +1646,19 @@
 
   function printPdfFromViewer() {
     if (!activeViewingReport) return;
-    const { isChica, item } = activeViewingReport;
-    const elId = isChica ? 'printable-report-chica' : 'printable-report';
+    const { isChica, isIngresos, item } = activeViewingReport;
+    let elId = 'printable-report';
+    if (isIngresos) {
+      populateIngresosPrintable();
+      elId = 'printable-report-ingresos';
+    } else if (isChica) {
+      populateChicaPrintable(item);
+      elId = 'printable-report-chica';
+    } else {
+      populatePrincipalPrintable(item);
+    }
     const el = document.getElementById(elId);
-
-    if (isChica) populateChicaPrintable(item);
-    else populatePrincipalPrintable(item);
-
-    document.querySelectorAll('#printable-report, #printable-report-chica').forEach(e => e.classList.remove('printing-active'));
+    document.querySelectorAll('#printable-report, #printable-report-chica, #printable-report-ingresos').forEach(e => e.classList.remove('printing-active'));
     if (el) el.classList.add('printing-active');
     window.print();
     setTimeout(() => {
@@ -2202,58 +2213,562 @@
   }
 
   // =========================================================================
-  // 7. REPORTE DIARIO DE INGRESOS (INTERCONECTADO)
+  // 7. REPORTE DIARIO DE INGRESOS (SALÓN Y ACADEMIA)
   // =========================================================================
+  let currentRepIngresosVentas = [];
+  let repActiveUnitFilter = 'todas';
+  let repActiveView = 'tabla'; // 'tabla' o 'cards'
+
+  function getVentaUnidad(v) {
+    const est = (v.estacion || '').toLowerCase();
+    const serv = (v.servicio || '').toLowerCase();
+    const tipo = (v.tipo || '').toLowerCase();
+
+    // 1. Academia Total Beauty
+    if (
+      est.includes('academia') ||
+      est.includes('curso') ||
+      serv.includes('curso') ||
+      serv.includes('taller') ||
+      serv.includes('diplomado') ||
+      serv.includes('masterclass') ||
+      tipo === 'curso' ||
+      (Array.isArray(catServicios) && catServicios.some(s => s.nombre === v.servicio && s.tipo === 'Curso'))
+    ) {
+      return 'academia';
+    }
+
+    // 2. Retail / Productos
+    if (
+      est.includes('retail') ||
+      est.includes('producto') ||
+      tipo === 'producto' ||
+      (Array.isArray(catServicios) && catServicios.some(s => s.nombre === v.servicio && s.tipo === 'Producto'))
+    ) {
+      return 'retail';
+    }
+
+    // 3. Salón de Belleza
+    return 'salon';
+  }
+
   async function renderIngresosReport() {
     const fIn = document.getElementById('rep_ingresos_fecha');
+    if (!fIn) return;
     if (!fIn.value) fIn.value = new Date().toISOString().split('T')[0];
     const fecha = fIn.value;
 
-    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    const tbody = document.getElementById('rep-ventas-tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="padding:30px; color:var(--muted);">Cargando reporte de ingresos en vivo...</td></tr>';
+    }
 
-    let totEfec = 0, totTarj = 0, totTransf = 0;
-    let totSalon = 0, totAcad = 0, totRetail = 0;
+    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    
+    // Clasificar unidad en cada venta
+    ventas.forEach(v => {
+      v._unidad = getVentaUnidad(v);
+    });
+
+    currentRepIngresosVentas = ventas;
+
+    // Métricas financieras globales
+    let totEfec = 0, countEfec = 0;
+    let totTarj = 0, countTarj = 0;
+    let totTransf = 0, countTransf = 0;
+    let totSalon = 0, countSalon = 0;
+    let totAcad = 0, countAcad = 0;
+    let totRetail = 0, countRetail = 0;
+
+    const stationTotals = {};
+    const servicesCount = {};
 
     ventas.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
       const mp = (v.metodoPago || '').toLowerCase();
-      if (mp.includes('tarj')) totTarj += imp;
-      else if (mp.includes('transf')) totTransf += imp;
-      else totEfec += imp;
+      
+      if (mp.includes('tarj')) {
+        totTarj += imp;
+        countTarj++;
+      } else if (mp.includes('transf')) {
+        totTransf += imp;
+        countTransf++;
+      } else {
+        totEfec += imp;
+        countEfec++;
+      }
 
-      const est = (v.estacion || '').toLowerCase();
-      const serv = (v.servicio || '').toLowerCase();
-      if (est.includes('academia') || serv.includes('curso')) totAcad += imp;
-      else if (est.includes('retail') || serv.includes('producto')) totRetail += imp;
-      else totSalon += imp;
+      if (v._unidad === 'academia') {
+        totAcad += imp;
+        countAcad++;
+        const key = '🎓 Academia Total Beauty';
+        if (!stationTotals[key]) stationTotals[key] = { name: key, total: 0, count: 0, isAcad: true };
+        stationTotals[key].total += imp;
+        stationTotals[key].count++;
+      } else if (v._unidad === 'retail') {
+        totRetail += imp;
+        countRetail++;
+        const key = '🛍️ Retail / Productos';
+        if (!stationTotals[key]) stationTotals[key] = { name: key, total: 0, count: 0, isRetail: true };
+        stationTotals[key].total += imp;
+        stationTotals[key].count++;
+      } else {
+        totSalon += imp;
+        countSalon++;
+        const stName = v.estacion || 'Estación General';
+        const key = `💈 ${stName}`;
+        if (!stationTotals[key]) stationTotals[key] = { name: key, total: 0, count: 0, isSalon: true };
+        stationTotals[key].total += imp;
+        stationTotals[key].count++;
+      }
+
+      // Conteo para ranking
+      const sName = v.servicio || (v._unidad === 'academia' ? 'Curso / Taller' : 'Servicio General');
+      if (!servicesCount[sName]) {
+        servicesCount[sName] = {
+          name: sName,
+          unidad: v._unidad,
+          count: 0,
+          total: 0
+        };
+      }
+      servicesCount[sName].count++;
+      servicesCount[sName].total += imp;
     });
 
-    const total = totEfec + totTarj + totTransf;
+    const totalGeneral = totEfec + totTarj + totTransf;
+    const countGeneral = ventas.length;
+    const ticketPromedio = countGeneral > 0 ? (totalGeneral / countGeneral) : 0;
 
-    document.getElementById('kpi-ingreso-total').textContent = formatCurrency(total);
-    document.getElementById('kpi-ingreso-cumplimiento').textContent = total > 0 ? `${Math.round((total / 5000) * 100)}%` : '0%';
+    // Actualizar KPIs de cabecera
+    const kTot = document.getElementById('kpi-ingreso-total');
+    if (kTot) kTot.textContent = formatCurrency(totalGeneral);
+    const kTotSub = document.getElementById('kpi-ingreso-total-sub');
+    if (kTotSub) kTotSub.textContent = `${countGeneral} operaciones cobradas`;
+
+    const pctSalon = totalGeneral > 0 ? Math.round((totSalon / totalGeneral) * 100) : 0;
+    const pctAcad = totalGeneral > 0 ? Math.round((totAcad / totalGeneral) * 100) : 0;
+    const pctRetail = totalGeneral > 0 ? Math.round((totRetail / totalGeneral) * 100) : 0;
+
+    const sVal = document.getElementById('rep_salon_val');
+    if (sVal) sVal.textContent = formatCurrency(totSalon);
+    const sPct = document.getElementById('rep_salon_pct');
+    if (sPct) sPct.textContent = `${pctSalon}% del total (${countSalon} servicios)`;
+
+    const aVal = document.getElementById('rep_academia_val');
+    if (aVal) aVal.textContent = formatCurrency(totAcad);
+    const aPct = document.getElementById('rep_academia_pct');
+    if (aPct) aPct.textContent = `${pctAcad}% del total (${countAcad} cursos)`;
+
+    const rVal = document.getElementById('rep_retail_val');
+    if (rVal) rVal.textContent = formatCurrency(totRetail);
+    const rPct = document.getElementById('rep_retail_pct');
+    if (rPct) rPct.textContent = `${pctRetail}% del total (${countRetail} productos)`;
+
+    const tEl = document.getElementById('kpi-ingreso-ticket');
+    if (tEl) tEl.textContent = formatCurrency(ticketPromedio);
 
     let pred = 'Efectivo';
-    if (totTarj > totEfec && totTarj > totTransf) pred = 'Tarjeta';
-    if (totTransf > totEfec && totTransf > totTarj) pred = 'Transferencia';
-    document.getElementById('kpi-ingreso-metodo').textContent = pred;
+    let predVal = totEfec;
+    if (totTarj > totEfec && totTarj > totTransf) { pred = 'Tarjeta'; predVal = totTarj; }
+    if (totTransf > totEfec && totTransf > totTarj) { pred = 'Transferencia'; predVal = totTransf; }
+    const mPred = document.getElementById('kpi-ingreso-metodo');
+    if (mPred) mPred.textContent = pred;
+    const mPredSub = document.getElementById('kpi-ingreso-metodo-sub');
+    if (mPredSub) mPredSub.textContent = formatCurrency(predVal);
 
-    document.getElementById('rep_efectivo_val').textContent = formatCurrency(totEfec);
-    document.getElementById('rep_efectivo_pct').textContent = total > 0 ? `${Math.round((totEfec / total) * 100)}%` : '0%';
-    document.getElementById('rep_tarjeta_val').textContent = formatCurrency(totTarj);
-    document.getElementById('rep_tarjeta_pct').textContent = total > 0 ? `${Math.round((totTarj / total) * 100)}%` : '0%';
-    document.getElementById('rep_transf_val').textContent = formatCurrency(totTransf);
-    document.getElementById('rep_transf_pct').textContent = total > 0 ? `${Math.round((totTransf / total) * 100)}%` : '0%';
-    document.getElementById('rep_metodos_total').textContent = formatCurrency(total);
+    // Actualizar Tabla de Métodos de Pago
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    setTxt('rep_efectivo_count', countEfec);
+    setTxt('rep_efectivo_val', formatCurrency(totEfec));
+    setTxt('rep_efectivo_pct', totalGeneral > 0 ? `${Math.round((totEfec / totalGeneral) * 100)}%` : '0%');
 
-    document.getElementById('rep_salon_val').textContent = formatCurrency(totSalon);
-    document.getElementById('rep_salon_pct').textContent = total > 0 ? `${Math.round((totSalon / total) * 100)}%` : '0%';
-    document.getElementById('rep_academia_val').textContent = formatCurrency(totAcad);
-    document.getElementById('rep_academia_pct').textContent = total > 0 ? `${Math.round((totAcad / total) * 100)}%` : '0%';
-    document.getElementById('rep_retail_val').textContent = formatCurrency(totRetail);
-    document.getElementById('rep_retail_pct').textContent = total > 0 ? `${Math.round((totRetail / total) * 100)}%` : '0%';
-    document.getElementById('rep_unidades_total').textContent = formatCurrency(total);
+    setTxt('rep_tarjeta_count', countTarj);
+    setTxt('rep_tarjeta_val', formatCurrency(totTarj));
+    setTxt('rep_tarjeta_pct', totalGeneral > 0 ? `${Math.round((totTarj / totalGeneral) * 100)}%` : '0%');
+
+    setTxt('rep_transf_count', countTransf);
+    setTxt('rep_transf_val', formatCurrency(totTransf));
+    setTxt('rep_transf_pct', totalGeneral > 0 ? `${Math.round((totTransf / totalGeneral) * 100)}%` : '0%');
+
+    setTxt('rep_metodos_count', countGeneral);
+    setTxt('rep_metodos_total', formatCurrency(totalGeneral));
+
+    // Actualizar Tabla de Estaciones y Academia
+    const estTbody = document.getElementById('rep_estaciones_tbody');
+    if (estTbody) {
+      estTbody.innerHTML = '';
+      const stEntries = Object.values(stationTotals).sort((a, b) => b.total - a.total);
+      
+      if (stEntries.length === 0) {
+        estTbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding:16px; color:var(--muted);">Sin ingresos registrados en esta fecha</td></tr>';
+      } else {
+        stEntries.forEach(item => {
+          const pctSt = totalGeneral > 0 ? Math.round((item.total / totalGeneral) * 100) : 0;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight:700;">${escapeHtml(item.name)}</td>
+            <td class="text-center">${item.count}</td>
+            <td class="text-right font-bold">${formatCurrency(item.total)}</td>
+            <td class="text-right">${pctSt}%</td>
+          `;
+          estTbody.appendChild(tr);
+        });
+      }
+    }
+    setTxt('rep_unidades_count', countGeneral);
+    setTxt('rep_unidades_total', formatCurrency(totalGeneral));
+
+    // Actualizar contadores de las pestañas
+    setTxt('count-rep-todas', countGeneral);
+    setTxt('count-rep-salon', countSalon);
+    setTxt('count-rep-academia', countAcad);
+    setTxt('count-rep-retail', countRetail);
+
+    // Renderizar Ranking de Servicios y Cursos
+    renderIngresosRanking(Object.values(servicesCount), totalGeneral);
+
+    // Renderizar Detalle de Operaciones
+    renderIngresosVentasDetalle();
   }
+
+  function renderIngresosRanking(rankingList, totalGeneral) {
+    const container = document.getElementById('rep-ranking-container');
+    const countEl = document.getElementById('rep-ranking-count');
+    if (!container) return;
+
+    rankingList.sort((a, b) => b.total - a.total);
+
+    if (countEl) countEl.textContent = `${rankingList.length} servicios/cursos diferentes`;
+
+    if (rankingList.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Sin servicios registrados en esta fecha</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'rep-ranking-grid';
+
+    rankingList.forEach(item => {
+      const pct = totalGeneral > 0 ? Math.round((item.total / totalGeneral) * 100) : 0;
+      
+      let unitBadge = '<span class="badge-unit-salon">💇‍♀️ Salón</span>';
+      let barColor = '#ec4899';
+      if (item.unidad === 'academia') {
+        unitBadge = '<span class="badge-unit-academia">🎓 Academia</span>';
+        barColor = '#059669';
+      } else if (item.unidad === 'retail') {
+        unitBadge = '<span class="badge-unit-retail">🛍️ Retail</span>';
+        barColor = '#0284c7';
+      }
+
+      const card = document.createElement('div');
+      card.className = 'rep-ranking-card';
+      card.innerHTML = `
+        <div class="rep-ranking-header">
+          <div class="rep-ranking-title">${escapeHtml(item.name)}</div>
+          ${unitBadge}
+        </div>
+        <div class="rep-ranking-meta">
+          <span>${item.count} ${item.count === 1 ? 'venta' : 'ventas'}</span>
+          <strong style="color:var(--dark); font-size:0.9rem;">${formatCurrency(item.total)}</strong>
+        </div>
+        <div class="rep-ranking-bar-bg">
+          <div class="rep-ranking-bar-fill" style="width:${Math.max(4, Math.min(100, pct))}%; background:${barColor};"></div>
+        </div>
+        <div style="font-size:0.72rem; color:var(--muted); text-align:right;">
+          ${pct}% del ingreso del día
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+  }
+
+  function renderIngresosVentasDetalle() {
+    const tbody = document.getElementById('rep-ventas-tbody');
+    const cardsContainer = document.getElementById('rep-cards-view');
+    const countBadge = document.getElementById('rep-ventas-count-badge');
+    const searchVal = (document.getElementById('rep_ingresos_search')?.value || '').trim().toLowerCase();
+
+    let filtered = currentRepIngresosVentas || [];
+
+    // Filtro por unidad
+    if (repActiveUnitFilter && repActiveUnitFilter !== 'todas') {
+      filtered = filtered.filter(v => v._unidad === repActiveUnitFilter);
+    }
+
+    // Filtro por búsqueda
+    if (searchVal) {
+      filtered = filtered.filter(v => {
+        const serv = (v.servicio || '').toLowerCase();
+        const cli = (v.clienta || '').toLowerCase();
+        const esp = (v.especialista || '').toLowerCase();
+        const est = (v.estacion || '').toLowerCase();
+        const mp = (v.metodoPago || '').toLowerCase();
+        const not = (v.notas || '').toLowerCase();
+        return serv.includes(searchVal) || cli.includes(searchVal) || esp.includes(searchVal) || est.includes(searchVal) || mp.includes(searchVal) || not.includes(searchVal);
+      });
+    }
+
+    if (countBadge) countBadge.textContent = `${filtered.length} Operaciones`;
+
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="text-center" style="padding:40px 20px; color:var(--muted);">
+            <span style="font-size:2rem; display:block; margin-bottom:8px;">📋</span>
+            <strong>No se encontraron operaciones registradas</strong>
+            <p style="font-size:0.8rem; margin-top:4px; margin-bottom:0;">
+              ${searchVal ? 'Intente con otro término de búsqueda o cambie el filtro de unidad.' : 'No hay ventas guardadas para la fecha seleccionada.'}
+            </p>
+          </td>
+        </tr>
+      `;
+      if (cardsContainer) {
+        cardsContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted);">No hay operaciones registradas</div>';
+      }
+      return;
+    }
+
+    // Renderizar filas de la tabla
+    tbody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
+
+    filtered.forEach((v, idx) => {
+      const imp = parseFloat(v.totalCobrado) || 0;
+      const horaStr = v.createdAt ? v.createdAt.substring(11, 16) : '--:--';
+      const folio = `#${idx + 1}`;
+
+      // Badge de unidad
+      let unitBadge = '<span class="badge-unit-salon">💇‍♀️ Salón</span>';
+      if (v._unidad === 'academia') {
+        unitBadge = '<span class="badge-unit-academia">🎓 Academia</span>';
+      } else if (v._unidad === 'retail') {
+        unitBadge = '<span class="badge-unit-retail">🛍️ Retail</span>';
+      }
+
+      // Badge de método de pago
+      const mpLower = (v.metodoPago || '').toLowerCase();
+      let mpBadge = '<span class="badge-metodo badge-efectivo">💵 Efectivo</span>';
+      if (mpLower.includes('tarj')) {
+        mpBadge = '<span class="badge-metodo badge-tarjeta">💳 Tarjeta</span>';
+      } else if (mpLower.includes('transf')) {
+        mpBadge = '<span class="badge-metodo badge-transferencia">📱 Transf</span>';
+      }
+
+      // Avatar inicial clienta
+      const initial = (v.clienta || 'C').charAt(0).toUpperCase();
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size:0.82rem; font-family:monospace; font-weight:700; color:var(--slate);">
+          ${folio} <small style="display:block; color:var(--muted);">${horaStr}</small>
+        </td>
+        <td>${unitBadge}</td>
+        <td>
+          <strong style="color:var(--dark); font-size:0.9rem;">${escapeHtml(v.servicio || 'Servicio')}</strong>
+          ${v.tipo ? `<small style="display:block; color:var(--muted); font-size:0.75rem;">${escapeHtml(v.tipo)}</small>` : ''}
+        </td>
+        <td class="text-right" style="font-size:1.05rem; font-weight:800; color:#15803d; white-space:nowrap;">
+          ${formatCurrency(imp)}
+        </td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="user-avatar-initial" style="width:28px; height:28px; font-size:0.75rem;">${initial}</div>
+            <div>
+              <span style="font-weight:700; font-size:0.85rem; color:var(--dark);">${escapeHtml(v.clienta || 'Público Mostrador')}</span>
+              ${v.telefono ? `<small style="display:block; color:var(--muted); font-size:0.72rem;">📱 ${escapeHtml(v.telefono)}</small>` : ''}
+            </div>
+          </div>
+        </td>
+        <td style="font-size:0.85rem; font-weight:600; color:var(--slate);">
+          ${escapeHtml(v.especialista || '--')}
+        </td>
+        <td style="font-size:0.82rem; color:var(--slate);">
+          <span style="background:#f1f5f9; padding:2px 8px; border-radius:6px; font-weight:600;">
+            ${v._unidad === 'academia' ? '🎓 Academia' : escapeHtml(v.estacion || 'General')}
+          </span>
+        </td>
+        <td>${mpBadge}</td>
+        <td>
+          <span class="status-badge status-pagado" style="font-size:0.75rem; padding:2px 8px;">
+            ${escapeHtml(v.statusPago || 'Cobrado')}
+          </span>
+        </td>
+        <td style="font-size:0.78rem; color:var(--muted); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(v.notas || '')}">
+          ${escapeHtml(v.notas || '--')}
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      // Card para vista móvil
+      if (cardsContainer) {
+        const card = document.createElement('div');
+        card.className = 'venta-item-card';
+        card.innerHTML = `
+          <div class="venta-card-top">
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${unitBadge}
+              <span style="font-size:0.75rem; font-weight:700; color:var(--muted); font-family:monospace;">${folio} (${horaStr})</span>
+            </div>
+            <div class="venta-card-amount">${formatCurrency(imp)}</div>
+          </div>
+          <div class="venta-card-service" style="margin-top:6px;">${escapeHtml(v.servicio || 'Servicio')}</div>
+          <div class="venta-card-meta-grid" style="margin-top:8px;">
+            <div class="meta-item"><span class="meta-label">Clienta / Alumna:</span><span class="meta-val">${escapeHtml(v.clienta || 'Público')}</span></div>
+            <div class="meta-item"><span class="meta-label">Especialista:</span><span class="meta-val">${escapeHtml(v.especialista || '--')}</span></div>
+            <div class="meta-item"><span class="meta-label">Estación:</span><span class="meta-val">${escapeHtml(v.estacion || 'General')}</span></div>
+            <div class="meta-item"><span class="meta-label">Método:</span><span class="meta-val">${mpBadge}</span></div>
+          </div>
+          ${v.notas ? `<div style="font-size:0.75rem; color:var(--muted); margin-top:6px; background:#f8fafc; padding:4px 8px; border-radius:4px;">📝 ${escapeHtml(v.notas)}</div>` : ''}
+        `;
+        cardsContainer.appendChild(card);
+      }
+    });
+  }
+
+  function populateIngresosPrintable() {
+    const fIn = document.getElementById('rep_ingresos_fecha');
+    const fecha = fIn?.value || new Date().toISOString().split('T')[0];
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Administración Total Beauty';
+    const now = new Date();
+    const horaEmision = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+
+    setTxt('pi_fecha', formatDateDisplay(fecha));
+    setTxt('pi_responsable', userEmail);
+    setTxt('pi_hora', horaEmision);
+    setTxt('pi_firma_resp_name', userEmail);
+
+    const ventas = currentRepIngresosVentas || [];
+
+    let totEfec = 0, countEfec = 0;
+    let totTarj = 0, countTarj = 0;
+    let totTransf = 0, countTransf = 0;
+    let totSalon = 0, countSalon = 0;
+    let totAcad = 0, countAcad = 0;
+    let totRetail = 0, countRetail = 0;
+
+    ventas.forEach(v => {
+      const imp = parseFloat(v.totalCobrado) || 0;
+      const mp = (v.metodoPago || '').toLowerCase();
+      if (mp.includes('tarj')) { totTarj += imp; countTarj++; }
+      else if (mp.includes('transf')) { totTransf += imp; countTransf++; }
+      else { totEfec += imp; countEfec++; }
+
+      if (v._unidad === 'academia') { totAcad += imp; countAcad++; }
+      else if (v._unidad === 'retail') { totRetail += imp; countRetail++; }
+      else { totSalon += imp; countSalon++; }
+    });
+
+    const totalGeneral = totEfec + totTarj + totTransf;
+    const countGeneral = ventas.length;
+
+    // Resumen ejecutivo tabla
+    const resTbody = document.getElementById('pi_resumen_tbody');
+    if (resTbody) {
+      resTbody.innerHTML = `
+        <tr>
+          <td>💇‍♀️ Salón de Belleza</td>
+          <td class="amount">${countSalon}</td>
+          <td class="amount">${formatCurrency(totSalon)}</td>
+          <td class="amount">${totalGeneral > 0 ? Math.round((totSalon / totalGeneral) * 100) : 0}%</td>
+        </tr>
+        <tr>
+          <td>🎓 Academia Total Beauty (Cursos & Talleres)</td>
+          <td class="amount">${countAcad}</td>
+          <td class="amount">${formatCurrency(totAcad)}</td>
+          <td class="amount">${totalGeneral > 0 ? Math.round((totAcad / totalGeneral) * 100) : 0}%</td>
+        </tr>
+        <tr>
+          <td>🛍️ Retail / Venta de Productos</td>
+          <td class="amount">${countRetail}</td>
+          <td class="amount">${formatCurrency(totRetail)}</td>
+          <td class="amount">${totalGeneral > 0 ? Math.round((totRetail / totalGeneral) * 100) : 0}%</td>
+        </tr>
+      `;
+    }
+    setTxt('pi_total_ops', countGeneral);
+    setTxt('pi_total_ingreso', formatCurrency(totalGeneral));
+
+    // Métodos tabla
+    setTxt('pi_efec_ops', countEfec);
+    setTxt('pi_efec_val', formatCurrency(totEfec));
+    setTxt('pi_efec_pct', totalGeneral > 0 ? `${Math.round((totEfec / totalGeneral) * 100)}%` : '0%');
+
+    setTxt('pi_tarj_ops', countTarj);
+    setTxt('pi_tarj_val', formatCurrency(totTarj));
+    setTxt('pi_tarj_pct', totalGeneral > 0 ? `${Math.round((totTarj / totalGeneral) * 100)}%` : '0%');
+
+    setTxt('pi_transf_ops', countTransf);
+    setTxt('pi_transf_val', formatCurrency(totTransf));
+    setTxt('pi_transf_pct', totalGeneral > 0 ? `${Math.round((totTransf / totalGeneral) * 100)}%` : '0%');
+
+    // Detalle tabla
+    const detTbody = document.getElementById('pi_detalle_tbody');
+    if (detTbody) {
+      detTbody.innerHTML = '';
+      if (ventas.length === 0) {
+        detTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:14px; color:#666;">Sin operaciones registradas en esta fecha</td></tr>';
+      } else {
+        ventas.forEach((v, idx) => {
+          const imp = parseFloat(v.totalCobrado) || 0;
+          const horaStr = v.createdAt ? v.createdAt.substring(11, 16) : '--:--';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>#${idx + 1} (${horaStr})</td>
+            <td><strong>${escapeHtml(v.servicio || 'Servicio')}</strong> <span style="font-size:0.75rem; color:#666;">(${v._unidad === 'academia' ? 'Academia' : (v._unidad === 'retail' ? 'Retail' : 'Salón')})</span></td>
+            <td>${escapeHtml(v.clienta || 'Público')}</td>
+            <td>${escapeHtml(v.especialista || '--')}</td>
+            <td>${escapeHtml(v.metodoPago || 'Efectivo')}</td>
+            <td class="amount">${formatCurrency(imp)}</td>
+          `;
+          detTbody.appendChild(tr);
+        });
+      }
+    }
+
+    return `Reporte_Diario_Ingresos_${fecha}.pdf`;
+  }
+
+  function openIngresosPdfViewer() {
+    const fileName = populateIngresosPrintable();
+    const fIn = document.getElementById('rep_ingresos_fecha');
+    const fecha = fIn?.value || new Date().toISOString().split('T')[0];
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Administración Total Beauty';
+
+    const modalTitle = document.getElementById('pdf-modal-title');
+    const modalSub = document.getElementById('pdf-modal-subtitle');
+    const previewContainer = document.getElementById('pdf-preview-container');
+    const modal = document.getElementById('modal-view-pdf-report');
+
+    if (modalTitle) modalTitle.innerHTML = '<span>📄</span> Reporte Oficial: Ingresos Diarios y Academia';
+    if (modalSub) modalSub.innerHTML = `📅 Fecha: <strong>${formatDateDisplay(fecha)}</strong> &bull; 👤 Generó: <strong>${userEmail}</strong> &bull; 🏷️ Total: <strong>${document.getElementById('kpi-ingreso-total')?.textContent || '$0.00'}</strong>`;
+
+    activeViewingReport = { isIngresos: true, isChica: false, item: null, fileName, fecha };
+
+    const sourceEl = document.getElementById('printable-report-ingresos');
+    if (sourceEl && previewContainer) {
+      previewContainer.innerHTML = '';
+      const clone = sourceEl.cloneNode(true);
+      clone.id = 'viewer-clone-ingresos';
+      clone.style.display = 'block';
+      previewContainer.appendChild(clone);
+    }
+
+    if (modal) {
+      modal.style.display = 'flex';
+      const body = document.getElementById('pdf-modal-body');
+      if (body) body.scrollTop = 0;
+    }
+  }
+
 
   // =========================================================================
   // 8. INTERESADAS Y CIERRES (3 OPCIONES REQUERIDAS)
@@ -4676,24 +5191,103 @@
     });
 
 
+    // -----------------------------------------------------------------------
+    // EVENTOS: REPORTE DIARIO DE INGRESOS (SALÓN Y ACADEMIA)
+    // -----------------------------------------------------------------------
     document.getElementById('rep_ingresos_fecha')?.addEventListener('change', () => {
       renderIngresosReport();
     });
 
+    document.getElementById('btn-rep-dia-prev')?.addEventListener('click', () => {
+      const el = document.getElementById('rep_ingresos_fecha');
+      if (el && el.value) {
+        const d = new Date(el.value + 'T00:00:00');
+        d.setDate(d.getDate() - 1);
+        el.value = d.toISOString().split('T')[0];
+        renderIngresosReport();
+      }
+    });
+
+    document.getElementById('btn-rep-dia-next')?.addEventListener('click', () => {
+      const el = document.getElementById('rep_ingresos_fecha');
+      if (el && el.value) {
+        const d = new Date(el.value + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        el.value = d.toISOString().split('T')[0];
+        renderIngresosReport();
+      }
+    });
+
+    document.getElementById('btn-rep-dia-hoy')?.addEventListener('click', () => {
+      const el = document.getElementById('rep_ingresos_fecha');
+      if (el) {
+        el.value = new Date().toISOString().split('T')[0];
+        renderIngresosReport();
+      }
+    });
+
     document.getElementById('btn-sync-ingresos-arqueo')?.addEventListener('click', () => {
       renderIngresosReport();
-      showToast('Reporte sincronizado con ventas del día', 'success');
+      showToast('Reporte de ingresos actualizado en tiempo real', 'success');
+    });
+
+    document.getElementById('btn-export-pdf-ingresos')?.addEventListener('click', () => {
+      openIngresosPdfViewer();
+    });
+
+    // Pestañas de filtro por unidad
+    document.querySelectorAll('.rep-filter-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.rep-filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        repActiveUnitFilter = btn.dataset.unit || 'todas';
+        renderIngresosVentasDetalle();
+      });
+    });
+
+    // Buscador en vivo
+    document.getElementById('rep_ingresos_search')?.addEventListener('input', () => {
+      renderIngresosVentasDetalle();
+    });
+
+    // Conmutador de vista (Tabla vs Tarjetas)
+    document.getElementById('btn-rep-toggle-view')?.addEventListener('click', () => {
+      const tablaView = document.getElementById('rep-tabla-view');
+      const cardsView = document.getElementById('rep-cards-view');
+      const iconEl = document.getElementById('btn-rep-view-icon');
+      const textEl = document.getElementById('btn-rep-view-text');
+
+      if (repActiveView === 'tabla') {
+        repActiveView = 'cards';
+        if (tablaView) tablaView.style.display = 'none';
+        if (cardsView) cardsView.style.display = 'grid';
+        if (iconEl) iconEl.textContent = '📋';
+        if (textEl) textEl.textContent = 'Ver Tabla';
+      } else {
+        repActiveView = 'tabla';
+        if (tablaView) tablaView.style.display = 'block';
+        if (cardsView) cardsView.style.display = 'none';
+        if (iconEl) iconEl.textContent = '📇';
+        if (textEl) textEl.textContent = 'Ver Tarjetas';
+      }
     });
 
     document.getElementById('btn-save-ingresos')?.addEventListener('click', async () => {
       const fecha = document.getElementById('rep_ingresos_fecha').value;
-      await TB_FIREBASE.saveIngresosReport(fecha, {
-        total: parseVal('kpi-ingreso-total'),
+      const total = parseVal('kpi-ingreso-total');
+      const payload = {
+        total,
         efectivo: parseVal('rep_efectivo_val'),
         tarjeta: parseVal('rep_tarjeta_val'),
-        transferencia: parseVal('rep_transf_val')
-      });
-      showToast('Reporte de ingresos guardado en Firebase', 'success');
+        transferencia: parseVal('rep_transf_val'),
+        salon: parseVal('rep_salon_val'),
+        academia: parseVal('rep_academia_val'),
+        retail: parseVal('rep_retail_val'),
+        operaciones: currentRepIngresosVentas.length,
+        ticketPromedio: parseVal('kpi-ingreso-ticket')
+      };
+      await TB_FIREBASE.saveIngresosReport(fecha, payload);
+      showToast('Reporte diario de ingresos guardado en Firebase', 'success');
     });
 
     // -----------------------------------------------------------------------
