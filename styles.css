@@ -129,6 +129,17 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* Seguridad visual y ocultamiento estricto por roles */
+.sidebar-menu li.menu-item-hidden {
+  display: none !important;
+}
+.sidebar-menu-category.category-hidden {
+  display: none !important;
+}
+.module-view.view-forbidden {
+  display: none !important;
+}
+
 .menu-item-link {
   display: flex;
   align-items: center;

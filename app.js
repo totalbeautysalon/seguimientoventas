@@ -117,12 +117,17 @@
   };
 
   function switchModule(modKey) {
-    if (modKey === 'configuracion' && !isConfigUnlocked) {
-      openUnlockConfigModal('servicios');
-      return;
-    }
     if (!hasModulePermission(modKey)) {
       showToast('⛔ Acceso restringido. Su rol no tiene permiso para este módulo.', 'warning');
+      const allowed = getAllowedModulesForCurrentUser();
+      const fallback = allowed[0] || 'ventas';
+      if (modKey !== fallback && allowed.length > 0) {
+        switchModule(fallback);
+      }
+      return;
+    }
+    if (modKey === 'configuracion' && !isConfigUnlocked) {
+      openUnlockConfigModal('servicios');
       return;
     }
     currentModule = modKey;
@@ -3451,60 +3456,67 @@
   }
 
   async function loadCatalogsData() {
-    // CARGA ESTRICTA DESDE FIREBASE: Sin inyección de datos de prueba
-    catEstaciones = await TB_FIREBASE.getCatalogo('estaciones');
-    catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas');
-    catServicios = await TB_FIREBASE.getCatalogo('servicios');
-    catUsuariosRoles = await TB_FIREBASE.getCatalogo('usuarios_roles');
+    try {
+      // CARGA ESTRICTA DESDE FIREBASE: Sin inyección de datos de prueba
+      catEstaciones = await TB_FIREBASE.getCatalogo('estaciones');
+      if (!Array.isArray(catEstaciones)) catEstaciones = [];
+      catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas');
+      if (!Array.isArray(catEspecialistas)) catEspecialistas = [];
+      catServicios = await TB_FIREBASE.getCatalogo('servicios');
+      if (!Array.isArray(catServicios)) catServicios = [];
+      catUsuariosRoles = await TB_FIREBASE.getCatalogo('usuarios_roles');
 
-    if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
-    let franUser = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
-    if (!franUser) {
-      franUser = {
-        email: 'francisco@totalb.com',
-        nombre: 'Francisco (Admin Principal)',
-        rol: 'Administrador',
-        isAdmin: true,
-        modulos: [...ALL_MODULE_KEYS],
-        updatedAt: new Date().toISOString()
-      };
-      catUsuariosRoles.unshift(franUser);
-      await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
-    } else {
-      franUser.rol = 'Administrador';
-      franUser.isAdmin = true;
-      franUser.modulos = [...ALL_MODULE_KEYS];
+      if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
+      let franUser = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
+      if (!franUser) {
+        franUser = {
+          email: 'francisco@totalb.com',
+          nombre: 'Francisco (Admin Principal)',
+          rol: 'Administrador',
+          isAdmin: true,
+          modulos: [...ALL_MODULE_KEYS],
+          updatedAt: new Date().toISOString()
+        };
+        catUsuariosRoles.unshift(franUser);
+        await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+      } else {
+        franUser.rol = 'Administrador';
+        franUser.isAdmin = true;
+        franUser.modulos = [...ALL_MODULE_KEYS];
+      }
+      
+      // Normalizar estaciones para asegurar metaQuincenal y clientesMeta
+      catEstaciones.forEach(est => {
+        if (est.metaQuincenal === undefined) est.metaQuincenal = parseFloat(est.meta) || 0;
+        if (est.clientesMeta === undefined) est.clientesMeta = parseInt(est.metaClientes, 10) || 0;
+      });
+
+      const cursosStored = await TB_FIREBASE.getCatalogo('metas_cursos');
+      if (cursosStored && cursosStored.length > 0 && cursosStored[0]) {
+        catCursosMeta = {
+          id: 'Cursos',
+          nombre: 'Cursos & Talleres Academia',
+          icono: '🎓',
+          isCurso: true,
+          metaQuincenal: parseFloat(cursosStored[0].metaQuincenal || 0),
+          clientesMeta: parseInt(cursosStored[0].clientesMeta || 0, 10)
+        };
+      } else {
+        catCursosMeta = {
+          id: 'Cursos',
+          nombre: 'Cursos & Talleres Academia',
+          icono: '🎓',
+          metaQuincenal: 0,
+          clientesMeta: 0,
+          isCurso: true
+        };
+      }
+
+      populateSalesDropdowns();
+      populateConfigStationDropdowns();
+    } catch (err) {
+      console.warn('Error en loadCatalogsData:', err);
     }
-    
-    // Normalizar estaciones para asegurar metaQuincenal y clientesMeta
-    catEstaciones.forEach(est => {
-      if (est.metaQuincenal === undefined) est.metaQuincenal = parseFloat(est.meta) || 0;
-      if (est.clientesMeta === undefined) est.clientesMeta = parseInt(est.metaClientes, 10) || 0;
-    });
-
-    const cursosStored = await TB_FIREBASE.getCatalogo('metas_cursos');
-    if (cursosStored && cursosStored.length > 0 && cursosStored[0]) {
-      catCursosMeta = {
-        id: 'Cursos',
-        nombre: 'Cursos & Talleres Academia',
-        icono: '🎓',
-        isCurso: true,
-        metaQuincenal: parseFloat(cursosStored[0].metaQuincenal || 0),
-        clientesMeta: parseInt(cursosStored[0].clientesMeta || 0, 10)
-      };
-    } else {
-      catCursosMeta = {
-        id: 'Cursos',
-        nombre: 'Cursos & Talleres Academia',
-        icono: '🎓',
-        metaQuincenal: 0,
-        clientesMeta: 0,
-        isCurso: true
-      };
-    }
-
-    populateSalesDropdowns();
-    populateConfigStationDropdowns();
   }
 
   function populateSalesDropdowns() {
@@ -5990,11 +6002,23 @@
 
   function hasModulePermission(modKey) {
     const curUser = TB_FIREBASE.getCurrentUser();
-    if (!curUser || !curUser.email) return true;
+    if (!curUser || !curUser.email) return false;
     const email = (curUser.email || '').toLowerCase().trim();
     if (email === 'francisco@totalb.com') return true;
 
-    const userCfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
+    // Respaldo inmediato en localStorage si memoria aún no carga
+    let roles = catUsuariosRoles;
+    if (!Array.isArray(roles) || roles.length === 0) {
+      try {
+        const stored = localStorage.getItem('tb_cat_usuarios_roles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          roles = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+        }
+      } catch (e) {}
+    }
+
+    const userCfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
     if (!userCfg) {
       return ['ventas', 'ingresos', 'interesadas'].includes(modKey);
     }
@@ -6005,8 +6029,21 @@
   function getAllowedModulesForCurrentUser() {
     const curUser = TB_FIREBASE.getCurrentUser();
     const email = (curUser?.email || '').toLowerCase().trim();
+    if (!email) return [];
     if (email === 'francisco@totalb.com') return ALL_MODULE_KEYS;
-    const cfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
+
+    let roles = catUsuariosRoles;
+    if (!Array.isArray(roles) || roles.length === 0) {
+      try {
+        const stored = localStorage.getItem('tb_cat_usuarios_roles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          roles = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+        }
+      } catch (e) {}
+    }
+
+    const cfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
     if (!cfg) return ['ventas', 'ingresos', 'interesadas'];
     if (cfg.isAdmin || cfg.rol === 'Administrador') return ALL_MODULE_KEYS;
     return cfg.modulos || ['ventas', 'ingresos', 'interesadas'];
@@ -6015,6 +6052,16 @@
   async function syncAndApplyUserPermissions(userEmail) {
     const email = (userEmail || '').toLowerCase().trim();
     if (!email) return;
+
+    if (!Array.isArray(catUsuariosRoles) || catUsuariosRoles.length === 0) {
+      try {
+        const stored = localStorage.getItem('tb_cat_usuarios_roles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          catUsuariosRoles = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+        }
+      } catch (e) {}
+    }
 
     if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
     let userEntry = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === email);
@@ -6048,11 +6095,30 @@
   function applyUserPermissions(userEmail) {
     const email = (userEmail || TB_FIREBASE.getCurrentUser()?.email || '').toLowerCase().trim();
     if (!email) {
-      document.querySelectorAll('.sidebar-menu li').forEach(li => li.style.display = '');
+      document.querySelectorAll('.sidebar-menu li').forEach(li => {
+        li.style.display = '';
+        li.classList.remove('menu-item-hidden');
+      });
+      document.querySelectorAll('.sidebar-menu-category').forEach(catLi => {
+        catLi.style.display = '';
+        catLi.classList.remove('category-hidden');
+      });
       return;
     }
 
     const isFran = (email === 'francisco@totalb.com');
+
+    // Respaldo de roles desde localStorage si la memoria está vacía
+    if (!Array.isArray(catUsuariosRoles) || catUsuariosRoles.length === 0) {
+      try {
+        const cached = localStorage.getItem('tb_cat_usuarios_roles');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          catUsuariosRoles = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+        }
+      } catch (e) {}
+    }
+
     let userCfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
 
     let allowed = ALL_MODULE_KEYS;
@@ -6066,33 +6132,53 @@
       }
     }
 
-    // Filtrar enlaces de módulos en el menú lateral
+    // 1. Filtrar enlaces de módulos en el menú lateral y aplicar clases estrictas
     document.querySelectorAll('.sidebar-menu a.menu-item-link').forEach(link => {
       const mod = link.dataset.module;
       const li = link.closest('li');
       if (!li) return;
       if (allowed.includes(mod)) {
         li.style.display = '';
+        li.classList.remove('menu-item-hidden');
       } else {
         li.style.display = 'none';
+        li.classList.add('menu-item-hidden');
       }
     });
 
-    // Ocultar categorías si todos sus módulos están ocultos
+    // 2. Ocultar categorías completas si todos sus módulos están ocultos
     document.querySelectorAll('.sidebar-menu-category').forEach(catLi => {
       let nextEl = catLi.nextElementSibling;
       let hasVisibleChild = false;
       while (nextEl && !nextEl.classList.contains('sidebar-menu-category')) {
-        if (nextEl.style.display !== 'none') {
+        if (nextEl.style.display !== 'none' && !nextEl.classList.contains('menu-item-hidden')) {
           hasVisibleChild = true;
           break;
         }
         nextEl = nextEl.nextElementSibling;
       }
-      catLi.style.display = hasVisibleChild ? '' : 'none';
+      if (hasVisibleChild) {
+        catLi.style.display = '';
+        catLi.classList.remove('category-hidden');
+      } else {
+        catLi.style.display = 'none';
+        catLi.classList.add('category-hidden');
+      }
     });
 
-    // Si el módulo activo quedó oculto, redirigir al primer módulo permitido
+    // 3. Proteger todas las vistas en el DOM
+    document.querySelectorAll('.module-view').forEach(view => {
+      const vId = view.id.replace('view-', '');
+      if (allowed.includes(vId)) {
+        view.classList.remove('view-forbidden');
+      } else {
+        view.classList.add('view-forbidden');
+        view.classList.remove('active-view');
+        view.style.display = 'none';
+      }
+    });
+
+    // 4. Si el módulo activo quedó oculto o restringido, redirigir al primer módulo permitido
     if (!allowed.includes(currentModule)) {
       const fallback = allowed[0] || 'ventas';
       switchModule(fallback);
@@ -6684,11 +6770,30 @@
     }
 
     async function onLoginSuccess(user) {
-      if (authOverlay) authOverlay.classList.add('hidden');
+      const email = (user.email || '').toLowerCase().trim();
+
+      // 1. CARGA INMEDIATA Y SINCRÓNICA DE ROLES Y PERMISOS DESDE MEMORIA / LOCALSTORAGE
+      if (!Array.isArray(catUsuariosRoles) || catUsuariosRoles.length === 0) {
+        try {
+          const cached = localStorage.getItem('tb_cat_usuarios_roles');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            catUsuariosRoles = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+          }
+        } catch (e) {}
+      }
+
+      // 2. APLICAR PERMISOS DE FORMA INMEDIATA AL DOM (0 milisegundos)
+      applyUserPermissions(email);
+
+      // 3. ACTUALIZAR INSIGNIAS Y DATOS DEL HEADER
       if (topbarUserBadge) topbarUserBadge.style.display = 'inline-flex';
       if (topbarUserEmail) topbarUserEmail.textContent = user.email;
       if (sidebarUserCard) sidebarUserCard.style.display = 'block';
       if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+
+      // 4. OCULTAR EL MODAL DE LOGIN SOLO DESPUÉS DE QUE LOS PERMISOS YA FUERON APLICADOS AL DOM
+      if (authOverlay) authOverlay.classList.add('hidden');
 
       showToast(`Bienvenido(a) ${user.email}`, 'success');
       logAuditMovement({
@@ -6707,14 +6812,25 @@
       const respChica = document.getElementById('chica_responsable');
       if (respChica) respChica.value = user.email;
 
-      // Cargar control de caja y fondo de caja de registros
-      await loadControlCajaData();
+      // 5. Cargar datos en background con captura de errores
+      try {
+        await loadControlCajaData();
+      } catch (e) {
+        console.warn('loadControlCajaData error:', e);
+      }
+      try {
+        await loadCatalogsData();
+      } catch (e) {
+        console.warn('loadCatalogsData error:', e);
+      }
 
-      // CARGA ESTRICTA DESDE FIREBASE: Cargar catálogos reales con sesión activa
-      await loadCatalogsData();
+      // 6. Sincronizar y re-confirmar permisos con Firebase Cloud
+      try {
+        await syncAndApplyUserPermissions(user.email);
+      } catch (e) {
+        console.warn('syncAndApplyUserPermissions error:', e);
+      }
 
-      // Sincronizar y aplicar roles y permisos de acceso para este usuario
-      await syncAndApplyUserPermissions(user.email);
       if (currentModule === 'configuracion') loadAndRenderConfiguracion();
       else if (currentModule === 'balancescore') renderBalanceScoreStations();
       else if (currentModule === 'ventas') {
@@ -6729,7 +6845,23 @@
     function onLogoutSuccess() {
       isConfigUnlocked = false;
       sessionStorage.removeItem('tb_cfg_unlocked');
-      document.querySelectorAll('.sidebar-menu li').forEach(li => li.style.display = '');
+
+      // Ocultar módulos del menú y vistas activas para proteger el sistema al salir
+      document.querySelectorAll('.sidebar-menu li').forEach(li => {
+        li.style.display = 'none';
+        li.classList.add('menu-item-hidden');
+      });
+      document.querySelectorAll('.sidebar-menu-category').forEach(catLi => {
+        catLi.style.display = 'none';
+        catLi.classList.add('category-hidden');
+      });
+      document.querySelectorAll('.module-view').forEach(view => {
+        view.classList.remove('active-view');
+        view.style.display = 'none';
+        view.classList.add('view-forbidden');
+      });
+      currentModule = null;
+
       logAuditMovement({
         modulo: 'Autenticación',
         accion: 'CIERRE_SESION',
@@ -6822,6 +6954,17 @@
         }
       });
     });
+
+    // Aplicación inmediata y sincrónica de permisos previos si existe usuario en sesión
+    try {
+      const savedUserRaw = localStorage.getItem('tb_auth_user') || sessionStorage.getItem('tb_auth_user');
+      if (savedUserRaw) {
+        const savedUser = JSON.parse(savedUserRaw);
+        if (savedUser && savedUser.email) {
+          applyUserPermissions(savedUser.email);
+        }
+      }
+    } catch (e) {}
 
     // Verificar si hay sesión previa activa y validar límite estricto de 1 hora
     TB_FIREBASE.checkSession().then(res => {

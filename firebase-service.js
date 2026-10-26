@@ -580,20 +580,29 @@ const TB_FIREBASE = (function () {
 
   // =========================================================================
 
-  function getDbUrl(path) {
-
+  function getDbUrl(path, extraParams = null) {
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-
     let base = `${CONFIG.databaseURL}${cleanPath}.json`;
-
+    const params = [];
     if (currentUser && currentUser.idToken) {
-
-      base += `?auth=${currentUser.idToken}`;
-
+      params.push(`auth=${encodeURIComponent(currentUser.idToken)}`);
     }
-
+    if (extraParams) {
+      if (typeof extraParams === 'string') {
+        const cleanExtra = (extraParams.startsWith('?') || extraParams.startsWith('&'))
+          ? extraParams.slice(1)
+          : extraParams;
+        if (cleanExtra) params.push(cleanExtra);
+      } else if (typeof extraParams === 'object') {
+        for (const [k, v] of Object.entries(extraParams)) {
+          params.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+        }
+      }
+    }
+    if (params.length > 0) {
+      base += `?${params.join('&')}`;
+    }
     return base;
-
   }
 
 
@@ -857,7 +866,7 @@ const TB_FIREBASE = (function () {
 
   async function getArqueosList() {
     try {
-      const url = `${getDbUrl('arqueos_caja')}&_t=${Date.now()}`;
+      const url = getDbUrl('arqueos_caja', { _t: Date.now() });
       const res = await fetch(url);
       if (res.ok) {
         const cloudData = await res.json();
@@ -920,7 +929,7 @@ const TB_FIREBASE = (function () {
 
   async function getArqueosChicaList() {
     try {
-      const url = `${getDbUrl('arqueos_caja_chica')}&_t=${Date.now()}`;
+      const url = getDbUrl('arqueos_caja_chica', { _t: Date.now() });
       const res = await fetch(url);
       if (res.ok) {
         const cloudData = await res.json();
@@ -1485,17 +1494,12 @@ const TB_FIREBASE = (function () {
     // Si falló la red (sin conexión puntual), usar la copia en localStorage
 
     try {
-
       const stored = localStorage.getItem(`tb_cat_${tipo}`);
-
       if (stored) {
-
         const parsed = JSON.parse(stored);
-
         if (Array.isArray(parsed)) return parsed;
-
+        if (parsed && Array.isArray(parsed.items)) return parsed.items;
       }
-
     } catch (e) {}
 
 
@@ -1804,7 +1808,7 @@ const TB_FIREBASE = (function () {
   async function getControlCaja() {
     let local = JSON.parse(localStorage.getItem('tb_control_caja') || '{"fondoBase":0,"entregas":{}}');
     try {
-      const res = await fetch(`${getDbUrl('control_caja')}&_t=${Date.now()}`);
+      const res = await fetch(getDbUrl('control_caja', { _t: Date.now() }));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && typeof cloud === 'object') {
@@ -1880,7 +1884,7 @@ const TB_FIREBASE = (function () {
       // 1. Obtener usuarios configurados en Firebase Realtime Database
       let userList = [];
       try {
-        const resRoles = await fetch(getDbUrl('configuracion/usuarios_roles') + `?t=${Date.now()}`);
+        const resRoles = await fetch(getDbUrl('configuracion/usuarios_roles', { _t: Date.now() }));
         if (resRoles.ok) {
           const json = await resRoles.json();
           if (json && json.items) {
@@ -1891,10 +1895,21 @@ const TB_FIREBASE = (function () {
         console.warn('Error al leer configuracion/usuarios_roles:', e);
       }
 
+      // Si falló la consulta o vino vacío, preservar de localStorage para no sobreescribir permisos
+      if (!Array.isArray(userList) || userList.length === 0) {
+        try {
+          const cached = localStorage.getItem('tb_cat_usuarios_roles');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            userList = Array.isArray(parsed) ? parsed : (parsed?.items || []);
+          }
+        } catch (e) {}
+      }
+
       // 2. Escanear usuarios con actividad en la base de datos de Firebase
       const discoveredEmails = new Set();
       try {
-        const resAudit = await fetch(getDbUrl('auditoria_movimientos') + `?t=${Date.now()}`);
+        const resAudit = await fetch(getDbUrl('auditoria_movimientos', { _t: Date.now() }));
         if (resAudit.ok) {
           const auditObj = await resAudit.json();
           if (auditObj && typeof auditObj === 'object') {
@@ -1908,7 +1923,7 @@ const TB_FIREBASE = (function () {
       } catch (e) { console.warn('Scan audit users error:', e); }
 
       try {
-        const resArqueos = await fetch(getDbUrl('arqueos_caja') + `?t=${Date.now()}`);
+        const resArqueos = await fetch(getDbUrl('arqueos_caja', { _t: Date.now() }));
         if (resArqueos.ok) {
           const arqObj = await resArqueos.json();
           if (arqObj && typeof arqObj === 'object') {
