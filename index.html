@@ -2545,7 +2545,7 @@
         </thead>
         <tbody id="pc_tbody_salidas"></tbody>
         <tfoot>
-          <tr><td colspan="4">TOTAL DE SALIDAS EN EFECTIVO</td><td class="amount" id="pc_total_salidas">$0.00</td></tr>
+          <tr><td colspan="3"><strong>TOTAL DE SALIDAS EN EFECTIVO</strong></td><td class="amount" id="pc_total_salidas"><strong>$0.00</strong></td><td style="background:#fafafa;"></td></tr>
         </tfoot>
       </table>
 
@@ -2790,6 +2790,34 @@
       <h4 id="ver-foto-titulo" style="margin:0 0 10px 0; font-size:1rem; color:#1e293b; font-weight:700;">Comprobante de Entrega</h4>
       <img id="img-ver-foto-full" src="" alt="Comprobante" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0;">
       <div id="ver-foto-meta" style="margin-top:8px; font-size:0.8rem; color:#64748b;"></div>
+    </div>
+  </div>
+
+    <!-- ========================================================================
+       MODAL DE VISUALIZACIÓN Y DESCARGA DE PDF DE REPORTES DIARIOS DE ARQUEO
+       ======================================================================== -->
+  <div class="modal-backdrop-custom" id="modal-view-pdf-report" style="display:none; z-index:99999;">
+    <div style="background:#fff; border-radius:12px; width:95vw; max-width:920px; height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.4); overflow:hidden;">
+      <div style="padding:14px 20px; background:#0f172a; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
+        <div>
+          <h3 id="pdf-modal-title" style="margin:0; font-size:1.05rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+            <span>📄</span> Reporte Oficial de Arqueo
+          </h3>
+          <span id="pdf-modal-subtitle" style="font-size:0.8rem; color:#94a3b8;">Visualización completa y descarga de PDF oficial</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button type="button" class="btn btn-firebase btn-sm" id="btn-download-modal-pdf" style="font-weight:700; padding:6px 14px; font-size:0.85rem;">
+            <span>📥</span> Descargar PDF
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-print-modal-pdf" style="font-weight:700; padding:6px 14px; font-size:0.85rem;">
+            <span>🖨️</span> Imprimir
+          </button>
+          <button type="button" id="btn-close-pdf-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8; padding:0 6px; line-height:1;" title="Cerrar vista previa">✕</button>
+        </div>
+      </div>
+      <div id="pdf-modal-body" style="flex:1; overflow-y:auto; background:#f1f5f9; padding:24px 16px; display:flex; justify-content:center;">
+        <div id="pdf-preview-container"></div>
+      </div>
     </div>
   </div>
 

@@ -568,7 +568,20 @@
         operaciones: document.getElementById('ing_operaciones_cobradas')?.value || ''
       },
       conteo: {
-        total: parseVal('conteo_total_efectivo')
+        total: parseVal('conteo_total_efectivo'),
+        desglose: {
+          b1000: parseInt(document.getElementById('billete_1000')?.value, 10) || 0,
+          b500:  parseInt(document.getElementById('billete_500')?.value, 10) || 0,
+          b200:  parseInt(document.getElementById('billete_200')?.value, 10) || 0,
+          b100:  parseInt(document.getElementById('billete_100')?.value, 10) || 0,
+          b50:   parseInt(document.getElementById('billete_50')?.value, 10) || 0,
+          b20:   parseInt(document.getElementById('billete_20')?.value, 10) || 0,
+          m10:   parseInt(document.getElementById('moneda_10')?.value, 10) || 0,
+          m5:    parseInt(document.getElementById('moneda_5')?.value, 10) || 0,
+          m2:    parseInt(document.getElementById('moneda_2')?.value, 10) || 0,
+          m1:    parseInt(document.getElementById('moneda_1')?.value, 10) || 0,
+          m050:  parseInt(document.getElementById('moneda_050')?.value, 10) || 0
+        }
       },
       conciliacion: {
         fondo: parseVal('f_inicial_caja'),
@@ -580,8 +593,12 @@
         explicacion: document.getElementById('concil_explicacion')?.value || ''
       },
       controlPagos: {
+        transfReg: parseVal('ctrl_transf_reg'),
         transfVer: parseVal('ctrl_transf_verif'),
-        tarjVer: parseVal('ctrl_tarj_verif')
+        tarjReg: parseVal('ctrl_tarj_reg'),
+        tarjVer: parseVal('ctrl_tarj_verif'),
+        otrosReg: parseVal('ctrl_otros_reg'),
+        otrosVer: parseVal('ctrl_otros_verif')
       },
       resumen: {
         totalIngresos: parseVal('resumen_total_ingresos'),
@@ -608,7 +625,8 @@
         destinoEfectivo: document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja',
         lugarResguardo: document.getElementById('val_efectivo_otro_lugar')?.value || '',
         importeEntregado: parseVal('val_importe_entregado'),
-        signatureData: sigDataPrincipal && sigPadPrincipal ? sigPadPrincipal.toDataURL() : null
+        signatureData: sigDataPrincipal && sigPadPrincipal ? sigPadPrincipal.toDataURL() : null,
+        observaciones: document.getElementById('val_observaciones')?.value || ''
       }
     };
   }
@@ -637,145 +655,199 @@
     recalculatePrincipal();
   }
 
-  function syncPrincipalPrintable() {
-    recalculatePrincipal();
-    const rawF = document.getElementById('header_fecha')?.value || '';
-    if (document.getElementById('p_fecha')) document.getElementById('p_fecha').textContent = rawF || '__ / __ / ____';
-    if (document.getElementById('p_responsable')) document.getElementById('p_responsable').textContent = document.getElementById('header_responsable')?.value || '________________';
-    if (document.getElementById('p_hora')) document.getElementById('p_hora').textContent = document.getElementById('header_hora')?.value || '____';
+  // Poblar de forma defensiva el reporte oficial de Caja Principal
+  function populatePrincipalPrintable(data) {
+    if (!data) return '';
+    const header = data.header || {};
+    const ingresos = data.ingresos || {};
+    const conteo = data.conteo || {};
+    const concil = data.conciliacion || {};
+    const ctrl = data.controlPagos || {};
+    const res = data.resumen || data.resumenFinal || {};
+    const val = data.validacion || {};
 
-    if (document.getElementById('p_f_caja')) document.getElementById('p_f_caja').textContent = formatCurrency(parseVal('f_inicial_caja'));
+    const rawF = header.fecha || data.fecha || '';
+    const rawR = header.responsable || val.responsable || data.responsable || 'Responsable';
+    const rawH = header.hora || '';
 
-    ['servicios', 'cursos', 'productos'].forEach(r => {
-      const elE = document.getElementById(`p_ing_${r}_e`);
-      const elT = document.getElementById(`p_ing_${r}_t`);
-      const elJ = document.getElementById(`p_ing_${r}_j`);
-      const elTot = document.getElementById(`p_ing_${r}_tot`);
-      if (elE) elE.textContent = formatCurrency(parseVal(`ing_${r}_efec`));
-      if (elT) elT.textContent = formatCurrency(parseVal(`ing_${r}_transf`));
-      if (elJ) elJ.textContent = formatCurrency(parseVal(`ing_${r}_tarj`));
-      if (elTot) elTot.textContent = formatCurrency(parseVal(`ing_${r}_total`));
-    });
-    if (document.getElementById('p_ing_tot_e')) document.getElementById('p_ing_tot_e').textContent = formatCurrency(parseVal('ing_total_efectivo'));
-    if (document.getElementById('p_ing_tot_t')) document.getElementById('p_ing_tot_t').textContent = formatCurrency(parseVal('ing_total_transf'));
-    if (document.getElementById('p_ing_tot_j')) document.getElementById('p_ing_tot_j').textContent = formatCurrency(parseVal('ing_total_tarjeta'));
-    if (document.getElementById('p_ing_tot_gran')) document.getElementById('p_ing_tot_gran').textContent = formatCurrency(parseVal('ing_gran_total'));
-    if (document.getElementById('p_operaciones')) document.getElementById('p_operaciones').textContent = document.getElementById('ing_operaciones_cobradas')?.value || '0';
+    const setEl = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
 
-    // Conteo
+    // Encabezado
+    setEl('p_fecha', rawF || '__ / __ / ____');
+    setEl('p_responsable', rawR || '________________');
+    setEl('p_hora', rawH || '____');
+
+    // 1. Fondo Inicial
+    const fondo = parseFloat(data.fondoInicial !== undefined ? data.fondoInicial : concil.fondo) || 0;
+    setEl('p_f_caja', formatCurrency(fondo));
+
+    // 2. Ingresos del Día
+    const srv = ingresos.servicios || {};
+    const cur = ingresos.cursos || {};
+    const prd = ingresos.productos || {};
+
+    const srvE = parseFloat(srv.e) || 0, srvT = parseFloat(srv.t) || 0, srvJ = parseFloat(srv.j) || 0;
+    const curE = parseFloat(cur.e) || 0, curT = parseFloat(cur.t) || 0, curJ = parseFloat(cur.j) || 0;
+    const prdE = parseFloat(prd.e) || 0, prdT = parseFloat(prd.t) || 0, prdJ = parseFloat(prd.j) || 0;
+
+    setEl('p_ing_servicios_e', formatCurrency(srvE));
+    setEl('p_ing_servicios_t', formatCurrency(srvT));
+    setEl('p_ing_servicios_j', formatCurrency(srvJ));
+    setEl('p_ing_servicios_tot', formatCurrency(srvE + srvT + srvJ));
+
+    setEl('p_ing_cursos_e', formatCurrency(curE));
+    setEl('p_ing_cursos_t', formatCurrency(curT));
+    setEl('p_ing_cursos_j', formatCurrency(curJ));
+    setEl('p_ing_cursos_tot', formatCurrency(curE + curT + curJ));
+
+    setEl('p_ing_productos_e', formatCurrency(prdE));
+    setEl('p_ing_productos_t', formatCurrency(prdT));
+    setEl('p_ing_productos_j', formatCurrency(prdJ));
+    setEl('p_ing_productos_tot', formatCurrency(prdE + prdT + prdJ));
+
+    const totEfec = ingresos.totales?.efectivo !== undefined ? parseFloat(ingresos.totales.efectivo) : (srvE + curE + prdE);
+    const totTransf = ingresos.totales?.transferencia !== undefined ? parseFloat(ingresos.totales.transferencia) : (srvT + curT + prdT);
+    const totTarj = ingresos.totales?.tarjeta !== undefined ? parseFloat(ingresos.totales.tarjeta) : (srvJ + curJ + prdJ);
+    const granTot = ingresos.totales?.granTotal !== undefined ? parseFloat(ingresos.totales.granTotal) : (totEfec + totTransf + totTarj);
+
+    setEl('p_ing_tot_e', formatCurrency(totEfec));
+    setEl('p_ing_tot_t', formatCurrency(totTransf));
+    setEl('p_ing_tot_j', formatCurrency(totTarj));
+    setEl('p_ing_tot_gran', formatCurrency(granTot));
+    setEl('p_operaciones', ingresos.operaciones || '0');
+
+    // 3. Conteo Físico
     const denoms = [
-      { id: 'billete_1000', qId: 'p_b_1000_q', tId: 'p_b_1000_tot', val: 1000 },
-      { id: 'billete_500',  qId: 'p_b_500_q',  tId: 'p_b_500_tot',  val: 500 },
-      { id: 'billete_200',  qId: 'p_b_200_q',  tId: 'p_b_200_tot',  val: 200 },
-      { id: 'billete_100',  qId: 'p_b_100_q',  tId: 'p_b_100_tot',  val: 100 },
-      { id: 'billete_50',   qId: 'p_b_50_q',   tId: 'p_b_50_tot',   val: 50 },
-      { id: 'billete_20',   qId: 'p_b_20_q',   tId: 'p_b_20_tot',   val: 20 },
-      { id: 'moneda_10',    qId: 'p_m_10_q',   tId: 'p_m_10_tot',   val: 10 },
-      { id: 'moneda_5',     qId: 'p_m_5_q',    tId: 'p_m_5_tot',    val: 5 },
-      { id: 'moneda_2',     qId: 'p_m_2_q',    tId: 'p_m_2_tot',    val: 2 },
-      { id: 'moneda_1',     qId: 'p_m_1_q',    tId: 'p_m_1_tot',    val: 1 },
-      { id: 'moneda_050',   qId: 'p_m_050_q',  tId: 'p_m_050_tot',  val: 0.50 }
+      { key: 'b1000', qId: 'p_b_1000_q', tId: 'p_b_1000_tot', val: 1000 },
+      { key: 'b500',  qId: 'p_b_500_q',  tId: 'p_b_500_tot',  val: 500 },
+      { key: 'b200',  qId: 'p_b_200_q',  tId: 'p_b_200_tot',  val: 200 },
+      { key: 'b100',  qId: 'p_b_100_q',  tId: 'p_b_100_tot',  val: 100 },
+      { key: 'b50',   qId: 'p_b_50_q',   tId: 'p_b_50_tot',   val: 50 },
+      { key: 'b20',   qId: 'p_b_20_q',   tId: 'p_b_20_tot',   val: 20 },
+      { key: 'm10',   qId: 'p_m_10_q',   tId: 'p_m_10_tot',   val: 10 },
+      { key: 'm5',    qId: 'p_m_5_q',    tId: 'p_m_5_tot',    val: 5 },
+      { key: 'm2',    qId: 'p_m_2_q',    tId: 'p_m_2_tot',    val: 2 },
+      { key: 'm1',    qId: 'p_m_1_q',    tId: 'p_m_1_tot',    val: 1 },
+      { key: 'm050',  qId: 'p_m_050_q',  tId: 'p_m_050_tot',  val: 0.50 }
     ];
-    let tc = 0;
+
+    const desglose = conteo.desglose || {};
+    const hasDesglose = Boolean(conteo.desglose);
+    let conteoCalc = 0;
+
     denoms.forEach(d => {
-      const q = parseInt(document.getElementById(d.id)?.value, 10) || 0;
-      tc += q * d.val;
-      const qEl = document.getElementById(d.qId);
-      const tEl = document.getElementById(d.tId);
-      if (qEl) qEl.textContent = q > 0 ? q : '';
-      if (tEl) tEl.textContent = formatCurrency(q * d.val);
+      const q = hasDesglose ? (parseInt(desglose[d.key], 10) || 0) : 0;
+      const sub = q * d.val;
+      if (hasDesglose) conteoCalc += sub;
+      setEl(d.qId, hasDesglose ? (q > 0 ? q : '0') : '--');
+      setEl(d.tId, hasDesglose ? formatCurrency(sub) : '--');
     });
-    if (document.getElementById('p_conteo_tot')) document.getElementById('p_conteo_tot').textContent = formatCurrency(tc);
 
-    // Conciliación
-    if (document.getElementById('p_concil_fondo')) document.getElementById('p_concil_fondo').textContent = formatCurrency(parseVal('f_inicial_caja'));
-    if (document.getElementById('p_concil_ingresos')) document.getElementById('p_concil_ingresos').textContent = formatCurrency(parseVal('ing_total_efectivo'));
-    if (document.getElementById('p_concil_esperado')) document.getElementById('p_concil_esperado').textContent = formatCurrency(parseVal('concil_efectivo_esperado'));
-    if (document.getElementById('p_concil_contado')) document.getElementById('p_concil_contado').textContent = formatCurrency(tc);
-    if (document.getElementById('p_concil_diferencia')) document.getElementById('p_concil_diferencia').textContent = formatCurrency(parseVal('concil_diferencia_caja'));
+    const totContado = parseFloat(conteo.total !== undefined ? conteo.total : concil.contado) || (hasDesglose ? conteoCalc : 0);
+    setEl('p_conteo_tot', formatCurrency(totContado));
 
-    const dif = parseVal('concil_diferencia_caja');
-    const res = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
-    if (document.getElementById('p_box_cuadrada')) document.getElementById('p_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
-    if (document.getElementById('p_box_sobrante')) document.getElementById('p_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
-    if (document.getElementById('p_box_faltante')) document.getElementById('p_box_faltante').textContent = res === 'faltante' ? '✓' : '';
-    if (document.getElementById('p_explicacion')) document.getElementById('p_explicacion').textContent = document.getElementById('concil_explicacion')?.value?.trim() || 'Sin diferencias.';
+    // 4. Conciliación
+    const ingEfec = parseFloat(concil.ingresosEfec !== undefined ? concil.ingresosEfec : totEfec) || 0;
+    const esperado = parseFloat(concil.esperado !== undefined ? concil.esperado : (fondo + ingEfec)) || 0;
+    const dif = parseFloat(concil.diferencia !== undefined ? concil.diferencia : (totContado - esperado)) || 0;
 
-    // Control de transferencias y tarjetas en PDF
-    const tReg = parseVal('ctrl_transf_reg');
-    const tVer = parseVal('ctrl_transf_verif');
-    const jReg = parseVal('ctrl_tarj_reg');
-    const jVer = parseVal('ctrl_tarj_verif');
-    const oReg = parseVal('ctrl_otros_reg');
-    const oVer = parseVal('ctrl_otros_verif');
+    setEl('p_concil_fondo', formatCurrency(fondo));
+    setEl('p_concil_ingresos', formatCurrency(ingEfec));
+    setEl('p_concil_esperado', formatCurrency(esperado));
+    setEl('p_concil_contado', formatCurrency(totContado));
+    setEl('p_concil_diferencia', formatCurrency(dif));
 
-    if (document.getElementById('p_ctrl_transf_reg')) document.getElementById('p_ctrl_transf_reg').textContent = formatCurrency(tReg);
-    if (document.getElementById('p_ctrl_transf_ver')) document.getElementById('p_ctrl_transf_ver').textContent = formatCurrency(tVer);
-    if (document.getElementById('p_ctrl_transf_dif')) document.getElementById('p_ctrl_transf_dif').textContent = formatCurrency(tVer - tReg);
+    const resArqueo = concil.resultado || (Math.abs(dif) < 0.005 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
+    setEl('p_box_cuadrada', resArqueo === 'cuadrada' ? '✓' : '');
+    setEl('p_box_sobrante', resArqueo === 'sobrante' ? '✓' : '');
+    setEl('p_box_faltante', resArqueo === 'faltante' ? '✓' : '');
 
-    if (document.getElementById('p_ctrl_tarj_reg')) document.getElementById('p_ctrl_tarj_reg').textContent = formatCurrency(jReg);
-    if (document.getElementById('p_ctrl_tarj_ver')) document.getElementById('p_ctrl_tarj_ver').textContent = formatCurrency(jVer);
-    if (document.getElementById('p_ctrl_tarj_dif')) document.getElementById('p_ctrl_tarj_dif').textContent = formatCurrency(jVer - jReg);
+    setEl('p_explicacion', concil.explicacion?.trim() || (Math.abs(dif) < 0.005 ? 'Caja cuadrada sin diferencias.' : 'Sin explicación registrada.'));
 
-    if (document.getElementById('p_ctrl_otros_reg')) document.getElementById('p_ctrl_otros_reg').textContent = formatCurrency(oReg);
-    if (document.getElementById('p_ctrl_otros_ver')) document.getElementById('p_ctrl_otros_ver').textContent = formatCurrency(oVer);
-    if (document.getElementById('p_ctrl_otros_dif')) document.getElementById('p_ctrl_otros_dif').textContent = formatCurrency(oVer - oReg);
+    // 5. Control de Transferencias y Tarjetas
+    const tReg = parseFloat(ctrl.transfReg !== undefined ? ctrl.transfReg : totTransf) || 0;
+    const tVer = parseFloat(ctrl.transfVer !== undefined ? ctrl.transfVer : res.totalTransf || res.totalTransferencias || totTransf) || 0;
+    const jReg = parseFloat(ctrl.tarjReg !== undefined ? ctrl.tarjReg : totTarj) || 0;
+    const jVer = parseFloat(ctrl.tarjVer !== undefined ? ctrl.tarjVer : res.totalTarjetas || totTarj) || 0;
+    const oReg = parseFloat(ctrl.otrosReg) || 0;
+    const oVer = parseFloat(ctrl.otrosVer) || 0;
 
-    const totReg = tReg + jReg + oReg;
-    const totVer = tVer + jVer + oVer;
-    if (document.getElementById('p_ctrl_tot_reg')) document.getElementById('p_ctrl_tot_reg').textContent = formatCurrency(totReg);
-    if (document.getElementById('p_ctrl_tot_ver')) document.getElementById('p_ctrl_tot_ver').textContent = formatCurrency(totVer);
-    if (document.getElementById('p_ctrl_tot_dif')) document.getElementById('p_ctrl_tot_dif').textContent = formatCurrency(totVer - totReg);
+    setEl('p_ctrl_transf_reg', formatCurrency(tReg));
+    setEl('p_ctrl_transf_ver', formatCurrency(tVer));
+    setEl('p_ctrl_transf_dif', formatCurrency(tVer - tReg));
 
-    // Resumen Final en PDF
-    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
-    const allEntregas = Object.values(controlCajaData.entregas || {});
-    const entregasHoy = allEntregas.filter(e => e.fecha === today);
-    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+    setEl('p_ctrl_tarj_reg', formatCurrency(jReg));
+    setEl('p_ctrl_tarj_ver', formatCurrency(jVer));
+    setEl('p_ctrl_tarj_dif', formatCurrency(jVer - jReg));
 
-    if (document.getElementById('p_res_ingresos')) document.getElementById('p_res_ingresos').textContent = formatCurrency(parseVal('ing_gran_total'));
-    if (document.getElementById('p_res_contado')) document.getElementById('p_res_contado').textContent = formatCurrency(tc);
-    if (document.getElementById('p_res_transf')) document.getElementById('p_res_transf').textContent = formatCurrency(tVer);
-    if (document.getElementById('p_res_tarjetas')) document.getElementById('p_res_tarjetas').textContent = formatCurrency(jVer + oVer);
-    if (document.getElementById('p_res_retiros')) {
-      const detalle = entregasHoy.length > 0 ? ` (${entregasHoy.map(e => e.recibe).join(', ')})` : '';
-      document.getElementById('p_res_retiros').textContent = `${formatCurrency(totalEntregadoHoy)}${detalle}`;
-    }
-    if (document.getElementById('p_res_diferencia')) document.getElementById('p_res_diferencia').textContent = formatCurrency(dif);
-    if (document.getElementById('p_res_num_servicios')) document.getElementById('p_res_num_servicios').textContent = document.getElementById('resumen_num_servicios')?.value || '0';
-    if (document.getElementById('p_res_num_cursos')) document.getElementById('p_res_num_cursos').textContent = document.getElementById('resumen_num_cursos')?.value || '0';
+    setEl('p_ctrl_otros_reg', formatCurrency(oReg));
+    setEl('p_ctrl_otros_ver', formatCurrency(oVer));
+    setEl('p_ctrl_otros_dif', formatCurrency(oVer - oReg));
 
-    // Validación y entrega
-    const valN = document.getElementById('val_responsable_nombre')?.value || document.getElementById('header_responsable')?.value || '';
-    if (document.getElementById('p_val_nombre')) document.getElementById('p_val_nombre').textContent = valN;
-    const firmaImg = document.getElementById('p_val_firma_img');
-    const firmaBlank = document.getElementById('p_val_firma_blank');
-    if (sigDataPrincipal && sigPadPrincipal) {
-      if (firmaImg) {
-        firmaImg.src = sigPadPrincipal.toDataURL('image/png');
-        firmaImg.style.display = 'block';
+    const totRegCtrl = tReg + jReg + oReg;
+    const totVerCtrl = tVer + jVer + oVer;
+    setEl('p_ctrl_tot_reg', formatCurrency(totRegCtrl));
+    setEl('p_ctrl_tot_ver', formatCurrency(totVerCtrl));
+    setEl('p_ctrl_tot_dif', formatCurrency(totVerCtrl - totRegCtrl));
+
+    // 6. Resumen Final
+    const totIngRes = parseFloat(res.totalIngresos || res.totalIngresosDia || granTot) || 0;
+    const totEfecRes = parseFloat(res.totalEfectivo || res.totalEfectivoContado || totContado) || 0;
+    const totEntregado = parseFloat(res.totalEntregado !== undefined ? res.totalEntregado : (val.importeEntregado || concil.retiros || 0)) || 0;
+    const detalleEntregas = res.detalleEntregas ? ` (${res.detalleEntregas})` : '';
+
+    setEl('p_res_ingresos', formatCurrency(totIngRes));
+    setEl('p_res_contado', formatCurrency(totEfecRes));
+    setEl('p_res_transf', formatCurrency(tVer));
+    setEl('p_res_tarjetas', formatCurrency(jVer + oVer));
+    setEl('p_res_retiros', `${formatCurrency(totEntregado)}${detalleEntregas}`);
+    setEl('p_res_diferencia', formatCurrency(dif));
+    setEl('p_res_num_servicios', res.numServicios || '0');
+    setEl('p_res_num_cursos', res.numCursos || '0');
+
+    // Observaciones y Entrega
+    setEl('p_obs_dia', res.obsDia?.trim() || 'Sin observaciones.');
+    const valResp = val.responsable || rawR || '';
+    setEl('p_val_nombre', valResp);
+
+    const fImg = document.getElementById('p_val_firma_img');
+    const fBlank = document.getElementById('p_val_firma_blank');
+    if (val.signatureData) {
+      if (fImg) {
+        fImg.src = val.signatureData;
+        fImg.style.display = 'block';
       }
-      if (firmaBlank) firmaBlank.style.display = 'none';
+      if (fBlank) fBlank.style.display = 'none';
     } else {
-      if (firmaImg) firmaImg.style.display = 'none';
-      if (firmaBlank) firmaBlank.style.display = 'inline-block';
+      if (fImg) fImg.style.display = 'none';
+      if (fBlank) fBlank.style.display = 'inline-block';
     }
-    if (document.getElementById('p_val_hora_cierre')) document.getElementById('p_val_hora_cierre').textContent = document.getElementById('val_hora_cierre')?.value || '____';
-    if (document.getElementById('p_val_hora_entrega')) document.getElementById('p_val_hora_entrega').textContent = document.getElementById('val_hora_entrega')?.value || '____';
-    const dest = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
+
+    setEl('p_val_hora_cierre', val.horaCierre || rawH || '____');
+    setEl('p_val_hora_entrega', val.horaEntrega || '____');
+
     let destTexto = '1.- Se queda en caja';
+    const dest = val.destinoEfectivo || 'se_queda_en_caja';
     if (dest === 'se_guarda_en_sobre') destTexto = '2.- Se guarda en sobre';
     else if (dest === 'se_resguarda_otro') {
-      const lugar = document.getElementById('val_efectivo_otro_lugar')?.value.trim();
-      destTexto = `3.- Se resguarda en otro lugar${lugar ? ': ' + lugar : ''}`;
+      const lug = val.lugarResguardo ? `: ${val.lugarResguardo}` : '';
+      destTexto = `3.- Se resguarda en otro lugar${lug}`;
     }
-    if (document.getElementById('p_val_entregado_a')) document.getElementById('p_val_entregado_a').textContent = destTexto;
-    if (document.getElementById('p_val_importe_entregado')) document.getElementById('p_val_importe_entregado').textContent = formatCurrency(parseVal('val_importe_entregado'));
-    if (document.getElementById('p_obs_dia')) document.getElementById('p_obs_dia').textContent = document.getElementById('resumen_observaciones_dia')?.value?.trim() || 'Sin observaciones.';
-    if (document.getElementById('p_val_observaciones')) document.getElementById('p_val_observaciones').textContent = document.getElementById('val_observaciones')?.value?.trim() || 'Ninguna.';
+    setEl('p_val_entregado_a', destTexto);
+    setEl('p_val_importe_entregado', formatCurrency(totEntregado));
+    setEl('p_val_observaciones', val.observaciones?.trim() || 'Ninguna.');
 
-    const cln = valN.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
+    const cln = valResp.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
     return `Arqueo_Caja_Principal_${rawF || 'Fecha'}_${cln || 'Responsable'}.pdf`;
+  }
+
+  function syncPrincipalPrintable() {
+    recalculatePrincipal();
+    const liveData = serializePrincipal();
+    return populatePrincipalPrintable(liveData);
   }
 
   // =========================================================================
@@ -982,6 +1054,19 @@
       salidas: salidas,
       totalSalidas: parseVal('chica_total_salidas'),
       conteoTotal: parseVal('chica_total_contado'),
+      conteoDesglose: {
+        b1000: parseInt(document.getElementById('chica_b_1000')?.value, 10) || 0,
+        b500:  parseInt(document.getElementById('chica_b_500')?.value, 10) || 0,
+        b200:  parseInt(document.getElementById('chica_b_200')?.value, 10) || 0,
+        b100:  parseInt(document.getElementById('chica_b_100')?.value, 10) || 0,
+        b50:   parseInt(document.getElementById('chica_b_50')?.value, 10) || 0,
+        b20:   parseInt(document.getElementById('chica_b_20')?.value, 10) || 0,
+        m10:   parseInt(document.getElementById('chica_m_10')?.value, 10) || 0,
+        m5:    parseInt(document.getElementById('chica_m_5')?.value, 10) || 0,
+        m2:    parseInt(document.getElementById('chica_m_2')?.value, 10) || 0,
+        m1:    parseInt(document.getElementById('chica_m_1')?.value, 10) || 0,
+        m050:  parseInt(document.getElementById('chica_m_050')?.value, 10) || 0
+      },
       conciliacion: {
         fondo: parseVal('chica_fondo_inicial'),
         salidas: parseVal('chica_total_salidas'),
@@ -1044,85 +1129,116 @@
     loadCajaChicaFundData();
   }
 
-  function syncChicaPrintable() {
-    recalculateChica();
-    const rawF = document.getElementById('chica_fecha')?.value || '';
-    if (document.getElementById('pc_fecha')) document.getElementById('pc_fecha').textContent = rawF || '__ / __ / ____';
-    const resp = document.getElementById('chica_responsable')?.value || TB_FIREBASE.getCurrentUser()?.email || '________________';
-    if (document.getElementById('pc_responsable')) document.getElementById('pc_responsable').textContent = resp;
-    if (document.getElementById('pc_hora')) document.getElementById('pc_hora').textContent = document.getElementById('chica_hora')?.value || '____';
+  // Poblar de forma defensiva el reporte oficial de Caja Chica
+  function populateChicaPrintable(data) {
+    if (!data) return '';
+    const header = data.header || {};
+    const concil = data.conciliacion || {};
+    const val = data.validacion || {};
 
-    if (document.getElementById('pc_fondo_inicial')) document.getElementById('pc_fondo_inicial').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
+    const rawF = header.fecha || data.fecha || '';
+    const rawR = header.responsable || val.responsable || data.responsable || 'Responsable';
+    const rawH = header.hora || '';
 
-    // Salidas
+    const setEl = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    setEl('pc_fecha', rawF || '__ / __ / ____');
+    setEl('pc_responsable', rawR || '________________');
+    setEl('pc_hora', rawH || '____');
+
+    // 1. Fondo Inicial
+    const fondo = parseFloat(data.fondoInicial !== undefined ? data.fondoInicial : concil.fondo) || 0;
+    setEl('pc_fondo_inicial', formatCurrency(fondo));
+
+    // 2. Salidas
     const pcTbody = document.getElementById('pc_tbody_salidas');
+    let sumSalidas = 0;
     if (pcTbody) {
       pcTbody.innerHTML = '';
-      document.querySelectorAll('.chica-salida-row').forEach(row => {
-        const c = row.querySelector('.chica-concepto')?.value || '';
-        const m = row.querySelector('.chica-motivo')?.value || '';
-        const a = row.querySelector('.chica-autorizo')?.value || '';
-        const imp = parseFloat(row.querySelector('.chica-importe')?.value) || 0;
-        const hasEv = Boolean(row.dataset.evidenciaBase64);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${c}</td>
-          <td>${m}</td>
-          <td>${a}</td>
-          <td class="amount">${formatCurrency(imp)}</td>
-          <td style="text-align:center;">${hasEv ? '📎 Adjunta' : '--'}</td>
-        `;
-        pcTbody.appendChild(tr);
-      });
+      const salidasArr = Array.isArray(data.salidas) ? data.salidas : (data.salidas ? Object.values(data.salidas) : []);
+      if (salidasArr.length === 0) {
+        pcTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:8px;">Sin salidas de efectivo registradas</td></tr>';
+      } else {
+        salidasArr.forEach(s => {
+          const imp = parseFloat(s.importe) || 0;
+          sumSalidas += imp;
+          const tr = document.createElement('tr');
+          const hasEv = Boolean(s.evidencia);
+          tr.innerHTML = `
+            <td>${s.concepto || ''}</td>
+            <td>${s.motivo || ''}</td>
+            <td>${s.autorizo || ''}</td>
+            <td class="amount">${formatCurrency(imp)}</td>
+            <td style="text-align:center;">
+              ${hasEv ? `<span class="btn-preview-ticket" data-evidencia="${s.evidencia}" style="cursor:pointer; color:#0284c7; text-decoration:underline; font-weight:700;">📎 Ver Ticket</span>` : '--'}
+            </td>
+          `;
+          pcTbody.appendChild(tr);
+        });
+      }
     }
-    if (document.getElementById('pc_total_salidas')) document.getElementById('pc_total_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
+    const totSalidas = parseFloat(data.totalSalidas !== undefined ? data.totalSalidas : (concil.salidas !== undefined ? concil.salidas : sumSalidas)) || 0;
+    setEl('pc_total_salidas', formatCurrency(totSalidas));
 
-    // Conteo
+    // 3. Conteo Físico Caja Chica
     const denoms = [
-      { id: 'chica_b_1000', qId: 'pc_b_1000_q', tId: 'pc_b_1000_tot', val: 1000 },
-      { id: 'chica_b_500',  qId: 'pc_b_500_q',  tId: 'pc_b_500_tot',  val: 500 },
-      { id: 'chica_b_200',  qId: 'pc_b_200_q',  tId: 'pc_b_200_tot',  val: 200 },
-      { id: 'chica_b_100',  qId: 'pc_b_100_q',  tId: 'pc_b_100_tot',  val: 100 },
-      { id: 'chica_b_50',   qId: 'pc_b_50_q',   tId: 'pc_b_50_tot',   val: 50 },
-      { id: 'chica_b_20',   qId: 'pc_b_20_q',   tId: 'pc_b_20_tot',   val: 20 },
-      { id: 'chica_m_10',   qId: 'pc_m_10_q',   tId: 'pc_m_10_tot',   val: 10 },
-      { id: 'chica_m_5',    qId: 'pc_m_5_q',    tId: 'pc_m_5_tot',    val: 5 },
-      { id: 'chica_m_2',    qId: 'pc_m_2_q',    tId: 'pc_m_2_tot',    val: 2 },
-      { id: 'chica_m_1',    qId: 'pc_m_1_q',    tId: 'pc_m_1_tot',    val: 1 },
-      { id: 'chica_m_050',  qId: 'pc_m_050_q',  tId: 'pc_m_050_tot',  val: 0.50 }
+      { key: 'b1000', qId: 'pc_b_1000_q', tId: 'pc_b_1000_tot', val: 1000 },
+      { key: 'b500',  qId: 'pc_b_500_q',  tId: 'pc_b_500_tot',  val: 500 },
+      { key: 'b200',  qId: 'pc_b_200_q',  tId: 'pc_b_200_tot',  val: 200 },
+      { key: 'b100',  qId: 'pc_b_100_q',  tId: 'pc_b_100_tot',  val: 100 },
+      { key: 'b50',   qId: 'pc_b_50_q',   tId: 'pc_b_50_tot',   val: 50 },
+      { key: 'b20',   qId: 'pc_b_20_q',   tId: 'pc_b_20_tot',   val: 20 },
+      { key: 'm10',   qId: 'pc_m_10_q',   tId: 'pc_m_10_tot',   val: 10 },
+      { key: 'm5',    qId: 'pc_m_5_q',    tId: 'pc_m_5_tot',    val: 5 },
+      { key: 'm2',    qId: 'pc_m_2_q',    tId: 'pc_m_2_tot',    val: 2 },
+      { key: 'm1',    qId: 'pc_m_1_q',    tId: 'pc_m_1_tot',    val: 1 },
+      { key: 'm050',  qId: 'pc_m_050_q',  tId: 'pc_m_050_tot',  val: 0.50 }
     ];
-    let tc = 0;
+
+    const desglose = data.conteoDesglose || {};
+    const hasDesglose = Boolean(data.conteoDesglose);
+    let conteoCalc = 0;
+
     denoms.forEach(d => {
-      const q = parseInt(document.getElementById(d.id)?.value, 10) || 0;
-      tc += q * d.val;
-      const qEl = document.getElementById(d.qId);
-      const tEl = document.getElementById(d.tId);
-      if (qEl) qEl.textContent = q > 0 ? q : '';
-      if (tEl) tEl.textContent = formatCurrency(q * d.val);
+      const q = hasDesglose ? (parseInt(desglose[d.key], 10) || 0) : 0;
+      const sub = q * d.val;
+      if (hasDesglose) conteoCalc += sub;
+      setEl(d.qId, hasDesglose ? (q > 0 ? q : '0') : '--');
+      setEl(d.tId, hasDesglose ? formatCurrency(sub) : '--');
     });
-    if (document.getElementById('pc_total_contado')) document.getElementById('pc_total_contado').textContent = formatCurrency(tc);
 
-    // Conciliación
-    if (document.getElementById('pc_concil_fondo')) document.getElementById('pc_concil_fondo').textContent = formatCurrency(parseVal('chica_fondo_inicial'));
-    if (document.getElementById('pc_concil_salidas')) document.getElementById('pc_concil_salidas').textContent = formatCurrency(parseVal('chica_total_salidas'));
-    if (document.getElementById('pc_concil_esperado')) document.getElementById('pc_concil_esperado').textContent = formatCurrency(parseVal('chica_concil_esperado'));
-    if (document.getElementById('pc_concil_contado')) document.getElementById('pc_concil_contado').textContent = formatCurrency(tc);
-    if (document.getElementById('pc_concil_diferencia')) document.getElementById('pc_concil_diferencia').textContent = formatCurrency(parseVal('chica_concil_diferencia'));
+    const totContado = parseFloat(data.conteoTotal !== undefined ? data.conteoTotal : concil.contado) || (hasDesglose ? conteoCalc : 0);
+    setEl('pc_total_contado', formatCurrency(totContado));
 
-    const dif = parseVal('chica_concil_diferencia');
-    const res = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
-    if (document.getElementById('pc_box_cuadrada')) document.getElementById('pc_box_cuadrada').textContent = res === 'cuadrada' ? '✓' : '';
-    if (document.getElementById('pc_box_sobrante')) document.getElementById('pc_box_sobrante').textContent = res === 'sobrante' ? '✓' : '';
-    if (document.getElementById('pc_box_faltante')) document.getElementById('pc_box_faltante').textContent = res === 'faltante' ? '✓' : '';
-    if (document.getElementById('pc_explicacion')) document.getElementById('pc_explicacion').textContent = document.getElementById('chica_explicacion')?.value?.trim() || 'Sin observaciones.';
+    // 4. Conciliación
+    const esperado = parseFloat(concil.esperado !== undefined ? concil.esperado : (fondo - totSalidas)) || 0;
+    const dif = parseFloat(concil.diferencia !== undefined ? concil.diferencia : (totContado - esperado)) || 0;
 
-    const valN = document.getElementById('chica_val_nombre')?.value || resp;
-    if (document.getElementById('pc_val_nombre')) document.getElementById('pc_val_nombre').textContent = valN;
+    setEl('pc_concil_fondo', formatCurrency(fondo));
+    setEl('pc_concil_salidas', formatCurrency(totSalidas));
+    setEl('pc_concil_esperado', formatCurrency(esperado));
+    setEl('pc_concil_contado', formatCurrency(totContado));
+    setEl('pc_concil_diferencia', formatCurrency(dif));
+
+    const resArqueo = concil.resultado || (Math.abs(dif) < 0.005 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
+    setEl('pc_box_cuadrada', resArqueo === 'cuadrada' ? '✓' : '');
+    setEl('pc_box_sobrante', resArqueo === 'sobrante' ? '✓' : '');
+    setEl('pc_box_faltante', resArqueo === 'faltante' ? '✓' : '');
+
+    setEl('pc_explicacion', concil.explicacion?.trim() || (Math.abs(dif) < 0.005 ? 'Caja chica cuadrada sin observaciones.' : 'Sin observaciones.'));
+
+    // Validación y Firma
+    const valResp = val.responsable || rawR || '';
+    setEl('pc_val_nombre', valResp);
+
     const fImg = document.getElementById('pc_val_firma_img');
     const fBlank = document.getElementById('pc_val_firma_blank');
-    if (sigDataChica && sigPadChica) {
+    if (val.signatureData) {
       if (fImg) {
-        fImg.src = sigPadChica.toDataURL('image/png');
+        fImg.src = val.signatureData;
         fImg.style.display = 'inline-block';
       }
       if (fBlank) fBlank.style.display = 'none';
@@ -1131,8 +1247,14 @@
       if (fBlank) fBlank.style.display = 'inline-block';
     }
 
-    const cln = valN.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
+    const cln = valResp.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
     return `Arqueo_Caja_Chica_${rawF || 'Fecha'}_${cln || 'Responsable'}.pdf`;
+  }
+
+  function syncChicaPrintable() {
+    recalculateChica();
+    const liveData = serializeChica();
+    return populateChicaPrintable(liveData);
   }
 
   // =========================================================================
@@ -1229,6 +1351,133 @@
   // =========================================================================
   // 5. MÓDULO HISTORIAL
   // =========================================================================
+  // =========================================================================
+  // CONTROLADOR DEL VISOR DE REPORTES PDF Y DESCARGA OFICIAL
+  // =========================================================================
+  let activeViewingReport = null;
+
+  function openReportPdfViewer(item, isChica, key) {
+    if (!item) {
+      showToast('No se encontraron datos del reporte', 'warning');
+      return;
+    }
+    const fecha = item.header?.fecha || item.fecha || 'Sin fecha';
+    const resp = item.header?.responsable || item.validacion?.responsable || 'Sin asignar';
+    const tipoLabel = isChica ? 'Caja Chica' : 'Caja Principal';
+
+    const modalTitle = document.getElementById('pdf-modal-title');
+    const modalSub = document.getElementById('pdf-modal-subtitle');
+    const previewContainer = document.getElementById('pdf-preview-container');
+    const modal = document.getElementById('modal-view-pdf-report');
+
+    if (modalTitle) {
+      modalTitle.innerHTML = `<span>📄</span> Reporte Oficial: Arqueo Diario de ${tipoLabel}`;
+    }
+    if (modalSub) {
+      modalSub.innerHTML = `📅 Fecha: <strong>${fecha}</strong> &bull; 👤 Responsable: <strong>${resp}</strong> &bull; 🏷️ Folio: <span style="font-family:monospace;">${key || 'N/A'}</span>`;
+    }
+
+    // Poblar la plantilla correspondiente y obtener nombre de archivo
+    const fileName = isChica ? populateChicaPrintable(item) : populatePrincipalPrintable(item);
+    activeViewingReport = { item, isChica, key, fileName };
+
+    // Clonar el reporte poblado en el contenedor de vista previa
+    const sourceEl = document.getElementById(isChica ? 'printable-report-chica' : 'printable-report');
+    if (sourceEl && previewContainer) {
+      previewContainer.innerHTML = '';
+      const clone = sourceEl.cloneNode(true);
+      clone.id = isChica ? 'viewer-clone-chica' : 'viewer-clone-principal';
+      clone.style.display = 'block';
+
+      // Permitir ver tickets si existen
+      clone.querySelectorAll('.btn-preview-ticket').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const b64 = btn.dataset.evidencia;
+          if (b64) {
+            const modalFoto = document.getElementById('modal-ver-foto');
+            const imgFull = document.getElementById('img-ver-foto-full');
+            const tit = document.getElementById('ver-foto-titulo');
+            const meta = document.getElementById('ver-foto-meta');
+            if (imgFull) imgFull.src = b64;
+            if (tit) tit.textContent = 'Comprobante / Ticket de Salida';
+            if (meta) meta.textContent = `Arqueo Caja Chica: ${fecha}`;
+            if (modalFoto) modalFoto.style.display = 'flex';
+          }
+        });
+      });
+
+      previewContainer.appendChild(clone);
+    }
+
+    if (modal) {
+      modal.style.display = 'flex';
+      const body = document.getElementById('pdf-modal-body');
+      if (body) body.scrollTop = 0;
+    }
+  }
+
+  function closeReportPdfModal() {
+    const modal = document.getElementById('modal-view-pdf-report');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function downloadPdfFromViewer() {
+    if (!activeViewingReport) return;
+    const { isChica, item, fileName } = activeViewingReport;
+    const el = document.getElementById(isChica ? 'printable-report-chica' : 'printable-report');
+
+    // Repoblar para asegurar datos exactos
+    if (isChica) populateChicaPrintable(item);
+    else populatePrincipalPrintable(item);
+
+    showToast('Generando y descargando PDF oficial...', 'info');
+
+    el.style.display = 'block';
+    const opt = {
+      margin:       [10, 12, 10, 12],
+      filename:     fileName || (isChica ? 'Arqueo_Caja_Chica.pdf' : 'Arqueo_Caja_Principal.pdf'),
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+      jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+      pagebreak:    { mode: ['css', 'legacy'] }
+    };
+
+    try {
+      if (window.html2pdf) {
+        await window.html2pdf().set(opt).from(el).save();
+        showToast(`✅ PDF descargado: ${fileName}`, 'success');
+      } else {
+        window.print();
+      }
+    } catch (e) {
+      console.warn('Error al exportar PDF:', e);
+      window.print();
+    } finally {
+      el.style.display = 'none';
+    }
+  }
+
+  function printPdfFromViewer() {
+    if (!activeViewingReport) return;
+    const { isChica, item } = activeViewingReport;
+    const elId = isChica ? 'printable-report-chica' : 'printable-report';
+    const el = document.getElementById(elId);
+
+    if (isChica) populateChicaPrintable(item);
+    else populatePrincipalPrintable(item);
+
+    document.querySelectorAll('#printable-report, #printable-report-chica').forEach(e => e.classList.remove('printing-active'));
+    if (el) el.classList.add('printing-active');
+    window.print();
+    setTimeout(() => {
+      if (el) el.classList.remove('printing-active');
+    }, 1000);
+  }
+
+  // =========================================================================
+  // 5. MÓDULO HISTORIAL (CON VISTA PREVIA Y DESCARGA DIRECTA DE PDF)
+  // =========================================================================
   async function loadHistorial(filterDate = null) {
     const container = document.getElementById('history-grid-container');
     const emptyState = document.getElementById('historial-empty-state');
@@ -1253,9 +1502,13 @@
     emptyState.style.display = 'none';
 
     filteredKeys.forEach(k => {
-      const item = list[k];
+      const item = list[k] || {};
       const card = document.createElement('div');
       card.className = 'history-item-card';
+      card.style.cursor = 'pointer';
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.title = 'Haga clic para ver y descargar el PDF oficial completo de este arqueo';
 
       const resBadgeClass = item.conciliacion?.resultado === 'cuadrada' ? 'badge-cuadrada' :
                             (item.conciliacion?.resultado === 'sobrante' ? 'badge-sobrante' : 'badge-faltante');
@@ -1263,38 +1516,62 @@
                       (item.conciliacion?.resultado === 'sobrante' ? 'Sobrante' : 'Faltante');
 
       if (currentHistTipo === 'principal') {
+        const efecEntregado = item.resumen?.totalEntregado ?? item.resumenFinal?.totalEntregado ?? item.validacion?.importeEntregado ?? item.conciliacion?.retiros ?? 0;
         card.innerHTML = `
           <div class="history-card-header">
             <div>
-              <div class="history-date">📅 ${item.header?.fecha || 'Sin Fecha'}</div>
-              <div class="history-responsable">👤 ${item.header?.responsable || 'Sin asignar'} (${item.header?.hora || ''})</div>
+              <div class="history-date">📅 ${item.header?.fecha || item.fecha || 'Sin Fecha'}</div>
+              <div class="history-responsable">👤 ${item.header?.responsable || item.validacion?.responsable || 'Sin asignar'} (${item.header?.hora || ''})</div>
             </div>
             <span class="kpi-status-badge ${resBadgeClass}">${resText}</span>
           </div>
           <div class="history-metrics">
-            <div class="history-metric-box"><div class="label">Ingresos Totales</div><div class="val">${formatCurrency(item.ingresos?.totales?.granTotal || 0)}</div></div>
-            <div class="history-metric-box"><div class="label">Efectivo Contado</div><div class="val">${formatCurrency(item.conteo?.total || 0)}</div></div>
-            <div class="history-metric-box"><div class="label">Retiros Resguardo</div><div class="val">${formatCurrency(item.conciliacion?.retiros || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Ingresos Totales</div><div class="val">${formatCurrency(item.ingresos?.totales?.granTotal || item.resumen?.totalIngresos || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Efectivo Contado</div><div class="val">${formatCurrency(item.conteo?.total || item.conciliacion?.contado || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Efectivo Entregado</div><div class="val">${formatCurrency(efecEntregado)}</div></div>
             <div class="history-metric-box"><div class="label">Diferencia</div><div class="val" style="color:${Math.abs(item.conciliacion?.diferencia || 0) < 0.01 ? 'var(--success)' : 'var(--danger)'}">${formatCurrency(item.conciliacion?.diferencia || 0)}</div></div>
+          </div>
+          <div class="history-card-action" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b; font-family:monospace;">🔑 ${k}</span>
+            <span class="btn btn-sm btn-firebase" style="padding:4px 12px; font-size:0.8rem; pointer-events:none; display:inline-flex; align-items:center; gap:5px;">
+              <span>📄</span> Ver PDF Oficial
+            </span>
           </div>
         `;
       } else {
         card.innerHTML = `
           <div class="history-card-header">
             <div>
-              <div class="history-date">📅 ${item.header?.fecha || 'Sin Fecha'} (Caja Chica)</div>
-              <div class="history-responsable">👤 ${item.header?.responsable || 'Sin asignar'} (${item.header?.hora || ''})</div>
+              <div class="history-date">📅 ${item.header?.fecha || item.fecha || 'Sin Fecha'} (Caja Chica)</div>
+              <div class="history-responsable">👤 ${item.header?.responsable || item.validacion?.responsable || 'Sin asignar'} (${item.header?.hora || ''})</div>
             </div>
             <span class="kpi-status-badge ${resBadgeClass}">${resText}</span>
           </div>
           <div class="history-metrics">
-            <div class="history-metric-box"><div class="label">Fondo Inicial</div><div class="val">${formatCurrency(item.fondoInicial || 0)}</div></div>
-            <div class="history-metric-box"><div class="label">Total Salidas</div><div class="val">${formatCurrency(item.totalSalidas || 0)}</div></div>
-            <div class="history-metric-box"><div class="label">Efectivo Contado</div><div class="val">${formatCurrency(item.conteoTotal || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Fondo Inicial</div><div class="val">${formatCurrency(item.fondoInicial || item.conciliacion?.fondo || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Total Salidas</div><div class="val">${formatCurrency(item.totalSalidas || item.conciliacion?.salidas || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Efectivo Contado</div><div class="val">${formatCurrency(item.conteoTotal || item.conciliacion?.contado || 0)}</div></div>
             <div class="history-metric-box"><div class="label">Diferencia</div><div class="val" style="color:${Math.abs(item.conciliacion?.diferencia || 0) < 0.01 ? 'var(--success)' : 'var(--danger)'}">${formatCurrency(item.conciliacion?.diferencia || 0)}</div></div>
+          </div>
+          <div class="history-card-action" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b; font-family:monospace;">🔑 ${k}</span>
+            <span class="btn btn-sm btn-firebase" style="padding:4px 12px; font-size:0.8rem; pointer-events:none; display:inline-flex; align-items:center; gap:5px;">
+              <span>📄</span> Ver PDF Oficial
+            </span>
           </div>
         `;
       }
+
+      const isChica = currentHistTipo === 'chica';
+      card.addEventListener('click', () => {
+        openReportPdfViewer(item, isChica, k);
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openReportPdfViewer(item, isChica, k);
+        }
+      });
       container.appendChild(card);
     });
   }
@@ -3314,6 +3591,20 @@
     document.getElementById('btn-refresh-history')?.addEventListener('click', () => {
       loadHistorial(document.getElementById('historial_filtro_fecha')?.value || null);
       showToast('Historial recargado desde Firebase', 'success');
+    });
+
+    // Eventos del Visor de Reportes PDF
+    const modalViewPdf = document.getElementById('modal-view-pdf-report');
+    modalViewPdf?.addEventListener('click', (e) => {
+      if (e.target === modalViewPdf) closeReportPdfModal();
+    });
+    document.getElementById('btn-close-pdf-modal')?.addEventListener('click', closeReportPdfModal);
+    document.getElementById('btn-download-modal-pdf')?.addEventListener('click', downloadPdfFromViewer);
+    document.getElementById('btn-print-modal-pdf')?.addEventListener('click', printPdfFromViewer);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalViewPdf && modalViewPdf.style.display !== 'none') {
+        closeReportPdfModal();
+      }
     });
 
     // -----------------------------------------------------------------------
