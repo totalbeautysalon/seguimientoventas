@@ -1870,6 +1870,148 @@ const TB_FIREBASE = (function () {
     return { success: true };
   }
 
+
+  // =========================================================================
+  // GESTIÓN Y DESCARGA DE USUARIOS DESDE FIREBASE AUTHENTICATION & RTDB
+  // =========================================================================
+
+  async function downloadFirebaseUsers() {
+    try {
+      // 1. Obtener usuarios configurados en Firebase Realtime Database
+      let userList = [];
+      try {
+        const resRoles = await fetch(getDbUrl('configuracion/usuarios_roles') + `?t=${Date.now()}`);
+        if (resRoles.ok) {
+          const json = await resRoles.json();
+          if (json && json.items) {
+            userList = Array.isArray(json.items) ? json.items : Object.values(json.items);
+          }
+        }
+      } catch (e) {
+        console.warn('Error al leer configuracion/usuarios_roles:', e);
+      }
+
+      // 2. Escanear usuarios con actividad en la base de datos de Firebase
+      const discoveredEmails = new Set();
+      try {
+        const resAudit = await fetch(getDbUrl('auditoria_movimientos') + `?t=${Date.now()}`);
+        if (resAudit.ok) {
+          const auditObj = await resAudit.json();
+          if (auditObj && typeof auditObj === 'object') {
+            Object.values(auditObj).forEach(item => {
+              if (item && item.usuario && item.usuario.includes('@')) {
+                discoveredEmails.add(item.usuario.toLowerCase().trim());
+              }
+            });
+          }
+        }
+      } catch (e) { console.warn('Scan audit users error:', e); }
+
+      try {
+        const resArqueos = await fetch(getDbUrl('arqueos_caja') + `?t=${Date.now()}`);
+        if (resArqueos.ok) {
+          const arqObj = await resArqueos.json();
+          if (arqObj && typeof arqObj === 'object') {
+            Object.values(arqObj).forEach(item => {
+              if (item && item.responsable && item.responsable.includes('@')) {
+                discoveredEmails.add(item.responsable.toLowerCase().trim());
+              }
+              if (item && item.userEmail && item.userEmail.includes('@')) {
+                discoveredEmails.add(item.userEmail.toLowerCase().trim());
+              }
+            });
+          }
+        }
+      } catch (e) { console.warn('Scan arqueos users error:', e); }
+
+      if (!Array.isArray(userList)) userList = [];
+
+      // 3. Garantizar siempre a francisco@totalb.com como Administrador Principal
+      let fran = userList.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
+      const allModules = [
+        'arqueo-principal', 'arqueo-chica', 'historial', 'ventas',
+        'balancescore', 'ingresos', 'interesadas', 'campana',
+        'configuracion', 'auditoria'
+      ];
+
+      if (!fran) {
+        userList.unshift({
+          email: 'francisco@totalb.com',
+          nombre: 'Francisco (Admin Principal)',
+          rol: 'Administrador',
+          isAdmin: true,
+          modulos: [...allModules],
+          origen: 'Firebase Cloud',
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        fran.rol = 'Administrador';
+        fran.isAdmin = true;
+        fran.modulos = [...allModules];
+        fran.origen = 'Firebase Cloud';
+      }
+
+      // 4. Agregar usuarios descubiertos que no estén en la lista
+      discoveredEmails.forEach(em => {
+        if (!userList.some(u => (u.email || '').toLowerCase().trim() === em)) {
+          userList.push({
+            email: em,
+            nombre: em.split('@')[0],
+            rol: 'Recepción y Ventas',
+            isAdmin: false,
+            modulos: ['ventas', 'ingresos', 'interesadas'],
+            origen: 'Firebase Actividad',
+            updatedAt: new Date().toISOString()
+          });
+        }
+      });
+
+      // Guardar lista sincronizada en Firebase
+      await saveCatalogo('usuarios_roles', userList);
+      return { success: true, users: userList };
+    } catch (err) {
+      console.error('Error al descargar usuarios de Firebase:', err);
+      return { success: false, error: err.message, users: [] };
+    }
+  }
+
+  async function registerNewFirebaseUser(email, password, nombre = '') {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      return { success: false, error: 'Correo y contraseña requeridos' };
+    }
+
+    try {
+      const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: password,
+          returnSecureToken: false
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        const errMsg = translateAuthError(data.error?.message || 'Error al registrar usuario en Firebase');
+        return { success: false, error: errMsg };
+      }
+
+      return {
+        success: true,
+        user: {
+          email: cleanEmail,
+          nombre: nombre || cleanEmail.split('@')[0],
+          localId: data.localId
+        }
+      };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
   return {
 
     CONFIG,
@@ -1959,7 +2101,9 @@ const TB_FIREBASE = (function () {
     deleteEntregaDinero,
     saveFondoBaseCaja,
     saveCajaChicaConfig,
-    getCajaChicaConfig
+    getCajaChicaConfig,
+    downloadFirebaseUsers,
+    registerNewFirebaseUser
 
   };
 

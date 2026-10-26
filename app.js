@@ -3350,7 +3350,10 @@
     if (tabKey === 'metas') renderCatMetasTable();
     renderUsuariosRolesView();
     if (tabKey === 'cajachica') loadCajaChicaFundData();
-    if (tabKey === 'usuarios') renderUsuariosRolesView();
+    if (tabKey === 'usuarios') {
+      renderUsuariosRolesView();
+      descargarUsuariosDeFirebase(false);
+    }
   }
 
   async function loadCatalogsData() {
@@ -6041,6 +6044,49 @@
     }
   }
 
+
+  async function descargarUsuariosDeFirebase(showNotification = true) {
+    const btnHeader = document.getElementById('btn-descargar-usuarios-fb');
+    const btnTable = document.getElementById('btn-descargar-usuarios-fb-table');
+    const spin = document.getElementById('spin-descargar-fb');
+    const icon = document.getElementById('icon-descargar-fb');
+    const text = document.getElementById('text-descargar-fb');
+
+    if (spin) spin.style.display = 'inline-block';
+    if (icon) icon.style.display = 'none';
+    if (text) text.textContent = 'Descargando...';
+    if (btnHeader) btnHeader.disabled = true;
+    if (btnTable) btnTable.disabled = true;
+
+    if (showNotification) {
+      showToast('Descargando usuarios registrados en Firebase...', 'info');
+    }
+
+    try {
+      const res = await TB_FIREBASE.downloadFirebaseUsers();
+      if (res && res.success && Array.isArray(res.users)) {
+        catUsuariosRoles = res.users;
+        renderUsuariosRolesTable();
+        if (showNotification) {
+          showToast(`✅ Se descargaron ${catUsuariosRoles.length} usuarios registrados en Firebase`, 'success');
+        }
+      } else {
+        if (showNotification) {
+          showToast('No se pudieron descargar los usuarios: ' + (res?.error || 'Error de conexión'), 'error');
+        }
+      }
+    } catch (e) {
+      console.error('Error al descargar usuarios de Firebase:', e);
+      if (showNotification) showToast('Error al conectar con Firebase', 'error');
+    } finally {
+      if (spin) spin.style.display = 'none';
+      if (icon) icon.style.display = 'inline-block';
+      if (text) text.textContent = 'Descargar Usuarios de Firebase';
+      if (btnHeader) btnHeader.disabled = false;
+      if (btnTable) btnTable.disabled = false;
+    }
+  }
+
   function renderUsuariosRolesTable() {
     const tbody = document.getElementById('tbody-usuarios-roles');
     const badgeCount = document.getElementById('badge-total-usuarios');
@@ -6218,6 +6264,8 @@
     const emailInput = document.getElementById('cfg_user_email');
     const nombreInput = document.getElementById('cfg_user_nombre');
     const rolSelect = document.getElementById('cfg_user_rol_select');
+    const chkCrearAuth = document.getElementById('chk-crear-en-auth');
+    const pwdInput = document.getElementById('cfg_user_password');
 
     const email = (emailInput?.value || '').trim();
     const nombre = (nombreInput?.value || '').trim();
@@ -6226,6 +6274,28 @@
     if (!email) {
       showToast('Por favor ingrese un correo válido de Firebase Auth', 'warning');
       return;
+    }
+
+    // Si se marcó crear en Firebase Authentication
+    if (chkCrearAuth && chkCrearAuth.checked) {
+      const pwd = (pwdInput?.value || '').trim();
+      if (!pwd || pwd.length < 6) {
+        showToast('La contraseña para Firebase Auth debe tener al menos 6 caracteres', 'warning');
+        if (pwdInput) pwdInput.focus();
+        return;
+      }
+      showToast('Registrando cuenta en Firebase Authentication...', 'info');
+      const resAuth = await TB_FIREBASE.registerNewFirebaseUser(email, pwd, nombre);
+      if (!resAuth.success) {
+        if (!resAuth.error.includes('ya está registrado')) {
+          showToast('Error al crear en Firebase Auth: ' + resAuth.error, 'error');
+          return;
+        } else {
+          showToast('El correo ya existía en Firebase Auth. Se actualizarán sus permisos.', 'info');
+        }
+      } else {
+        showToast(`✅ Cuenta ${email} creada exitosamente en Firebase Authentication`, 'success');
+      }
     }
 
     const isFran = (email.toLowerCase() === 'francisco@totalb.com');
@@ -6374,6 +6444,28 @@
     });
 
     document.getElementById('form-user-permissions')?.addEventListener('submit', handleUserPermissionsSubmit);
+
+    // Botones de descarga de usuarios desde Firebase
+    document.getElementById('btn-descargar-usuarios-fb')?.addEventListener('click', () => {
+      descargarUsuariosDeFirebase(true);
+    });
+
+    document.getElementById('btn-descargar-usuarios-fb-table')?.addEventListener('click', () => {
+      descargarUsuariosDeFirebase(true);
+    });
+
+    // Toggle de creación en Firebase Auth
+    document.getElementById('chk-crear-en-auth')?.addEventListener('change', (e) => {
+      const wrap = document.getElementById('wrap-password-auth');
+      if (wrap) wrap.style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('btn-toggle-new-user-pwd')?.addEventListener('click', () => {
+      const inp = document.getElementById('cfg_user_password');
+      if (inp) {
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      }
+    });
   }
 
   function initAuthSystem() {
