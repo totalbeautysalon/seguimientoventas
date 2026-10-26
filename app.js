@@ -91,7 +91,7 @@
     },
     'balancescore': {
       title: 'BalanceScore por Estaciones',
-      desc: 'Medición de metas de ingresos y calidad operativa en las 6 estaciones de trabajo'
+      desc: 'Medición de metas de ingresos y calidad operativa en las estaciones de trabajo'
     },
     'ingresos': {
       title: 'Reporte Diario de Ingresos',
@@ -131,7 +131,12 @@
 
     const info = moduleTitles[modKey] || { title: 'Total Beauty', desc: '' };
     document.getElementById('topbar-module-title').textContent = info.title;
-    document.getElementById('topbar-module-desc').textContent = info.desc;
+    let modDesc = info.desc;
+    if (modKey === 'balancescore') {
+      const numEst = (catEstaciones && catEstaciones.length > 0) ? catEstaciones.length : 0;
+      modDesc = `Medición de metas de ingresos y calidad operativa en las ${numEst} estaciones de trabajo`;
+    }
+    document.getElementById('topbar-module-desc').textContent = modDesc;
 
     document.getElementById('app-sidebar')?.classList.remove('open');
 
@@ -1881,6 +1886,16 @@
     return { fechaInicio, fechaFin, diasPeriodo, factorPeriodo, periodoTexto, esAvanceMes };
   }
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function getActiveStationMetas() {
     // Toma directamente los datos de Estaciones de Trabajo + la dimensión de Cursos (SOLO lo guardado en Firebase)
     const estacionesList = (catEstaciones && catEstaciones.length > 0) ? catEstaciones.map(e => ({
@@ -1888,20 +1903,38 @@
       nombre: e.nombre,
       icono: e.icono || '💈',
       metaQuincenal: parseFloat(e.metaQuincenal || e.meta || 0),
-      clientesMeta: parseInt(e.clientesMeta || e.metaClientes || 0, 10)
+      clientesMeta: parseInt(e.clientesMeta || e.metaClientes || 0, 10),
+      isCurso: (e.nombre || '').toLowerCase().includes('curso') || (e.nombre || '').toLowerCase().includes('academia')
     })) : [];
 
-    // Incluir Cursos si tiene meta configurada o si existen estaciones configuradas
-    if (catCursosMeta && (catCursosMeta.metaQuincenal > 0 || catCursosMeta.clientesMeta > 0 || estacionesList.length > 0)) {
-      return [...estacionesList, catCursosMeta];
+    const yaTieneCursos = estacionesList.some(e => e.isCurso || e.id === 'Cursos');
+    if (!yaTieneCursos) {
+      const cursosMetaQuincenal = (catCursosMeta && catCursosMeta.metaQuincenal) ? parseFloat(catCursosMeta.metaQuincenal) : 0;
+      const cursosClientesMeta = (catCursosMeta && catCursosMeta.clientesMeta) ? parseInt(catCursosMeta.clientesMeta, 10) : 0;
+      estacionesList.push({
+        id: 'Cursos',
+        nombre: (catCursosMeta && catCursosMeta.nombre) ? catCursosMeta.nombre : 'Academia Total Beauty (Cursos)',
+        icono: (catCursosMeta && catCursosMeta.icono) ? catCursosMeta.icono : '🎓',
+        metaQuincenal: cursosMetaQuincenal,
+        clientesMeta: cursosClientesMeta,
+        isCurso: true
+      });
     }
+
     return estacionesList;
   }
 
   async function renderBalanceScoreStations() {
     const container = document.getElementById('stations-grid-container');
     if (!container) return;
-    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--muted);">Cargando BalanceScore y ventas acumuladas...</div>';
+    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--muted);">Cargando Balanced Scorecard y ventas acumuladas...</div>';
+
+    // Actualizar descripción dinámica de topbar con el número real de estaciones
+    const numEst = (catEstaciones && catEstaciones.length > 0) ? catEstaciones.length : 0;
+    const topbarDesc = document.getElementById('topbar-module-desc');
+    if (topbarDesc && currentModule === 'balancescore') {
+      topbarDesc.textContent = `Medición de metas de ingresos y calidad operativa en las ${numEst} estaciones de trabajo`;
+    }
 
     const { fechaInicio, fechaFin, diasPeriodo, factorPeriodo, periodoTexto, esAvanceMes } = getBsActivePeriodRange();
 
@@ -1925,27 +1958,26 @@
           </a>
         </div>
       `;
-      const avgBadge = document.getElementById('bs-general-avg-badge');
-      if (avgBadge) { avgBadge.textContent = '0%'; avgBadge.className = 'summary-score-badge'; }
-      const totalVentasEl = document.getElementById('bs-kpi-total-ventas');
+      const avgBadge = document.getElementById('bs-overall-badge');
+      if (avgBadge) { avgBadge.textContent = 'Score General: 0%'; }
+      const totalVentasEl = document.getElementById('kpi-bs-ventas-total');
       if (totalVentasEl) totalVentasEl.textContent = '$0.00';
-      const totalMetaEl = document.getElementById('bs-kpi-total-meta');
+      const totalMetaEl = document.getElementById('kpi-bs-meta-total');
       if (totalMetaEl) totalMetaEl.textContent = '$0.00';
-      const totalClientesEl = document.getElementById('bs-kpi-total-clientes');
+      const totalClientesEl = document.getElementById('kpi-bs-clientes-total');
       if (totalClientesEl) totalClientesEl.textContent = '0';
-      const cumplimientoEl = document.getElementById('bs-kpi-cumplimiento');
+      const cumplimientoEl = document.getElementById('kpi-bs-pct-total');
       if (cumplimientoEl) cumplimientoEl.textContent = '0%';
       return;
     }
 
     container.innerHTML = '';
-    let totalScore = 0;
     let granTotalVentas = 0;
     let granTotalMeta = 0;
     let granTotalClientes = 0;
 
     activeMetas.forEach(st => {
-      const isCursos = st.id === 'Cursos' || (st.nombre || '').toLowerCase().includes('curso');
+      const isCursos = st.id === 'Cursos' || (st.nombre || '').toLowerCase().includes('curso') || (st.nombre || '').toLowerCase().includes('academia') || st.isCurso;
 
       // Filtrar ventas de esta estación o de cursos
       let ventasSt = [];
@@ -1957,11 +1989,11 @@
         });
       } else {
         ventasSt = ventas.filter(v => {
-          const est = (v.estacion || '').toLowerCase();
-          const serv = (v.servicio || '').toLowerCase();
-          const matchEst = est.includes(st.id.toLowerCase()) || est.includes((st.nombre || '').toLowerCase());
-          // Evitar que cursos se cuenten en estaciones de servicio estándar
-          const esCurso = est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller');
+          const est = (v.estacion || '').trim().toLowerCase();
+          const serv = (v.servicio || '').trim().toLowerCase();
+          const stName = (st.nombre || st.id || '').trim().toLowerCase();
+          const esCurso = est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller') || v.tipo === 'Curso';
+          const matchEst = est === stName || est.includes(stName) || stName.includes(est);
           return matchEst && !esCurso;
         });
       }
@@ -1970,31 +2002,66 @@
       const clientesReales = ventasSt.length;
       const ticket = clientesReales > 0 ? (lograda / clientesReales) : 0;
 
+      // Desglose por método de pago y top servicios
+      let mEfec = 0;
+      let mTarj = 0;
+      let mTransf = 0;
+      const servCounts = {};
+
+      ventasSt.forEach(v => {
+        const val = parseFloat(v.totalCobrado) || 0;
+        const mp = (v.metodoPago || '').toLowerCase();
+        if (mp.includes('tarj')) mTarj += val;
+        else if (mp.includes('transf')) mTransf += val;
+        else mEfec += val;
+
+        const sKey = (v.servicio || '').trim();
+        if (sKey) servCounts[sKey] = (servCounts[sKey] || 0) + 1;
+      });
+
+      const topServicios = Object.entries(servCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([nombre, cant]) => `${nombre} (${cant})`)
+        .join(', ');
+
       // Calcular meta proporcional al período seleccionado
-      const metaQuincenalBase = parseFloat(st.metaQuincenal) || 15000;
+      const metaQuincenalBase = parseFloat(st.metaQuincenal) || 0;
       const metaPeriodo = Math.round(metaQuincenalBase * factorPeriodo);
-      const clientesMetaPeriodo = Math.max(1, Math.round((parseInt(st.clientesMeta, 10) || 15) * factorPeriodo));
+      const clientesMetaBase = parseInt(st.clientesMeta, 10) || 0;
+      const clientesMetaPeriodo = Math.round(clientesMetaBase * factorPeriodo);
 
       granTotalVentas += lograda;
       granTotalMeta += metaPeriodo;
       granTotalClientes += clientesReales;
 
+      // % REAL DE AVANCE (Sin fórmulas ficticias ni pisos artificiales de 40%)
       const pct = metaPeriodo > 0 ? Math.round((lograda / metaPeriodo) * 100) : (lograda > 0 ? 100 : 0);
-      const score = Math.min(100, Math.round((Math.min(100, pct) * 0.6) + 40));
-      totalScore += score;
 
-      // Barra de progreso y colores
+      // Color dinámico de desempeño real
       let barColor = '#ef4444'; // Rojo < 75%
-      if (pct >= 100) barColor = '#10b981'; // Verde >= 100%
-      else if (pct >= 75) barColor = '#f59e0b'; // Ámbar 75-99%
+      let badgeBg = '#ef4444';
+      if (pct >= 100) {
+        barColor = '#10b981'; // Verde >= 100%
+        badgeBg = '#10b981';
+      } else if (pct >= 75) {
+        barColor = '#f59e0b'; // Ámbar 75-99%
+        badgeBg = '#f59e0b';
+      } else if (pct > 0) {
+        barColor = '#3b82f6'; // Azul si hay ventas > 0
+        badgeBg = '#3b82f6';
+      } else {
+        barColor = '#cbd5e1'; // Gris si 0%
+        badgeBg = '#64748b';
+      }
 
       // Avance respecto al mes completo si aplica
       let avanceMensualHtml = '';
-      if (esAvanceMes) {
+      if (esAvanceMes && metaQuincenalBase > 0) {
         const metaMensualCompleta = metaQuincenalBase * 2;
         const pctMesCompleto = Math.round((lograda / metaMensualCompleta) * 100);
         avanceMensualHtml = `
-          <div style="font-size:0.72rem; color:var(--muted); margin-top:2px; display:flex; justify-content:space-between;">
+          <div style="font-size:0.73rem; color:var(--muted); margin-top:6px; display:flex; justify-content:space-between; border-top:1px dashed #e2e8f0; padding-top:4px;">
             <span>Avance vs Meta Mensual ($${formatCurrency(metaMensualCompleta)}):</span>
             <strong>${pctMesCompleto}%</strong>
           </div>
@@ -2002,56 +2069,124 @@
       }
 
       const card = document.createElement('div');
-      card.className = 'station-card';
+      card.className = `station-scorecard-card ${isCursos ? 'card-academia' : ''}`;
+      
+      const headerBg = isCursos 
+        ? 'linear-gradient(135deg, #065f46, #047857)' 
+        : 'linear-gradient(135deg, #1e293b, #0f172a)';
+      const typeLabel = isCursos ? 'Academia Total Beauty' : 'Estación de Trabajo';
+
       card.innerHTML = `
-        <div class="station-card-header" style="background:${isCursos ? 'linear-gradient(135deg, #065f46, #047857)' : 'linear-gradient(135deg, #1e293b, #0f172a)'}">
-          <div class="station-title">
-            <span>${st.icono || '💈'}</span>
-            <span>${st.nombre}</span>
+        <div style="background:${headerBg}; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="station-header-icon">${st.icono || (isCursos ? '🎓' : '💈')}</span>
+            <div>
+              <span class="station-header-name">${escapeHtml(st.nombre)}</span>
+              <span class="station-header-type">${typeLabel}</span>
+            </div>
           </div>
-          <span class="station-score-badge">${score}%</span>
+          <span style="background:${badgeBg}; color:#fff; font-size:0.85rem; font-weight:800; padding:4px 12px; border-radius:20px; box-shadow:0 2px 4px rgba(0,0,0,0.15);">
+            ${pct}%
+          </span>
         </div>
-        <div class="station-card-body">
-          <div class="station-progress-wrap">
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:700;">
-              <span>Avance del Período: ${pct}%</span>
-              <span>${formatCurrency(lograda)} / ${formatCurrency(metaPeriodo)}</span>
+
+        <div style="padding:14px; display:flex; flex-direction:column; flex:1;">
+          
+          <!-- Caja de Ingresos vs Meta -->
+          <div class="station-revenue-box">
+            <div class="revenue-row-main">
+              <div>
+                <span class="revenue-sublabel">Ingresos Reales</span>
+                <div class="revenue-main-val">${formatCurrency(lograda)}</div>
+              </div>
+              <div style="text-align:right;">
+                <span class="revenue-sublabel">Meta Período</span>
+                <div class="revenue-target-val">${formatCurrency(metaPeriodo)}</div>
+              </div>
             </div>
-            <div class="progress-bar-bg" style="margin-top:4px;">
-              <div class="progress-bar-fill" style="width:${Math.min(100, pct)}%; background:${barColor}"></div>
+
+            <!-- Barra de Avance -->
+            <div class="progress-bar-bg" style="height:9px; background:#e2e8f0; border-radius:5px; overflow:hidden;">
+              <div class="progress-bar-fill" style="width:${Math.min(100, pct)}%; background:${barColor}; height:100%; border-radius:5px; transition:width 0.4s ease;"></div>
             </div>
+
+            <div class="progress-meta-text">
+              <span style="color:${barColor}; font-weight:700;">${pct}% alcanzado</span>
+              <span style="color:var(--muted);">${metaPeriodo > lograda ? `Faltan: ${formatCurrency(metaPeriodo - lograda)}` : '¡Objetivo superado!'}</span>
+            </div>
+
+            ${pct >= 100 ? `
+              <div style="margin-top:8px; text-align:center;">
+                <span style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:12px; display:inline-block;">
+                  🏆 ¡Meta del Período Superada!
+                </span>
+              </div>
+            ` : ''}
+
             ${avanceMensualHtml}
-            ${pct >= 100 ? '<div style="margin-top:4px;"><span class="badge-meta-superada">🏆 ¡Meta del Período Superada!</span></div>' : ''}
           </div>
 
-          <div class="station-metrics-row">
-            <div class="history-metric-box">
-              <div class="label">${isCursos ? 'Alumnas Reales' : 'Clientes Reales'}</div>
-              <div class="val">${clientesReales} / Meta: ${clientesMetaPeriodo}</div>
+          <!-- Métricas de Clientes y Ticket Promedio -->
+          <div class="station-kpi-subgrid">
+            <div class="station-kpi-pill">
+              <span class="pill-label">${isCursos ? 'Alumnas Atendidas' : 'Clientas Atendidas'}</span>
+              <span class="pill-val">${clientesReales} <small style="font-size:0.7rem; color:var(--muted); font-weight:600;">/ Meta: ${clientesMetaPeriodo}</small></span>
             </div>
-            <div class="history-metric-box">
-              <div class="label">Ticket Promedio</div>
-              <div class="val">${formatCurrency(ticket)}</div>
+            <div class="station-kpi-pill">
+              <span class="pill-label">Ticket Promedio</span>
+              <span class="pill-val">${formatCurrency(ticket)}</span>
             </div>
           </div>
 
-          <div class="checklist-group">
-            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Inscripciones y temarios vigentes' : 'Limpieza y desinfección de estación'}</label>
-            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Asistencia y seguimiento académico' : 'Puntualidad en citas programadas'}</label>
-            <label class="checklist-item"><input type="checkbox" checked> Experiencia Total Beauty de calidad</label>
-            <label class="checklist-item"><input type="checkbox" checked> ${isCursos ? 'Venta de kits y cursos avanzados' : 'Sugerencia de producto y venta cruzada'}</label>
+          <!-- Desglose de Métodos de Pago -->
+          <div class="station-metodos-section">
+            <div class="metodos-section-title">
+              <span>💳</span> Desglose de Cobros
+            </div>
+            <div class="station-metodos-chips">
+              <span class="station-metodo-chip" style="background:#ecfdf5; color:#166534; border:1px solid #bbf7d0;">
+                💵 Efec: <strong>${formatCurrency(mEfec)}</strong>
+              </span>
+              <span class="station-metodo-chip" style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;">
+                💳 Tarj: <strong>${formatCurrency(mTarj)}</strong>
+              </span>
+              <span class="station-metodo-chip" style="background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe;">
+                📱 Transf: <strong>${formatCurrency(mTransf)}</strong>
+              </span>
+            </div>
           </div>
+
+          <!-- Top Servicios / Cursos -->
+          <div class="station-top-services" style="margin-top:auto;">
+            <strong>⭐ ${isCursos ? 'Cursos más solicitados:' : 'Servicios más realizados:'}</strong><br>
+            <span>${topServicios || 'Sin operaciones registradas en el período'}</span>
+          </div>
+
         </div>
       `;
       container.appendChild(card);
     });
 
-    // Actualizar KPIs de resumen global
-    const overallScore = activeMetas.length > 0 ? Math.round(totalScore / activeMetas.length) : 0;
-    const pctGlobal = granTotalMeta > 0 ? Math.round((granTotalVentas / granTotalMeta) * 100) : 0;
+    // Actualizar KPIs de resumen global con PORCENTAJES 100% REALES
+    const pctGlobal = granTotalMeta > 0 ? Math.round((granTotalVentas / granTotalMeta) * 100) : (granTotalVentas > 0 ? 100 : 0);
 
     const bBadge = document.getElementById('bs-overall-badge');
-    if (bBadge) bBadge.textContent = `Score Salón & Cursos: ${overallScore}%`;
+    if (bBadge) {
+      bBadge.textContent = `Score General: ${pctGlobal}%`;
+      if (pctGlobal >= 100) {
+        bBadge.style.background = '#10b981';
+        bBadge.style.color = '#ffffff';
+      } else if (pctGlobal >= 75) {
+        bBadge.style.background = '#f59e0b';
+        bBadge.style.color = '#ffffff';
+      } else if (pctGlobal > 0) {
+        bBadge.style.background = '#3b82f6';
+        bBadge.style.color = '#ffffff';
+      } else {
+        bBadge.style.background = '#64748b';
+        bBadge.style.color = '#ffffff';
+      }
+    }
 
     const kv = document.getElementById('kpi-bs-ventas-total');
     if (kv) kv.textContent = formatCurrency(granTotalVentas);
