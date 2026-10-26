@@ -999,14 +999,15 @@
            ================================================================ -->
       <section class="module-view" id="view-ventas">
 
-        <!-- Barra de Filtros y Acciones -->
-        <div class="filter-bar">
-          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label for="ventas_filtro_fecha" style="font-weight:700; color:var(--dark);">Fecha de Ventas:</label>
-            <input type="date" id="ventas_filtro_fecha" class="input-date" style="max-width:180px;">
+        <!-- Barra Superior: Filtro de Fecha y Enlace Rápido -->
+        <div class="ventas-top-filter-bar">
+          <div class="ventas-date-picker-wrap">
+            <span class="filter-icon">📅</span>
+            <label for="ventas_filtro_fecha" style="font-weight:700; color:var(--dark); font-size:0.9rem;">Fecha de Ventas:</label>
+            <input type="date" id="ventas_filtro_fecha" class="input-date styled-date-input" style="max-width:180px;">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-ventas-hoy">Hoy</button>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div style="display:flex; gap:10px; align-items:center;">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-ventas-caja">
               <span>🔄</span> Pasar a Caja Principal
             </button>
@@ -1014,161 +1015,280 @@
         </div>
 
         <!-- KPIs Resumen de Ventas del Día -->
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <span class="kpi-label">Total Cobrado Hoy</span>
-            <span class="kpi-value" id="kpi-ventas-total">$0.00</span>
+        <div class="ventas-kpi-grid">
+          <div class="ventas-kpi-card kpi-cobrado">
+            <div class="ventas-kpi-icon">💰</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Total Cobrado Hoy</span>
+              <span class="ventas-kpi-val" id="kpi-ventas-total">$0.00</span>
+            </div>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Ventas en Efectivo</span>
-            <span class="kpi-value" id="kpi-ventas-efectivo">$0.00</span>
+          <div class="ventas-kpi-card kpi-efectivo">
+            <div class="ventas-kpi-icon">💵</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Ventas en Efectivo</span>
+              <span class="ventas-kpi-val" id="kpi-ventas-efectivo">$0.00</span>
+            </div>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Ventas con Tarjeta</span>
-            <span class="kpi-value" id="kpi-ventas-tarjeta">$0.00</span>
+          <div class="ventas-kpi-card kpi-tarjeta">
+            <div class="ventas-kpi-icon">💳</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Ventas con Tarjeta</span>
+              <span class="ventas-kpi-val" id="kpi-ventas-tarjeta">$0.00</span>
+            </div>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Transferencias</span>
-            <span class="kpi-value" id="kpi-ventas-transf">$0.00</span>
+          <div class="ventas-kpi-card kpi-transf">
+            <div class="ventas-kpi-icon">📱</div>
+            <div class="ventas-kpi-content">
+              <span class="ventas-kpi-label">Transferencias</span>
+              <span class="ventas-kpi-val" id="kpi-ventas-transf">$0.00</span>
+            </div>
           </div>
         </div>
 
-        <!-- Formulario de Registro de Nueva Venta -->
+        <!-- Formulario Rediseñado: Registrar Nueva Venta del Día -->
         <div class="ventas-form-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+          <div class="ventas-card-banner">
             <div>
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+              <h3 style="font-size:1.15rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px; margin:0;">
                 <span>➕</span> Registrar Nueva Venta del Día
               </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Los campos marcados con asterisco (<span class="required">*</span>) son obligatorios.</p>
+              <p style="font-size:0.82rem; color:var(--muted); margin:4px 0 0 0;">
+                Ingrese los datos del servicio o producto cobrado. Se sincroniza automáticamente con Caja Principal.
+              </p>
             </div>
-            <span class="kpi-status-badge badge-cuadrada" id="ventas-badge-operaciones">0 Operaciones</span>
+            <span class="kpi-status-badge badge-cuadrada" id="ventas-badge-operaciones" style="font-size:0.82rem; padding:6px 14px;">0 Operaciones</span>
           </div>
 
           <form id="form-nueva-venta" autocomplete="off">
-            <div class="ventas-form-grid">
+            <div class="ventas-stepper-container">
               
-              <div class="form-group">
-                <label for="venta_fecha">Fecha <span class="required">*</span></label>
-                <input type="date" id="venta_fecha" class="input-date" required>
-              </div>
-
-              <div class="form-group">
-                <label for="venta_telefono">Teléfono</label>
-                <input type="tel" id="venta_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678 (opcional)">
-              </div>
-
-              <div class="form-group">
-                <label for="venta_clienta">Nombre de la clienta</label>
-                <input type="text" id="venta_clienta" class="input-text" placeholder="Nombre completo (opcional)">
-              </div>
-
-              <div class="form-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <label for="venta_servicio">Servicio o producto <span class="required">*</span></label>
-                  <a href="#" class="btn-goto-config" data-config-tab="servicios" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
+              <!-- Paso 1: Clienta y Fecha -->
+              <div class="ventas-form-section-card">
+                <div class="ventas-section-header">
+                  <div class="ventas-step-number">1</div>
+                  <div>
+                    <h4 class="ventas-section-title">Clienta y Fecha</h4>
+                    <span class="ventas-section-subtitle">Identificación de la visita o compra</span>
+                  </div>
                 </div>
-                <select id="venta_servicio" class="input-text" required>
-                  <option value="" disabled selected>Seleccione servicio o producto...</option>
-                </select>
-              </div>
+                <div class="ventas-section-grid-3">
+                  <div class="form-group">
+                    <label for="venta_fecha"><span class="form-icon">📅</span> Fecha <span class="required">*</span></label>
+                    <input type="date" id="venta_fecha" class="input-date styled-input" required>
+                  </div>
 
-              <div class="form-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <label for="venta_estacion">Estación <span class="required">*</span></label>
-                  <a href="#" class="btn-goto-config" data-config-tab="estaciones" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
-                </div>
-                <select id="venta_estacion" class="input-text" required>
-                  <option value="" disabled selected>Seleccione la estación...</option>
-                </select>
-              </div>
+                  <div class="form-group">
+                    <label for="venta_clienta"><span class="form-icon">👤</span> Nombre de la Clienta</label>
+                    <input type="text" id="venta_clienta" class="input-text styled-input" placeholder="Nombre completo o Cliente Mostrador">
+                  </div>
 
-              <div class="form-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <label for="venta_especialista">Especialista <span class="required">*</span></label>
-                  <a href="#" class="btn-goto-config" data-config-tab="especialistas" style="font-size:0.75rem; color:var(--primary); text-decoration:none; font-weight:600;">⚙️ Configurar</a>
-                </div>
-                <select id="venta_especialista" class="input-text" required>
-                  <option value="" disabled selected>Seleccione especialista...</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="venta_metodo_pago">Método de pago <span class="required">*</span></label>
-                <select id="venta_metodo_pago" class="input-text" required>
-                  <option value="Efectivo" selected>💵 Efectivo</option>
-                  <option value="Tarjeta">💳 Tarjeta / Terminal</option>
-                  <option value="Transferencia">📱 Transferencia Bancaria</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="venta_total">Total cobrado <span class="required">*</span></label>
-                <div class="currency-input-wrap">
-                  <span class="currency-prefix">$</span>
-                  <input type="number" step="0.01" min="0" class="input-currency" id="venta_total" placeholder="0.00" required>
+                  <div class="form-group">
+                    <label for="venta_telefono"><span class="form-icon">📱</span> Teléfono WhatsApp</label>
+                    <input type="tel" id="venta_telefono" class="input-text styled-input" placeholder="10 dígitos (opcional)">
+                  </div>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="venta_status_pago">Status del pago <span class="required">*</span></label>
-                <select id="venta_status_pago" class="input-text" required>
-                  <option value="Pagado completo" selected>✅ Pagado completo</option>
-                  <option value="Anticipo">🟡 Anticipo</option>
-                  <option value="Saldo pendiente">🔴 Saldo pendiente</option>
-                </select>
+              <!-- Paso 2: Servicio, Estación y Especialista -->
+              <div class="ventas-form-section-card">
+                <div class="ventas-section-header">
+                  <div class="ventas-step-number">2</div>
+                  <div>
+                    <h4 class="ventas-section-title">Servicio y Estación</h4>
+                    <span class="ventas-section-subtitle">¿Qué servicio se realizó y quién atendió?</span>
+                  </div>
+                </div>
+                <div class="ventas-section-grid-3">
+                  <div class="form-group">
+                    <div class="label-with-action">
+                      <label for="venta_servicio"><span class="form-icon">✂️</span> Servicio o Producto <span class="required">*</span></label>
+                      <a href="#" class="btn-goto-config config-mini-link" data-config-tab="servicios" title="Configurar catálogo de servicios">⚙️ Configurar</a>
+                    </div>
+                    <select id="venta_servicio" class="input-text styled-select" required>
+                      <option value="" disabled selected>Seleccione servicio o producto...</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <div class="label-with-action">
+                      <label for="venta_estacion"><span class="form-icon">🪞</span> Estación de Trabajo <span class="required">*</span></label>
+                      <a href="#" class="btn-goto-config config-mini-link" data-config-tab="estaciones" title="Configurar estaciones de trabajo">⚙️ Configurar</a>
+                    </div>
+                    <select id="venta_estacion" class="input-text styled-select" required>
+                      <option value="" disabled selected>Seleccione la estación...</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <div class="label-with-action">
+                      <label for="venta_especialista"><span class="form-icon">💅</span> Especialista <span class="required">*</span></label>
+                      <a href="#" class="btn-goto-config config-mini-link" data-config-tab="especialistas" title="Configurar especialistas">⚙️ Configurar</a>
+                    </div>
+                    <select id="venta_especialista" class="input-text styled-select" required>
+                      <option value="" disabled selected>Seleccione especialista...</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              <div class="form-group form-group-full">
-                <label for="venta_notas">Notas</label>
-                <input type="text" id="venta_notas" class="input-text" placeholder="Observaciones adicionales, saldo pendiente a liquidar, promociones aplicadas...">
+              <!-- Paso 3: Cobro y Estatus -->
+              <div class="ventas-form-section-card highlight-card">
+                <div class="ventas-section-header">
+                  <div class="ventas-step-number step-accent">3</div>
+                  <div>
+                    <h4 class="ventas-section-title">Cobro y Método de Pago</h4>
+                    <span class="ventas-section-subtitle">Importe cobrado y forma de liquidación</span>
+                  </div>
+                </div>
+
+                <div class="ventas-cobro-grid">
+                  <!-- Hero Box para el Total Cobrado -->
+                  <div class="form-group cobro-hero-wrap">
+                    <label for="venta_total" class="cobro-hero-label">
+                      <span>💰</span> TOTAL COBRADO <span class="required">*</span>
+                    </label>
+                    <div class="cobro-hero-input-wrap">
+                      <span class="cobro-currency-sym">$</span>
+                      <input type="number" step="0.01" min="0" class="cobro-hero-input" id="venta_total" placeholder="0.00" required>
+                    </div>
+                  </div>
+
+                  <!-- Selector visual de Método de Pago -->
+                  <div class="form-group">
+                    <label style="font-weight:700; margin-bottom:6px; display:block;"><span class="form-icon">💳</span> Método de Pago <span class="required">*</span></label>
+                    <div class="metodo-pago-pills-wrap" id="metodo-pago-selector">
+                      <button type="button" class="btn-metodo-pill active" data-metodo="Efectivo">
+                        <span class="pill-icon">💵</span>
+                        <span class="pill-name">Efectivo</span>
+                      </button>
+                      <button type="button" class="btn-metodo-pill" data-metodo="Tarjeta">
+                        <span class="pill-icon">💳</span>
+                        <span class="pill-name">Tarjeta</span>
+                      </button>
+                      <button type="button" class="btn-metodo-pill" data-metodo="Transferencia">
+                        <span class="pill-icon">📱</span>
+                        <span class="pill-name">Transferencia</span>
+                      </button>
+                    </div>
+                    <!-- Select original sincronizado para compatibilidad 100% -->
+                    <select id="venta_metodo_pago" class="input-text" style="display:none;" required>
+                      <option value="Efectivo" selected>💵 Efectivo</option>
+                      <option value="Tarjeta">💳 Tarjeta / Terminal</option>
+                      <option value="Transferencia">📱 Transferencia Bancaria</option>
+                    </select>
+                  </div>
+
+                  <!-- Selector visual de Estatus de Pago -->
+                  <div class="form-group">
+                    <label style="font-weight:700; margin-bottom:6px; display:block;"><span class="form-icon">🏷️</span> Status del Pago <span class="required">*</span></label>
+                    <div class="status-pago-pills-wrap" id="status-pago-selector">
+                      <button type="button" class="btn-status-pill active" data-status="Pagado completo">
+                        <span class="pill-icon">✅</span>
+                        <span class="pill-name">Pagado Completo</span>
+                      </button>
+                      <button type="button" class="btn-status-pill" data-status="Anticipo">
+                        <span class="pill-icon">🟡</span>
+                        <span class="pill-name">Anticipo</span>
+                      </button>
+                      <button type="button" class="btn-status-pill" data-status="Saldo pendiente">
+                        <span class="pill-icon">🔴</span>
+                        <span class="pill-name">Saldo Pendiente</span>
+                      </button>
+                    </div>
+                    <!-- Select original sincronizado para compatibilidad 100% -->
+                    <select id="venta_status_pago" class="input-text" style="display:none;" required>
+                      <option value="Pagado completo" selected>✅ Pagado completo</option>
+                      <option value="Anticipo">🟡 Anticipo</option>
+                      <option value="Saldo pendiente">🔴 Saldo pendiente</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Notas u Observaciones -->
+                <div class="form-group" style="margin-top:14px;">
+                  <label for="venta_notas"><span class="form-icon">📝</span> Notas u Observaciones</label>
+                  <input type="text" id="venta_notas" class="input-text styled-input" placeholder="Promociones aplicadas, saldo pendiente por liquidar, especificaciones...">
+                </div>
               </div>
 
-            </div>
+              <!-- Barra de Acciones del Formulario -->
+              <div class="ventas-actions-bar">
+                <button type="reset" class="btn btn-secondary btn-sm" id="btn-limpiar-form-venta">
+                  <span>🔄</span> Limpiar
+                </button>
+                <button type="submit" class="btn btn-primary" id="btn-guardar-venta" style="padding:10px 28px; font-size:1rem; font-weight:700; box-shadow:0 4px 14px rgba(225, 29, 72, 0.25);">
+                  <span>💾</span> Guardar Venta
+                </button>
+              </div>
 
-            <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
-              <button type="reset" class="btn btn-secondary btn-sm" id="btn-limpiar-form-venta">Limpiar</button>
-              <button type="submit" class="btn btn-primary" id="btn-guardar-venta">
-                <span>💾</span> Guardar Venta
-              </button>
             </div>
           </form>
         </div>
 
-        <!-- Tabla de Ventas Registradas para el Día -->
+        <!-- Listado Visual de Ventas Registradas -->
         <div class="form-section">
-          <div class="section-header">
+          <div class="section-header" style="flex-wrap:wrap; gap:12px;">
             <div class="section-title-wrap">
-              <span class="section-badge">VT</span>
+              <span class="section-badge" style="background:#0f172a; color:#fff;">🛍️</span>
               <div>
                 <h2 class="section-title">Listado de Ventas Registradas</h2>
-                <span class="section-subtitle">Ventas registradas en Firebase para la fecha seleccionada</span>
+                <span class="section-subtitle">Ventas en tiempo real sincronizadas con Firebase</span>
               </div>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-ventas">
-              <span>🔄</span> Recargar Ventas
-            </button>
+
+            <!-- Controles de Vista y Búsqueda -->
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <!-- Switch de Vista: Tabla o Tarjetas -->
+              <div class="ventas-view-switcher">
+                <button type="button" class="btn-view-toggle active" id="btn-view-tabla" data-view="tabla" title="Ver en tabla detallada">
+                  <span>📋</span> Tabla
+                </button>
+                <button type="button" class="btn-view-toggle" id="btn-view-tarjetas" data-view="tarjetas" title="Ver en tarjetas visuales">
+                  <span>🎴</span> Tarjetas
+                </button>
+              </div>
+
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-ventas">
+                <span>🔄</span> Recargar
+              </button>
+            </div>
           </div>
-          <div class="section-body">
-            <div class="table-responsive">
-              <table class="tb-table">
+
+          <div class="section-body" style="padding-top:12px;">
+            <!-- Barra de Filtros y Búsqueda Rápida en la Lista -->
+            <div class="ventas-list-toolbar">
+              <div class="ventas-search-box">
+                <span class="ventas-search-icon">🔍</span>
+                <input type="text" id="ventas-search-input" class="ventas-search-input" placeholder="Buscar clienta, servicio, teléfono, especialista...">
+              </div>
+
+              <div class="ventas-filter-chips" id="ventas-filter-metodo-chips">
+                <button type="button" class="ventas-filter-chip active" data-metodo-filter="todos">Todos</button>
+                <button type="button" class="ventas-filter-chip" data-metodo-filter="efectivo">💵 Efectivo</button>
+                <button type="button" class="ventas-filter-chip" data-metodo-filter="tarjeta">💳 Tarjeta</button>
+                <button type="button" class="ventas-filter-chip" data-metodo-filter="transferencia">📱 Transferencia</button>
+              </div>
+            </div>
+
+            <!-- Contenedor 1: Vista Tabla Detallada -->
+            <div id="ventas-table-wrapper" class="table-responsive">
+              <table class="tb-table" style="font-size:0.88rem;">
                 <thead>
                   <tr>
-                    <th>Hora</th>
-                    <th>Clienta</th>
-                    <th>Teléfono</th>
-                    <th>Servicio / Producto</th>
+                    <th style="width:75px;">Hora</th>
+                    <th>Clienta & Contacto</th>
+                    <th>Servicio & Especialista</th>
                     <th>Estación</th>
-                    <th>Especialista</th>
                     <th>Método</th>
-                    <th>Status</th>
+                    <th>Estatus</th>
                     <th class="text-right">Total Cobrado</th>
-                    <th style="width:50px; text-align:center;">Acción</th>
+                    <th style="width:60px; text-align:center;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-ventas">
                   <tr>
-                    <td colspan="10" class="table-empty-notice">
+                    <td colspan="8" class="table-empty-notice">
                       <span>📂</span>
                       No hay ventas registradas para este día. Registre una nueva venta arriba.
                     </td>
@@ -1176,13 +1296,21 @@
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colspan="8">TOTAL DEL DÍA</td>
-                    <td class="text-right" id="tabla-ventas-gran-total" style="font-weight:800; font-size:1.05rem; color:var(--primary);">$0.00</td>
+                    <td colspan="6"><strong>TOTAL DEL DÍA</strong></td>
+                    <td class="text-right" id="tabla-ventas-gran-total" style="font-weight:800; font-size:1.15rem; color:var(--primary);">$0.00</td>
                     <td></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
+
+            <!-- Contenedor 2: Vista Tarjetas Visuales -->
+            <div id="ventas-cards-wrapper" style="display:none; margin-top:8px;">
+              <div class="ventas-cards-grid" id="ventas-cards-container">
+                <!-- Se poblará dinámicamente con tarjetas visuales -->
+              </div>
+            </div>
+
           </div>
         </div>
 

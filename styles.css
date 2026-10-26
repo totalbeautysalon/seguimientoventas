@@ -1855,3 +1855,592 @@ body {
   transform: scale(1.15);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
+
+/* ==========================================================================
+   ESTILOS VISUALES MEJORADOS: REGISTRO DIARIO DE VENTAS Y LISTADO
+   ========================================================================== */
+.ventas-top-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.ventas-date-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.styled-date-input {
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+}
+
+/* KPIs de Ventas Modernizados */
+.ventas-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.ventas-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.ventas-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.ventas-kpi-card.kpi-cobrado { border-left: 4px solid #f59e0b; }
+.ventas-kpi-card.kpi-efectivo { border-left: 4px solid #10b981; }
+.ventas-kpi-card.kpi-tarjeta { border-left: 4px solid #3b82f6; }
+.ventas-kpi-card.kpi-transf { border-left: 4px solid #8b5cf6; }
+
+.ventas-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.kpi-cobrado .ventas-kpi-icon { background: #fef3c7; }
+.kpi-efectivo .ventas-kpi-icon { background: #dcfce7; }
+.kpi-tarjeta .ventas-kpi-icon { background: #e0e7ff; }
+.kpi-transf .ventas-kpi-icon { background: #ede9fe; }
+
+.ventas-kpi-content {
+  display: flex;
+  flex-direction: column;
+}
+.ventas-kpi-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.ventas-kpi-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--dark);
+  margin-top: 2px;
+}
+
+/* Stepper y Bloques del Formulario */
+.ventas-card-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ventas-stepper-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ventas-form-section-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: all 0.2s;
+}
+.ventas-form-section-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+.ventas-form-section-card.highlight-card {
+  background: #ffffff;
+  border: 1.5px solid #bbf7d0;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.06);
+}
+.ventas-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.ventas-step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ventas-step-number.step-accent {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+.ventas-section-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--dark);
+  margin: 0;
+}
+.ventas-section-subtitle {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.ventas-section-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.styled-input, .styled-select {
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.styled-input:focus, .styled-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+}
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.config-mini-link {
+  font-size: 0.74rem;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+.config-mini-link:hover {
+  background: #eff6ff;
+  border-color: var(--primary);
+}
+
+/* Cobro Hero y Selectores Interactivos */
+.ventas-cobro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.cobro-hero-wrap {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 2px solid #86efac;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.cobro-hero-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #166534;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cobro-hero-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+.cobro-currency-sym {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+.cobro-hero-input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #15803d;
+  background: transparent;
+}
+
+/* Botones / Pills Interactivos */
+.metodo-pago-pills-wrap, .status-pago-pills-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-metodo-pill, .btn-status-pill {
+  flex: 1;
+  min-width: 90px;
+  padding: 9px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--slate);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.btn-metodo-pill:hover, .btn-status-pill:hover {
+  border-color: var(--primary);
+  background: #fdf2f4;
+}
+.btn-metodo-pill.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+}
+.btn-status-pill.active[data-status="Pagado completo"] {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #15803d;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.15);
+}
+.btn-status-pill.active[data-status="Anticipo"] {
+  background: #fefce8;
+  border-color: #eab308;
+  color: #a16207;
+  box-shadow: 0 2px 6px rgba(234, 179, 8, 0.15);
+}
+.btn-status-pill.active[data-status="Saldo pendiente"] {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #b91c1c;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
+}
+.ventas-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+/* Toolbar y Filtros en la Lista de Ventas */
+.ventas-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.ventas-search-box {
+  position: relative;
+  min-width: 260px;
+  flex: 1;
+}
+.ventas-search-input {
+  width: 100%;
+  padding: 8px 14px 8px 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  background: #ffffff;
+  outline: none;
+  transition: all 0.2s;
+}
+.ventas-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+}
+.ventas-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ventas-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ventas-filter-chip {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--slate);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ventas-filter-chip:hover {
+  border-color: var(--primary);
+  background: #fdf2f4;
+}
+.ventas-filter-chip.active {
+  background: var(--dark);
+  color: #ffffff;
+  border-color: var(--dark);
+}
+.ventas-view-switcher {
+  display: flex;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 3px;
+}
+.btn-view-toggle {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--slate);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+.btn-view-toggle.active {
+  background: #ffffff;
+  color: var(--dark);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Badges y Avatares de la Lista */
+.client-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.client-avatar.avatar-mostrador {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 1rem;
+}
+.phone-wa-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #a7f3d0;
+  transition: all 0.2s;
+}
+.phone-wa-link:hover {
+  background: #d1fae5;
+  color: #047857;
+}
+.venta-estacion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.badge-metodo-pago {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badge-metodo-pago.metodo-efectivo {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.badge-metodo-pago.metodo-tarjeta {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+.badge-metodo-pago.metodo-transf {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.badge-status-pago {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badge-status-pago.status-pagado {
+  background: #dcfce7;
+  color: #15803d;
+}
+.badge-status-pago.status-anticipo {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.badge-status-pago.status-pendiente {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Vista Tarjetas Visuales (Cards Grid) */
+.ventas-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+.venta-visual-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.venta-visual-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+}
+.venta-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.venta-card-client-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.venta-card-client-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--dark);
+  line-height: 1.2;
+}
+.venta-card-phone {
+  margin-top: 3px;
+}
+.venta-card-body {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+}
+.venta-card-service-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--dark);
+  margin-bottom: 6px;
+}
+.venta-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.venta-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+.tag-estacion {
+  background: #fff1f2;
+  color: var(--primary);
+  border: 1px solid #fecdd3;
+}
+.tag-especialista {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.tag-hora {
+  background: #fafafa;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+.venta-card-notes {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #cbd5e1;
+}
+.venta-card-footer {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.venta-card-amount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #15803d;
+}

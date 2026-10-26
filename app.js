@@ -217,6 +217,14 @@
   // =========================================================================
   // 1. REGISTRO DIARIO DE VENTAS (100% INTERCONECTADO)
   // =========================================================================
+  // =========================================================================
+  // 1. REGISTRO DIARIO DE VENTAS (100% INTERCONECTADO Y VISUAL)
+  // =========================================================================
+  let currentVentasList = [];
+  let currentVentasMetodoFilter = 'todos';
+  let currentVentasSearchTerm = '';
+  let currentVentasViewMode = 'tabla';
+
   async function renderVentas(fecha) {
     if (!fecha) {
       fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
@@ -228,16 +236,19 @@
     if (vFechaInput && !vFechaInput.value) vFechaInput.value = fecha;
 
     const tbody = document.getElementById('tbody-ventas');
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
+    const cardsContainer = document.getElementById('ventas-cards-container');
+    if (cardsContainer) cardsContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px; color:var(--muted);">Cargando ventas...</div>';
 
     const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    currentVentasList = Array.isArray(ventas) ? ventas : Object.values(ventas || {});
 
     let totCobrado = 0;
     let totEfec = 0;
     let totTarj = 0;
     let totTransf = 0;
 
-    ventas.forEach(v => {
+    currentVentasList.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
       totCobrado += imp;
       const mp = (v.metodoPago || '').toLowerCase();
@@ -254,45 +265,209 @@
     setDisplay('tabla-ventas-gran-total', totCobrado);
 
     const opsBadge = document.getElementById('ventas-badge-operaciones');
-    if (opsBadge) opsBadge.textContent = `${ventas.length} Operaciones`;
+    if (opsBadge) opsBadge.textContent = `${currentVentasList.length} Operaciones`;
 
-    tbody.innerHTML = '';
-    if (ventas.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="10" class="table-empty-notice">
-            <span>📂</span>
-            No hay ventas registradas para este día (${fecha}). Registre una nueva venta arriba.
-          </td>
-        </tr>
-      `;
+    renderVentasFilteredList(fecha);
+  }
+
+  function getClientAvatar(name) {
+    if (!name || name.toLowerCase().includes('mostrador') || name.toLowerCase().includes('cliente')) {
+      return `<div class="client-avatar avatar-mostrador" title="Cliente Mostrador">👤</div>`;
+    }
+    const parts = name.trim().split(/\s+/);
+    const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0].substring(0, 2).toUpperCase();
+    const colors = [
+      { bg: '#fce7f3', text: '#9d174d' },
+      { bg: '#e0e7ff', text: '#3730a3' },
+      { bg: '#dcfce7', text: '#166534' },
+      { bg: '#fef3c7', text: '#92400e' },
+      { bg: '#ccfbf1', text: '#115e59' },
+      { bg: '#f3e8ff', text: '#6b21a8' },
+      { bg: '#fee2e2', text: '#991b1b' }
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const color = colors[Math.abs(hash) % colors.length];
+    return `<div class="client-avatar" style="background:${color.bg}; color:${color.text};">${initials}</div>`;
+  }
+
+  function formatPhoneLink(phone) {
+    if (!phone) return '<span style="color:var(--muted); font-size:0.75rem;">Sin teléfono</span>';
+    const clean = phone.replace(/[^0-9]/g, '');
+    if (clean.length >= 10) {
+      const formatted = clean.length === 10 ? `${clean.slice(0,3)} ${clean.slice(3,6)} ${clean.slice(6)}` : clean;
+      return `<a href="https://wa.me/52${clean}" target="_blank" rel="noopener noreferrer" class="phone-wa-link" title="Contactar por WhatsApp">
+        <span>📱</span> ${formatted}
+      </a>`;
+    }
+    return `<span style="font-family:monospace; font-size:0.8rem; color:var(--slate);">${phone}</span>`;
+  }
+
+  function renderVentasFilteredList(fecha) {
+    if (!fecha) {
+      fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+    }
+    const tbody = document.getElementById('tbody-ventas');
+    const cardsContainer = document.getElementById('ventas-cards-container');
+
+    const search = (currentVentasSearchTerm || '').toLowerCase().trim();
+    const metodoFilter = currentVentasMetodoFilter;
+
+    let filtered = currentVentasList.filter(v => {
+      // Filtro por método de pago
+      if (metodoFilter !== 'todos') {
+        const mp = (v.metodoPago || '').toLowerCase();
+        if (metodoFilter === 'efectivo' && !mp.includes('efec')) return false;
+        if (metodoFilter === 'tarjeta' && !mp.includes('tarj')) return false;
+        if (metodoFilter === 'transferencia' && !mp.includes('transf')) return false;
+      }
+      // Filtro por término de búsqueda
+      if (search) {
+        const textToSearch = `${v.clienta || ''} ${v.telefono || ''} ${v.servicio || ''} ${v.estacion || ''} ${v.especialista || ''} ${v.notas || ''} ${v.totalCobrado || ''}`.toLowerCase();
+        if (!textToSearch.includes(search)) return false;
+      }
+      return true;
+    });
+
+    if (tbody) tbody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
+
+    if (filtered.length === 0) {
+      const msg = currentVentasList.length === 0 
+        ? `No hay ventas registradas para este día (${fecha}). Registre una nueva venta arriba.`
+        : `No se encontraron ventas que coincidan con la búsqueda o filtro seleccionado.`;
+
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="table-empty-notice">
+              <span>📂</span> ${msg}
+            </td>
+          </tr>
+        `;
+      }
+      if (cardsContainer) {
+        cardsContainer.innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:32px 16px; color:var(--muted); background:#f8fafc; border-radius:12px; border:1px dashed var(--border);">
+            <div style="font-size:2rem; margin-bottom:8px;">📂</div>
+            <div style="font-size:0.95rem; font-weight:600;">${msg}</div>
+          </div>
+        `;
+      }
       return;
     }
 
-    ventas.forEach((v, index) => {
-      const tr = document.createElement('tr');
-      const horaStr = v.hora || (v.createdAt ? new Date(v.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
+    // Renderizar Filas de Tabla
+    if (tbody) {
+      filtered.forEach(v => {
+        const tr = document.createElement('tr');
+        const horaStr = v.hora || (v.createdAt ? new Date(v.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
 
-      let statusBadgeClass = 'badge-cuadrada';
-      if (v.statusPago === 'Anticipo') statusBadgeClass = 'badge-sobrante';
-      if (v.statusPago === 'Saldo pendiente') statusBadgeClass = 'badge-faltante';
+        // Status badge
+        let statusBadge = `<span class="badge-status-pago status-pagado">✅ Pagado</span>`;
+        if (v.statusPago === 'Anticipo') statusBadge = `<span class="badge-status-pago status-anticipo">🟡 Anticipo</span>`;
+        if (v.statusPago === 'Saldo pendiente') statusBadge = `<span class="badge-status-pago status-pendiente">🔴 Pendiente</span>`;
 
-      tr.innerHTML = `
-        <td><span style="font-size:0.8rem; color:var(--muted);">${horaStr}</span></td>
-        <td><strong>${v.clienta || '<span style="color:var(--muted); font-style:italic;">Cliente Mostrador</span>'}</strong></td>
-        <td><span style="font-family:monospace; font-size:0.82rem;">${v.telefono || 'Sin tel'}</span></td>
-        <td>${v.servicio || '-'}</td>
-        <td><span style="font-size:0.82rem; font-weight:600; color:var(--primary);">${v.estacion || '-'}</span></td>
-        <td>${v.especialista || '-'}</td>
-        <td><span style="font-size:0.82rem;">${v.metodoPago || 'Efectivo'}</span></td>
-        <td><span class="kpi-status-badge ${statusBadgeClass}" style="font-size:0.75rem;">${v.statusPago || 'Pagado'}</span></td>
-        <td class="text-right" style="font-weight:700;">${formatCurrency(v.totalCobrado)}</td>
-        <td class="text-center">
-          <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha}" title="Eliminar Venta">✕</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+        // Método badge
+        let metodoBadge = `<span class="badge-metodo-pago metodo-efectivo">💵 Efectivo</span>`;
+        const mpLower = (v.metodoPago || '').toLowerCase();
+        if (mpLower.includes('tarj')) metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
+        if (mpLower.includes('transf')) metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+
+        const avatar = getClientAvatar(v.clienta);
+        const phone = formatPhoneLink(v.telefono);
+        const clientName = v.clienta ? `<strong>${v.clienta}</strong>` : `<span style="color:var(--muted); font-style:italic;">Cliente Mostrador</span>`;
+
+        tr.innerHTML = `
+          <td><span style="font-size:0.8rem; font-weight:600; color:var(--slate);">🕒 ${horaStr}</span></td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+              ${avatar}
+              <div>
+                <div style="font-size:0.9rem; line-height:1.2;">${clientName}</div>
+                <div style="margin-top:2px;">${phone}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:var(--dark); font-size:0.9rem;">${v.servicio || '-'}</div>
+            <div style="font-size:0.78rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-top:2px;">
+              <span>💅</span> ${v.especialista || 'Sin especialista'}
+            </div>
+          </td>
+          <td>
+            <span class="venta-estacion-badge">🪞 ${v.estacion || '-'}</span>
+          </td>
+          <td>${metodoBadge}</td>
+          <td>${statusBadge}</td>
+          <td class="text-right">
+            <span style="font-weight:800; font-size:1.05rem; color:#15803d;">${formatCurrency(v.totalCobrado)}</span>
+          </td>
+          <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha || fecha}" title="Eliminar Venta" style="padding:4px 8px;">✕</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Renderizar Tarjetas Visuales
+    if (cardsContainer) {
+      filtered.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'venta-visual-card';
+        const horaStr = v.hora || (v.createdAt ? new Date(v.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
+
+        let statusBadge = `<span class="badge-status-pago status-pagado">✅ Pagado</span>`;
+        if (v.statusPago === 'Anticipo') statusBadge = `<span class="badge-status-pago status-anticipo">🟡 Anticipo</span>`;
+        if (v.statusPago === 'Saldo pendiente') statusBadge = `<span class="badge-status-pago status-pendiente">🔴 Pendiente</span>`;
+
+        let metodoBadge = `<span class="badge-metodo-pago metodo-efectivo">💵 Efectivo</span>`;
+        const mpLower = (v.metodoPago || '').toLowerCase();
+        if (mpLower.includes('tarj')) metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
+        if (mpLower.includes('transf')) metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+
+        const avatar = getClientAvatar(v.clienta);
+        const phone = formatPhoneLink(v.telefono);
+        const clientName = v.clienta || 'Cliente Mostrador';
+
+        card.innerHTML = `
+          <div class="venta-card-header">
+            <div class="venta-card-client-wrap">
+              ${avatar}
+              <div>
+                <div class="venta-card-client-name">${clientName}</div>
+                <div class="venta-card-phone">${phone}</div>
+              </div>
+            </div>
+            ${statusBadge}
+          </div>
+
+          <div class="venta-card-body">
+            <div class="venta-card-service-title">${v.servicio || 'Servicio'}</div>
+            <div class="venta-card-tags">
+              <span class="venta-tag tag-estacion">🪞 ${v.estacion || 'Estación'}</span>
+              <span class="venta-tag tag-especialista">💅 ${v.especialista || 'Especialista'}</span>
+              <span class="venta-tag tag-hora">🕒 ${horaStr}</span>
+            </div>
+            ${v.notas ? `<div class="venta-card-notes">💬 ${v.notas}</div>` : ''}
+          </div>
+
+          <div class="venta-card-footer">
+            <div class="venta-card-payment">
+              ${metodoBadge}
+            </div>
+            <div class="venta-card-amount">
+              ${formatCurrency(v.totalCobrado)}
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha || fecha}" title="Eliminar Venta" style="padding:4px 8px; border-radius:6px;">
+              ✕
+            </button>
+          </div>
+        `;
+        cardsContainer.appendChild(card);
+      });
+    }
   }
 
   // Interconexión: Sincronizar automáticamente las ventas del día a Caja Principal
@@ -3689,6 +3864,10 @@
       document.getElementById('venta_especialista').value = '';
       document.getElementById('venta_total').value = '';
       document.getElementById('venta_notas').value = '';
+      document.querySelectorAll('.btn-metodo-pill').forEach(b => b.classList.toggle('active', b.dataset.metodo === 'Efectivo'));
+      document.querySelectorAll('.btn-status-pill').forEach(b => b.classList.toggle('active', b.dataset.status === 'Pagado completo'));
+      if (document.getElementById('venta_metodo_pago')) document.getElementById('venta_metodo_pago').value = 'Efectivo';
+      if (document.getElementById('venta_status_pago')) document.getElementById('venta_status_pago').value = 'Pagado completo';
 
       renderVentas(fecha);
 
@@ -3986,13 +4165,88 @@
       showToast('Ventas recargadas desde Firebase', 'info');
     });
 
+    // Selectores interactivos de Método de Pago en Formulario
+    document.querySelectorAll('.btn-metodo-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-metodo-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const metodo = btn.dataset.metodo;
+        const sel = document.getElementById('venta_metodo_pago');
+        if (sel) {
+          sel.value = metodo;
+          sel.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
+    // Selectores interactivos de Status de Pago en Formulario
+    document.querySelectorAll('.btn-status-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-status-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const st = btn.dataset.status;
+        const sel = document.getElementById('venta_status_pago');
+        if (sel) {
+          sel.value = st;
+          sel.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
+    // Botón Limpiar del formulario
+    document.getElementById('btn-limpiar-form-venta')?.addEventListener('click', () => {
+      document.querySelectorAll('.btn-metodo-pill').forEach(b => b.classList.toggle('active', b.dataset.metodo === 'Efectivo'));
+      document.querySelectorAll('.btn-status-pill').forEach(b => b.classList.toggle('active', b.dataset.status === 'Pagado completo'));
+      if (document.getElementById('venta_metodo_pago')) document.getElementById('venta_metodo_pago').value = 'Efectivo';
+      if (document.getElementById('venta_status_pago')) document.getElementById('venta_status_pago').value = 'Pagado completo';
+    });
+
+    // Switcher de Vista: Tabla vs Tarjetas
+    document.getElementById('btn-view-tabla')?.addEventListener('click', () => {
+      document.getElementById('btn-view-tabla').classList.add('active');
+      document.getElementById('btn-view-tarjetas').classList.remove('active');
+      const tableWrap = document.getElementById('ventas-table-wrapper');
+      const cardsWrap = document.getElementById('ventas-cards-wrapper');
+      if (tableWrap) tableWrap.style.display = 'block';
+      if (cardsWrap) cardsWrap.style.display = 'none';
+      currentVentasViewMode = 'tabla';
+    });
+
+    document.getElementById('btn-view-tarjetas')?.addEventListener('click', () => {
+      document.getElementById('btn-view-tarjetas').classList.add('active');
+      document.getElementById('btn-view-tabla').classList.remove('active');
+      const tableWrap = document.getElementById('ventas-table-wrapper');
+      const cardsWrap = document.getElementById('ventas-cards-wrapper');
+      if (tableWrap) tableWrap.style.display = 'none';
+      if (cardsWrap) cardsWrap.style.display = 'block';
+      currentVentasViewMode = 'tarjetas';
+    });
+
+    // Filtro por término de búsqueda en lista
+    document.getElementById('ventas-search-input')?.addEventListener('input', (e) => {
+      currentVentasSearchTerm = e.target.value;
+      renderVentasFilteredList();
+    });
+
+    // Filtros por chips de método en lista
+    document.querySelectorAll('.ventas-filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.ventas-filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentVentasMetodoFilter = chip.dataset.metodoFilter || 'todos';
+        renderVentasFilteredList();
+      });
+    });
+
+    // Eliminación de ventas (tanto desde tabla como desde tarjetas visuales)
     document.addEventListener('click', async (e) => {
-      if (e.target.matches('.btn-del-venta')) {
-        const id = e.target.dataset.id;
-        const fecha = e.target.dataset.fecha;
+      const btnDel = e.target.closest('.btn-del-venta');
+      if (btnDel) {
+        const id = btnDel.dataset.id;
+        const fecha = btnDel.dataset.fecha;
         if (confirm('¿Está seguro de eliminar esta venta?')) {
           const allVentasDia = await TB_FIREBASE.getVentasByFecha(fecha);
-          const ventaBackup = allVentasDia ? allVentasDia[id] : null;
+          const ventaBackup = Array.isArray(allVentasDia) ? allVentasDia.find(v => v.id === id) : allVentasDia?.[id];
           await TB_FIREBASE.deleteVenta(fecha, id);
           renderVentas(fecha);
           if (fecha === document.getElementById('header_fecha')?.value) {
