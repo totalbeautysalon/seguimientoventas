@@ -26,6 +26,7 @@
   let sigDataChica = false;
 
   let currentModule = 'arqueo-principal';
+  let lastLoggedModule = null;
   let currentHistTipo = 'principal'; // 'principal' o 'chica'
   let currentLeadOption = 1;         // 1: Nuevo, 2: Seguimiento, 3: BalanceScore
 
@@ -147,6 +148,18 @@
     document.getElementById('topbar-module-desc').textContent = modDesc;
 
     document.getElementById('app-sidebar')?.classList.remove('open');
+
+    // Registrar auditoría de acceso a la sección
+    if (lastLoggedModule !== modKey) {
+      lastLoggedModule = modKey;
+      logAuditMovement({
+        modulo: 'Navegación',
+        accion: 'ACCESO_SECCION',
+        descripcion: `Acceso a la sección: ${info.title}`,
+        payload: { modulo: modKey },
+        reversible: false
+      });
+    }
 
     // Carga de datos correspondientes
     if (modKey === 'arqueo-chica') {
@@ -1465,6 +1478,13 @@
     try {
       if (window.html2pdf) {
         await window.html2pdf().set(opt).from(el).save();
+        logAuditMovement({
+          modulo: isChica ? 'Caja Chica' : 'Arqueo Principal',
+          accion: 'DESCARGA_PDF_OFICIAL',
+          descripcion: `Descarga de reporte oficial PDF al cierre de arqueo: ${fileName}`,
+          payload: { fileName, isChica },
+          reversible: false
+        });
       } else {
         window.print();
       }
@@ -1553,6 +1573,14 @@
     const resp = item.header?.responsable || item.validacion?.responsable || 'Sin asignar';
     const tipoLabel = isChica ? 'Caja Chica' : 'Caja Principal';
 
+    logAuditMovement({
+      modulo: 'Historial Arqueo',
+      accion: 'VISUALIZAR_PDF',
+      descripcion: `Visualización de reporte oficial PDF: ${tipoLabel} (${fecha}) por ${resp}`,
+      payload: { key, isChica, fecha, responsable: resp },
+      reversible: false
+    });
+
     const modalTitle = document.getElementById('pdf-modal-title');
     const modalSub = document.getElementById('pdf-modal-subtitle');
     const previewContainer = document.getElementById('pdf-preview-container');
@@ -1640,6 +1668,13 @@
     try {
       if (window.html2pdf) {
         await window.html2pdf().set(opt).from(el).save();
+        logAuditMovement({
+          modulo: isIngresos ? 'Reporte Ingresos' : (isChica ? 'Caja Chica' : 'Historial Arqueo'),
+          accion: 'DESCARGA_PDF_OFICIAL',
+          descripcion: `Descarga de reporte oficial PDF: ${fileName}`,
+          payload: { fileName, isChica, isIngresos },
+          reversible: false
+        });
         showToast(`✅ PDF descargado: ${fileName}`, 'success');
       } else {
         window.print();
@@ -1794,6 +1829,21 @@
     ['dia', 'semana', 'quincena', 'mes', 'rango'].forEach(m => {
       const el = document.getElementById(`bs-ctrl-${m}`);
       if (el) el.style.display = (m === mode) ? 'flex' : 'none';
+    });
+
+    const periodLabels = {
+      dia: '1. Por Día',
+      semana: '2. Por Semana',
+      quincena: '3. Por Quincena',
+      mes: '4. Por Mes (1 al 30/31)',
+      rango: '5. Rango de Días'
+    };
+    logAuditMovement({
+      modulo: 'BalanceScore',
+      accion: 'CAMBIO_PERIODO',
+      descripcion: `Filtrado de BalanceScore Estaciones por período: ${periodLabels[mode] || mode}`,
+      payload: { modo: mode },
+      reversible: false
     });
 
     renderBalanceScoreStations();
@@ -2761,6 +2811,14 @@
 
     activeViewingReport = { isIngresos: true, isChica: false, item: null, fileName, fecha };
 
+    logAuditMovement({
+      modulo: 'Reporte Ingresos',
+      accion: 'VISUALIZAR_PDF',
+      descripcion: `Visualización de reporte oficial PDF: Ingresos Diarios y Academia (${fecha}) por ${userEmail}`,
+      payload: { fileName, fecha },
+      reversible: false
+    });
+
     const sourceEl = document.getElementById('printable-report-ingresos');
     if (sourceEl && previewContainer) {
       previewContainer.innerHTML = '';
@@ -2815,6 +2873,19 @@
     if (currentLeadOption === 1) renderLeadsBalanceScore();
     // Opción 3: Directorio de Seguimiento
     if (currentLeadOption === 3) renderLeadsDirectory();
+
+    const leadOptLabels = {
+      1: '1. BalanceScore de Conversión Comercial',
+      2: '2. Nuevo Registro & Tipificación',
+      3: '3. Seguimiento en Tipificación'
+    };
+    logAuditMovement({
+      modulo: 'Interesadas',
+      accion: 'ACCESO_OPCION_LEADS',
+      descripcion: `Ingreso a la opción: ${leadOptLabels[currentLeadOption] || currentLeadOption}`,
+      payload: { opcion: currentLeadOption },
+      reversible: false
+    });
   }
 
   function loadInteresadasView() {
@@ -3013,6 +3084,14 @@
 
     const modal = document.getElementById('modal-lead-detalle');
     if (!modal) return;
+
+    logAuditMovement({
+      modulo: 'Interesadas',
+      accion: 'CONSULTA_HISTORIAL_LEAD',
+      descripcion: `Consulta de expediente e historial de contactos de la interesada: ${lead.nombre || 'Prospecto'} (${lead.telefono || 'Sin teléfono'})`,
+      payload: { leadId, nombre: lead.nombre, tipificacion: lead.tipificacion },
+      reversible: false
+    });
 
     // Poblar información
     document.getElementById('mlead-nombre').textContent = lead.nombre || 'Prospecto';
@@ -3348,12 +3427,27 @@
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
     if (tabKey === 'metas') renderCatMetasTable();
-    renderUsuariosRolesView();
     if (tabKey === 'cajachica') loadCajaChicaFundData();
     if (tabKey === 'usuarios') {
       renderUsuariosRolesView();
       descargarUsuariosDeFirebase(false);
     }
+
+    const cfgTabLabels = {
+      servicios: '1. Servicios & Productos',
+      estaciones: '2. Estaciones de Trabajo',
+      especialistas: '3. Especialistas',
+      metas: '4. Metas Quincenales',
+      cajachica: '5. Fondo Caja Chica',
+      usuarios: '6. Usuarios & Roles'
+    };
+    logAuditMovement({
+      modulo: 'Configuración General',
+      accion: 'CAMBIO_SUBPESTAÑA',
+      descripcion: `Acceso a la subpestaña: ${cfgTabLabels[tabKey] || tabKey}`,
+      payload: { subtab: tabKey },
+      reversible: false
+    });
   }
 
   async function loadCatalogsData() {
@@ -3967,9 +4061,15 @@
 
   function getModuleBadgeClass(modulo) {
     switch (modulo) {
+      case 'Navegación': return 'audit-badge-nav';
+      case 'Autenticación': return 'audit-badge-auth';
+      case 'Seguridad': return 'audit-badge-sec';
       case 'Ventas': return 'audit-badge-ventas';
       case 'Arqueo Principal':
-      case 'Caja Chica': return 'audit-badge-caja';
+      case 'Caja Chica':
+      case 'Historial Arqueo': return 'audit-badge-caja';
+      case 'BalanceScore': return 'audit-badge-balancescore';
+      case 'Reporte Ingresos': return 'audit-badge-ingresos';
       case 'Configuración General': return 'audit-badge-config';
       case 'Interesadas': return 'audit-badge-leads';
       case 'Campaña': return 'audit-badge-campana';
@@ -4328,13 +4428,50 @@
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const mod = link.dataset.module;
+        if (window.innerWidth <= 768) {
+          document.getElementById('app-sidebar')?.classList.remove('open');
+          document.getElementById('sidebar-backdrop')?.classList.remove('active');
+        }
         if (mod) switchModule(mod);
       });
     });
 
     document.getElementById('btn-toggle-sidebar')?.addEventListener('click', () => {
-      document.getElementById('app-sidebar')?.classList.toggle('open');
+      const sidebar = document.getElementById('app-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const isOpen = sidebar?.classList.toggle('open');
+      if (backdrop) {
+        if (isOpen) backdrop.classList.add('active');
+        else backdrop.classList.remove('active');
+      }
     });
+
+    document.getElementById('sidebar-backdrop')?.addEventListener('click', () => {
+      document.getElementById('app-sidebar')?.classList.remove('open');
+      document.getElementById('sidebar-backdrop')?.classList.remove('active');
+    });
+
+    // Desplazamiento animado del menú y scroll hint
+    const sidebarMenu = document.querySelector('.sidebar-menu');
+    const scrollHint = document.getElementById('sidebar-scroll-hint');
+    if (sidebarMenu && scrollHint) {
+      function updateScrollHint() {
+        const nearBottom = (sidebarMenu.scrollHeight - sidebarMenu.scrollTop - sidebarMenu.clientHeight < 25);
+        if (nearBottom) {
+          scrollHint.style.opacity = '0';
+          scrollHint.style.pointerEvents = 'none';
+        } else {
+          scrollHint.style.opacity = '1';
+          scrollHint.style.pointerEvents = 'auto';
+        }
+      }
+      sidebarMenu.addEventListener('scroll', updateScrollHint, { passive: true });
+      setTimeout(updateScrollHint, 400);
+
+      scrollHint.addEventListener('click', () => {
+        sidebarMenu.scrollBy({ top: 140, behavior: 'smooth' });
+      });
+    }
 
     // Firebase Status Dot
     TB_FIREBASE.onConnectionChange((online) => {
@@ -6070,6 +6207,13 @@
         if (showNotification) {
           showToast(`✅ Se descargaron ${catUsuariosRoles.length} usuarios registrados en Firebase`, 'success');
         }
+        logAuditMovement({
+          modulo: 'Configuración General',
+          accion: 'DESCARGA_USUARIOS_FIREBASE',
+          descripcion: `Sincronización y descarga de ${catUsuariosRoles.length} usuarios registrados en Firebase Authentication`,
+          payload: { totalUsuarios: catUsuariosRoles.length },
+          reversible: false
+        });
       } else {
         if (showNotification) {
           showToast('No se pudieron descargar los usuarios: ' + (res?.error || 'Error de conexión'), 'error');
@@ -6329,6 +6473,14 @@
     await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
     showToast(`Permisos guardados para ${email}`, 'success');
 
+    logAuditMovement({
+      modulo: 'Configuración General',
+      accion: 'MODIFICAR_PERMISOS_USUARIO',
+      descripcion: `Configuración de permisos y rol para usuario: ${email} -> Rol: ${isFran ? 'Administrador' : rol} (${selectedModules.length} módulos)`,
+      payload: { email, nombre, rol: isFran ? 'Administrador' : rol, modulos: selectedModules },
+      reversible: false
+    });
+
     const cur = TB_FIREBASE.getCurrentUser();
     if (cur && (cur.email || '').toLowerCase().trim() === email.toLowerCase().trim()) {
       applyUserPermissions(cur.email);
@@ -6346,6 +6498,13 @@
     if (confirm(`¿Está seguro de eliminar los permisos configurados para ${email}?`)) {
       catUsuariosRoles = catUsuariosRoles.filter(u => (u.email || '').toLowerCase().trim() !== email.toLowerCase().trim());
       await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+      logAuditMovement({
+        modulo: 'Configuración General',
+        accion: 'ELIMINAR_PERMISOS_USUARIO',
+        descripcion: `Eliminación de permisos configurados para el usuario: ${email}`,
+        payload: { email },
+        reversible: false
+      });
       renderUsuariosRolesTable();
       showToast(`Usuario ${email} eliminado de la configuración`, 'info');
     }
@@ -6379,8 +6538,22 @@
         switchModule('configuracion');
         switchConfigTab(pendingConfigTab || 'servicios');
         pendingConfigTab = 'servicios';
+        logAuditMovement({
+          modulo: 'Seguridad',
+          accion: 'DESBLOQUEO_CONFIGURACION',
+          descripcion: `Desbloqueo exitoso de Configuración General con contraseña administrativa`,
+          payload: {},
+          reversible: false
+        });
         showToast('🔓 Configuración General desbloqueada con éxito', 'success');
       } else {
+        logAuditMovement({
+          modulo: 'Seguridad',
+          accion: 'INTENTO_ACCESO_FALLIDO',
+          descripcion: `Intento de acceso denegado a Configuración General: Contraseña incorrecta`,
+          payload: {},
+          reversible: false
+        });
         if (unlockError) {
           unlockError.textContent = 'Contraseña incorrecta.';
           unlockError.style.display = 'block';
@@ -6407,6 +6580,13 @@
     btnLockConfig?.addEventListener('click', () => {
       isConfigUnlocked = false;
       sessionStorage.removeItem('tb_cfg_unlocked');
+      logAuditMovement({
+        modulo: 'Seguridad',
+        accion: 'BLOQUEO_CONFIGURACION',
+        descripcion: `Bloqueo manual de Configuración General`,
+        payload: {},
+        reversible: false
+      });
       showToast('🔒 Configuración General ha sido bloqueada', 'info');
       const allowed = getAllowedModulesForCurrentUser();
       const fallback = allowed.length > 0 ? allowed[0] : 'ventas';
@@ -6511,6 +6691,13 @@
       if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
 
       showToast(`Bienvenido(a) ${user.email}`, 'success');
+      logAuditMovement({
+        modulo: 'Autenticación',
+        accion: 'INICIO_SESION',
+        descripcion: `Inicio de sesión exitoso con Firebase Authentication: ${user.email}`,
+        payload: { email: user.email },
+        reversible: false
+      });
 
       // Responsables obligatorios no editables fijados con el correo de inicio de sesión
       const respEl = document.getElementById('header_responsable');
@@ -6543,6 +6730,13 @@
       isConfigUnlocked = false;
       sessionStorage.removeItem('tb_cfg_unlocked');
       document.querySelectorAll('.sidebar-menu li').forEach(li => li.style.display = '');
+      logAuditMovement({
+        modulo: 'Autenticación',
+        accion: 'CIERRE_SESION',
+        descripcion: `Cierre de sesión de la cuenta de usuario`,
+        payload: {},
+        reversible: false
+      });
 
       if (authOverlay) authOverlay.classList.remove('hidden');
       if (topbarUserBadge) topbarUserBadge.style.display = 'none';

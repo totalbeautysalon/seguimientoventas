@@ -154,13 +154,16 @@
         </li>
       </ul>
 
+      <!-- Indicador animado para deslizar y ver más opciones -->
+      <div class="sidebar-scroll-hint" id="sidebar-scroll-hint" title="Deslizar hacia abajo para ver más opciones">
+        <span>Deslizar para ver más</span>
+        <span class="scroll-hint-arrow">⌄</span>
+      </div>
+
       <div class="sidebar-footer">
         <div class="firebase-badge">
           <span class="status-dot" id="fb-status-dot"></span>
           <span id="fb-status-text">Conectando a Firebase...</span>
-        </div>
-        <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">
-          BD: totalbregis
         </div>
 
         <div class="sidebar-user-card" id="sidebar-user-card" style="display:none;">
@@ -172,6 +175,9 @@
         </div>
       </div>
     </aside>
+
+    <!-- Backdrop oscurecido para cerrar menú en móviles -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <!-- ====================================================================
          ÁREA PRINCIPAL
@@ -2853,12 +2859,19 @@
 
             <select id="filtro_audit_modulo" class="input-text" style="width:auto; min-width:180px;">
               <option value="TODOS">Todos los Módulos</option>
+              <option value="Navegación">🧭 Navegación y Secciones</option>
+              <option value="Autenticación">👤 Autenticación y Sesión</option>
+              <option value="Seguridad">🔒 Seguridad y Permisos</option>
               <option value="Ventas">💰 Ventas Diarias</option>
               <option value="Arqueo Principal">💵 Arqueo Principal</option>
               <option value="Caja Chica">🪙 Arqueo Caja Chica</option>
-              <option value="Configuración General">⚙️ Configuración y Catálogos</option>
+              <option value="Historial Arqueo">📑 Reportes de Arqueo</option>
+              <option value="BalanceScore">💈 BalanceScore Estaciones</option>
+              <option value="Reporte Ingresos">💰 Reporte de Ingresos</option>
               <option value="Interesadas">🎯 Interesadas y Leads</option>
               <option value="Campaña">🌟 Campaña y Eventos</option>
+              <option value="Configuración General">⚙️ Configuración General</option>
+              <option value="Auditoría">🛡️ Auditoría</option>
             </select>
 
             <select id="filtro_audit_estado" class="input-text" style="width:auto; min-width:160px;">

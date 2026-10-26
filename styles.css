@@ -109,6 +109,15 @@ body {
   gap: 4px;
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+.sidebar-menu::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
 }
 
 .sidebar-menu-category {
@@ -1820,6 +1829,33 @@ body {
   border: 1px solid #cbd5e1;
 }
 
+.audit-badge-nav {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.audit-badge-auth {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+.audit-badge-sec {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.audit-badge-balancescore {
+  background: #ecfeff;
+  color: #0e7490;
+  border: 1px solid #a5f3fc;
+}
+.audit-badge-ingresos {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+
 .audit-code-snippet {
   font-family: monospace;
   font-size: 0.78rem;
@@ -3183,4 +3219,240 @@ body {
 .shake {
   animation: shakeInput 0.35s ease;
   border-color: #ef4444 !important;
+}
+
+
+/* ==========================================================================
+   ESTILOS DE SCROLL HINT DEL MENÚ LATERAL Y BACKDROP MÓVIL
+   ========================================================================== */
+.sidebar-scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  margin: 0 12px 6px;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.3s ease, transform 0.2s ease;
+  user-select: none;
+}
+.sidebar-scroll-hint:hover {
+  background: rgba(30, 41, 59, 0.95);
+  color: #ffffff;
+}
+.sidebar-scroll-hint .scroll-hint-arrow {
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #38bdf8;
+  animation: scrollHintBounce 1.4s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes scrollHintBounce {
+  0%, 100% {
+    transform: translateY(-2px);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 55;
+  transition: opacity 0.3s ease;
+}
+.sidebar-backdrop.active {
+  display: block;
+}
+
+/* ==========================================================================
+   OPTIMIZACIÓN PROFUNDA PARA VISTA MÓVIL (RESPONSIVE & TOUCH EXPERIENCE)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .app-main {
+    padding: 12px 10px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .main-topbar {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  .topbar-left {
+    gap: 10px;
+  }
+  #topbar-module-title {
+    font-size: 1.05rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+  #topbar-module-desc {
+    font-size: 0.72rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 2px 0 0 0;
+  }
+  .btn-toggle-sidebar {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    font-size: 1.3rem;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+  }
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -290px;
+    width: 280px;
+    height: 100vh;
+    z-index: 60;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+  .app-sidebar.open {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Grids responsivos a 2 columnas o 1 columna */
+  .kpi-grid,
+  .lead-kpi-grid,
+  .ventas-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .kpi-card {
+    padding: 12px 10px;
+  }
+  .kpi-card .kpi-value {
+    font-size: 1.25rem;
+  }
+  .kpi-card .kpi-label {
+    font-size: 0.72rem;
+  }
+
+  /* Formularios optimizados para tacto */
+  .cfg-form-grid,
+  .ventas-form-grid,
+  .form-grid-3,
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .input-text,
+  .styled-input,
+  .styled-select,
+  .input-currency {
+    font-size: 16px !important; /* Evita zoom automático en Safari iOS */
+    min-height: 42px;
+  }
+
+  /* Barras de cinta horizontales suaves al tacto */
+  .bs-ribbon-container,
+  .cfg-ribbon-container,
+  .lead-tabs-container {
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .bs-ribbon-btn,
+  .cfg-nav-btn,
+  .lead-nav-pill {
+    min-width: 135px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Filtros en móvil */
+  .filter-bar,
+  .cfg-table-tools {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .filter-bar input,
+  .filter-bar select,
+  .cfg-table-tools input {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Modales en móvil */
+  .master-modal-card,
+  .modal-card,
+  .pdf-modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 92vh !important;
+    margin: 12px auto !important;
+    border-radius: 12px !important;
+  }
+  .master-modal-body {
+    max-height: 74vh !important;
+    overflow-y: auto !important;
+    padding: 14px !important;
+  }
+
+  /* Botones accesibles al toque */
+  .btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid,
+  .lead-kpi-grid,
+  .ventas-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  .section-header .section-title {
+    font-size: 1rem;
+  }
+  .bs-ribbon-btn,
+  .cfg-nav-btn {
+    min-width: 120px;
+    font-size: 0.76rem;
+    padding: 7px 10px;
+  }
 }
