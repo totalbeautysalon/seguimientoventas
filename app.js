@@ -3473,53 +3473,65 @@
     const tbody = document.getElementById('tbody-cat-metas');
     const badgeCount = document.getElementById('badge-total-metas');
     const allMetas = getActiveStationMetas();
-    if (badgeCount) badgeCount.textContent = `${allMetas.length} Estaciones y Cursos`;
+    if (badgeCount) badgeCount.textContent = `${allMetas.length} Estaciones y Academia`;
     if (!tbody) return;
 
     tbody.innerHTML = '';
     if (allMetas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="table-empty-notice"><span>🎯</span>No hay estaciones configuradas en la base de datos. Agregue estaciones en la pestaña <strong>2. Estaciones de Trabajo</strong> para asignar metas.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty-notice" style="padding:32px 16px;"><span>🎯</span>No hay estaciones configuradas en la base de datos. Agregue estaciones en la pestaña <strong>2. Estaciones de Trabajo</strong> para asignar metas.</td></tr>';
       return;
     }
+
     allMetas.forEach(m => {
       const tr = document.createElement('tr');
       const metaQ = parseFloat(m.metaQuincenal) || 0;
       const metaM = metaQ * 2;
       const metaD = Math.round(metaQ / 15);
-      const isCurso = m.id === 'Cursos' || (m.nombre || '').toLowerCase().includes('curso');
+      const isCurso = m.id === 'Cursos' || (m.nombre || '').toLowerCase().includes('curso') || (m.nombre || '').toLowerCase().includes('academia') || m.isCurso;
+
+      if (isCurso) {
+        tr.className = 'tr-meta-academia';
+      }
 
       tr.innerHTML = `
-        <td style="font-size:1.25rem; text-align:center;">${m.icono || '💈'}</td>
+        <td style="font-size:1.3rem; text-align:center;">
+          <div style="width:38px; height:38px; border-radius:10px; background:${isCurso ? '#ecfdf5' : '#f1f5f9'}; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            ${m.icono || (isCurso ? '🎓' : '💈')}
+          </div>
+        </td>
         <td>
-          <strong>${m.nombre}</strong>
-          ${isCurso ? '<span class="cat-badge-tipo cat-badge-curso" style="margin-left:6px;">Academia</span>' : '<span style="font-size:0.75rem; color:var(--muted); margin-left:6px;">(Estación de Trabajo)</span>'}
+          <strong style="color:var(--dark); font-size:0.92rem;">${escapeHtml(m.nombre)}</strong>
+          ${isCurso ? '<span class="badge-unit-academia" style="margin-left:6px;">🎓 Academia</span>' : '<span style="font-size:0.75rem; color:var(--muted); margin-left:6px;">(Estación Salón)</span>'}
         </td>
         <td>
           <div class="currency-input-wrap">
             <span class="currency-prefix">$</span>
-            <input type="number" step="100" min="0" class="input-currency input-meta-quincenal" data-id="${m.id}" value="${metaQ}">
+            <input type="number" step="100" min="0" class="input-currency input-meta-quincenal styled-input" data-id="${m.id}" value="${metaQ}" style="font-weight:800; color:#15803d;">
           </div>
         </td>
         <td>
-          <input type="number" min="1" class="table-input-meta input-meta-clientes" data-id="${m.id}" value="${m.clientesMeta || 15}">
+          <input type="number" min="0" class="table-input-meta input-meta-clientes styled-input" data-id="${m.id}" value="${m.clientesMeta || 0}" style="font-weight:700;">
         </td>
-        <td class="text-right" style="font-weight:700; color:var(--primary);" id="meta-mensual-${m.id}">$${metaM.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-        <td class="text-right" style="font-weight:600; color:var(--dark);" id="meta-diaria-${m.id}">$${metaD.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right" style="font-weight:800; color:var(--primary); font-size:0.92rem;" id="meta-mensual-${m.id}">
+          ${formatCurrency(metaM)}
+        </td>
+        <td class="text-right" style="font-weight:700; color:var(--dark); font-size:0.88rem;" id="meta-diaria-${m.id}">
+          ${formatCurrency(metaD)}
+        </td>
       `;
       tbody.appendChild(tr);
     });
 
-    // Escuchar cambios en los inputs para actualizar los cálculos en vivo y auto-guardar automáticamente
+    // Event listeners para auto-guardado reactivo
     tbody.querySelectorAll('.input-meta-quincenal').forEach(input => {
       input.addEventListener('input', (e) => {
         const id = e.target.dataset.id;
         const val = parseFloat(e.target.value) || 0;
         const elM = document.getElementById(`meta-mensual-${id}`);
         const elD = document.getElementById(`meta-diaria-${id}`);
-        if (elM) elM.textContent = `$${(val * 2).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-        if (elD) elD.textContent = `$${Math.round(val / 15).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        if (elM) elM.textContent = formatCurrency(val * 2);
+        if (elD) elD.textContent = formatCurrency(Math.round(val / 15));
 
-        // Actualizar directamente en la estación o en Cursos
         if (id === 'Cursos') {
           catCursosMeta.metaQuincenal = val;
         } else {
@@ -3533,7 +3545,7 @@
     tbody.querySelectorAll('.input-meta-clientes').forEach(input => {
       input.addEventListener('input', (e) => {
         const id = e.target.dataset.id;
-        const val = parseInt(e.target.value, 10) || 15;
+        const val = parseInt(e.target.value, 10) || 0;
         if (id === 'Cursos') {
           catCursosMeta.clientesMeta = val;
         } else {
@@ -3548,28 +3560,61 @@
   function renderCatServiciosTable() {
     const tbody = document.getElementById('tbody-cat-servicios');
     const badge = document.getElementById('badge-total-servicios');
+    const pillCount = document.getElementById('pill-count-servicios');
+    const searchVal = (document.getElementById('cfg_serv_search')?.value || '').trim().toLowerCase();
+
     if (badge) badge.textContent = `${catServicios.length} Registros`;
+    if (pillCount) pillCount.textContent = `${catServicios.length}`;
     if (!tbody) return;
 
+    let filtered = catServicios || [];
+    if (searchVal) {
+      filtered = filtered.filter(s => {
+        const nom = (s.nombre || '').toLowerCase();
+        const est = (s.estacion || '').toLowerCase();
+        const tipo = (s.tipo || '').toLowerCase();
+        return nom.includes(searchVal) || est.includes(searchVal) || tipo.includes(searchVal);
+      });
+    }
+
     tbody.innerHTML = '';
-    if (catServicios.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="table-empty-notice"><span>✨</span>No hay servicios configurados. Agregue uno arriba.</td></tr>';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="table-empty-notice" style="padding:32px 16px;">
+            <span style="font-size:2rem; display:block; margin-bottom:6px;">✨</span>
+            ${searchVal ? 'No se encontraron servicios que coincidan con la búsqueda.' : 'No hay servicios ni productos configurados en la base de datos.'}
+          </td>
+        </tr>
+      `;
       return;
     }
 
-    catServicios.forEach(s => {
+    filtered.forEach(s => {
       const tr = document.createElement('tr');
-      let badgeClass = 'cat-badge-servicio';
-      if (s.tipo === 'Producto') badgeClass = 'cat-badge-producto';
-      if (s.tipo === 'Curso') badgeClass = 'cat-badge-curso';
+      
+      let badgeHtml = '<span class="badge-unit-salon">💇‍♀️ Servicio</span>';
+      if (s.tipo === 'Producto') {
+        badgeHtml = '<span class="badge-unit-retail">🛍️ Producto</span>';
+      } else if (s.tipo === 'Curso') {
+        badgeHtml = '<span class="badge-unit-academia">🎓 Curso</span>';
+      }
 
       tr.innerHTML = `
-        <td><strong>${s.nombre}</strong></td>
-        <td><span class="cat-badge-tipo ${badgeClass}">${s.tipo}</span></td>
-        <td><span style="font-weight:600; color:var(--primary);">${s.estacion || 'General'}</span></td>
-        <td class="text-right" style="font-weight:700;">$${parseFloat(s.precio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td>
+          <strong style="color:var(--dark); font-size:0.92rem;">${escapeHtml(s.nombre)}</strong>
+        </td>
+        <td>${badgeHtml}</td>
+        <td>
+          <span style="background:#f1f5f9; padding:2px 8px; border-radius:6px; font-size:0.8rem; font-weight:600; color:#334155;">
+            ${escapeHtml(s.estacion || 'General')}
+          </span>
+        </td>
+        <td class="text-right" style="font-weight:800; color:#15803d; font-size:0.95rem;">
+          ${formatCurrency(parseFloat(s.precio || 0))}
+        </td>
         <td class="text-center">
-          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-serv" data-id="${s.id}" title="Eliminar servicio">✕</button>
+          <button type="button" class="btn-cat-del btn-del-cfg-serv" data-id="${s.id}" title="Eliminar servicio">✕</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -3579,29 +3624,57 @@
   function renderCatEstacionesTable() {
     const tbody = document.getElementById('tbody-cat-estaciones');
     const badge = document.getElementById('badge-total-estaciones');
+    const pillCount = document.getElementById('pill-count-estaciones');
+    const searchVal = (document.getElementById('cfg_est_search')?.value || '').trim().toLowerCase();
+
     if (badge) badge.textContent = `${catEstaciones.length} Estaciones`;
+    if (pillCount) pillCount.textContent = `${catEstaciones.length}`;
     if (!tbody) return;
 
+    let filtered = catEstaciones || [];
+    if (searchVal) {
+      filtered = filtered.filter(e => (e.nombre || '').toLowerCase().includes(searchVal));
+    }
+
     tbody.innerHTML = '';
-    if (catEstaciones.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="table-empty-notice"><span>💈</span>No hay estaciones configuradas. Agregue una arriba.</td></tr>';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="table-empty-notice" style="padding:32px 16px;">
+            <span style="font-size:2rem; display:block; margin-bottom:6px;">💈</span>
+            ${searchVal ? 'No se encontraron estaciones con ese nombre.' : 'No hay estaciones de trabajo configuradas en la base de datos.'}
+          </td>
+        </tr>
+      `;
       return;
     }
 
-    catEstaciones.forEach(est => {
+    filtered.forEach(est => {
       const tr = document.createElement('tr');
-      const metaQ = parseFloat(est.metaQuincenal || est.meta || 15000);
-      const clientesQ = parseInt(est.clientesMeta || est.metaClientes || 45, 10);
+      const metaQ = parseFloat(est.metaQuincenal || est.meta || 0);
+      const clientesQ = parseInt(est.clientesMeta || est.metaClientes || 0, 10);
       const metaD = Math.round(metaQ / 15);
 
       tr.innerHTML = `
-        <td style="font-size:1.2rem; text-align:center;">${est.icono || '✨'}</td>
-        <td><strong>${est.nombre}</strong></td>
-        <td class="text-right" style="font-weight:700;">$${metaQ.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-        <td class="text-right">${clientesQ} clientes</td>
-        <td class="text-right" style="color:var(--muted);">$${metaD.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+        <td style="text-align:center;">
+          <div style="width:36px; height:36px; border-radius:8px; background:#f1f5f9; display:inline-flex; align-items:center; justify-content:center; font-size:1.25rem;">
+            ${est.icono || '💈'}
+          </div>
+        </td>
+        <td>
+          <strong style="color:var(--dark); font-size:0.92rem;">${escapeHtml(est.nombre)}</strong>
+        </td>
+        <td class="text-right" style="font-weight:800; color:#15803d; font-size:0.95rem;">
+          ${formatCurrency(metaQ)}
+        </td>
+        <td class="text-right" style="font-weight:600; color:var(--slate);">
+          ${clientesQ} <small style="color:var(--muted);">clientes</small>
+        </td>
+        <td class="text-right" style="color:var(--muted); font-size:0.85rem;">
+          ${formatCurrency(metaD)}
+        </td>
         <td class="text-center">
-          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-est" data-id="${est.id}" title="Eliminar estación">✕</button>
+          <button type="button" class="btn-cat-del btn-del-cfg-est" data-id="${est.id}" title="Eliminar estación">✕</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -3611,23 +3684,63 @@
   function renderCatEspecialistasTable() {
     const tbody = document.getElementById('tbody-cat-especialistas');
     const badge = document.getElementById('badge-total-especialistas');
+    const pillCount = document.getElementById('pill-count-especialistas');
+    const searchVal = (document.getElementById('cfg_esp_search')?.value || '').trim().toLowerCase();
+
     if (badge) badge.textContent = `${catEspecialistas.length} Especialistas`;
+    if (pillCount) pillCount.textContent = `${catEspecialistas.length}`;
     if (!tbody) return;
 
+    let filtered = catEspecialistas || [];
+    if (searchVal) {
+      filtered = filtered.filter(e => {
+        const nom = (e.nombre || '').toLowerCase();
+        const est = (e.estacion || '').toLowerCase();
+        const tel = (e.telefono || '').toLowerCase();
+        return nom.includes(searchVal) || est.includes(searchVal) || tel.includes(searchVal);
+      });
+    }
+
     tbody.innerHTML = '';
-    if (catEspecialistas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="table-empty-notice"><span>👩‍🎨</span>No hay especialistas configurados.</td></tr>';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="table-empty-notice" style="padding:32px 16px;">
+            <span style="font-size:2rem; display:block; margin-bottom:6px;">👩‍🎨</span>
+            ${searchVal ? 'No se encontraron especialistas que coincidan con la búsqueda.' : 'No hay especialistas dados de alta en el equipo.'}
+          </td>
+        </tr>
+      `;
       return;
     }
 
-    catEspecialistas.forEach(esp => {
+    filtered.forEach(esp => {
       const tr = document.createElement('tr');
+      const initial = (esp.nombre || 'E').charAt(0).toUpperCase();
+      const cleanTel = (esp.telefono || '').replace(/\D/g, '');
+
       tr.innerHTML = `
-        <td><strong>${esp.nombre}</strong></td>
-        <td><span style="font-weight:600; color:var(--primary);">${esp.estacion || 'General'}</span></td>
-        <td><span style="font-family:monospace; font-size:0.82rem;">${esp.telefono || 'Sin teléfono'}</span></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="user-avatar-initial" style="width:32px; height:32px; font-size:0.85rem;">${initial}</div>
+            <strong style="color:var(--dark); font-size:0.92rem;">${escapeHtml(esp.nombre)}</strong>
+          </div>
+        </td>
+        <td>
+          <span style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px; font-size:0.8rem; font-weight:700;">
+            ${escapeHtml(esp.estacion || 'General')}
+          </span>
+        </td>
+        <td>
+          ${esp.telefono ? `
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-family:monospace; font-size:0.85rem; font-weight:600; color:var(--slate);">${escapeHtml(esp.telefono)}</span>
+              <a href="https://wa.me/52${cleanTel}" target="_blank" class="btn-whatsapp btn-sm" style="padding:1px 6px; font-size:0.7rem; text-decoration:none;" title="WhatsApp">💬</a>
+            </div>
+          ` : '<span style="color:var(--muted); font-size:0.8rem;">Sin teléfono</span>'}
+        </td>
         <td class="text-center">
-          <button type="button" class="btn btn-outline-danger btn-sm btn-del-cfg-esp" data-id="${esp.id}" title="Eliminar especialista">✕</button>
+          <button type="button" class="btn-cat-del btn-del-cfg-esp" data-id="${esp.id}" title="Eliminar especialista">✕</button>
         </td>
       `;
       tbody.appendChild(tr);

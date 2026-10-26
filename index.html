@@ -2214,114 +2214,142 @@
            ================================================================ -->
       <section class="module-view" id="view-configuracion">
 
-        <!-- Barra Superior con Subpestañas -->
-        <div class="filter-bar" style="margin-bottom:18px;">
-          <div class="option-pills-bar" style="margin-bottom:0;">
-            <button type="button" class="option-pill config-nav-pill active" data-cfgtab="servicios">
-              <span class="pill-icon">✨</span>
-              <span>1. Servicios y Productos</span>
-            </button>
-            <button type="button" class="option-pill config-nav-pill" data-cfgtab="estaciones">
-              <span class="pill-icon">💈</span>
-              <span>2. Estaciones de Trabajo</span>
-            </button>
-            <button type="button" class="option-pill config-nav-pill" data-cfgtab="especialistas">
-              <span class="pill-icon">👩‍🎨</span>
-              <span>3. Especialistas</span>
-            </button>
-            <button type="button" class="option-pill config-nav-pill" data-cfgtab="metas">
-              <span class="pill-icon">🎯</span>
-              <span>4. Metas Quincenales</span>
-            </button>
-            <button type="button" class="option-pill config-nav-pill" data-cfgtab="cajachica">
-              <span class="pill-icon">🪙</span>
-              <span>5. Fondo Caja Chica</span>
-            </button>
-          </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span style="font-size:0.78rem; color:#059669; font-weight:700; background:#ecfdf5; padding:5px 12px; border-radius:12px; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:6px;">
-              <span style="width:7px; height:7px; background:#10b981; border-radius:50%; display:inline-block;"></span>
-              Auto-guardado en Firebase
-            </span>
-            <button type="button" class="btn btn-outline-danger btn-sm" id="btn-limpiar-todo-config" style="font-size:0.76rem; padding:4px 10px;">
-              🧹 Limpiar Todo el Catálogo
-            </button>
+        <!-- Barra Superior con Subpestañas Modernizadas -->
+        <div class="bs-main-panel" style="padding:14px 18px; margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            
+            <div class="cfg-ribbon-bar" style="margin-bottom:0; flex:1; max-width:850px;">
+              <button type="button" class="cfg-nav-btn config-nav-pill active" data-cfgtab="servicios">
+                <span>✨</span>
+                <span>1. Servicios & Productos</span>
+                <span class="cfg-count-pill" id="pill-count-servicios">0</span>
+              </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="estaciones">
+                <span>💈</span>
+                <span>2. Estaciones de Trabajo</span>
+                <span class="cfg-count-pill" id="pill-count-estaciones">0</span>
+              </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="especialistas">
+                <span>👩‍🎨</span>
+                <span>3. Especialistas</span>
+                <span class="cfg-count-pill" id="pill-count-especialistas">0</span>
+              </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="metas">
+                <span>🎯</span>
+                <span>4. Metas Quincenales</span>
+              </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="cajachica">
+                <span>🪙</span>
+                <span>5. Fondo Caja Chica</span>
+              </button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span style="font-size:0.78rem; color:#065f46; font-weight:700; background:#ecfdf5; padding:6px 12px; border-radius:12px; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:6px;">
+                <span style="width:7px; height:7px; background:#10b981; border-radius:50%; display:inline-block;"></span>
+                Auto-guardado en Firebase
+              </span>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-limpiar-todo-config" style="font-weight:700; font-size:0.78rem; padding:6px 12px;">
+                🧹 Limpiar Todo
+              </button>
+            </div>
+
           </div>
         </div>
 
         <!-- SUBPESTAÑA 1: SERVICIOS Y PRODUCTOS -->
         <div class="config-subview" id="config-subview-servicios">
-          <div class="ventas-form-card" style="margin-bottom:20px;">
-            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>➕</span> Dar de Alta Nuevo Servicio o Producto
-              </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-                Los servicios y productos configurados aquí aparecerán automáticamente en el selector del Registro Diario de Ventas.
-              </p>
+          
+          <!-- Card Formulario Nuevo Servicio/Producto -->
+          <div class="cfg-card">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box">✨</div>
+                <div>
+                  <h3 class="cfg-title">Dar de Alta Nuevo Servicio o Producto</h3>
+                  <p class="cfg-subtitle">Los servicios y productos configurados aparecerán automáticamente en el Registro Diario de Ventas.</p>
+                </div>
+              </div>
             </div>
 
             <form id="form-nuevo-servicio" autocomplete="off">
-              <div class="ventas-form-grid">
-                <div class="form-group">
-                  <label for="cfg_serv_nombre">Nombre del Servicio o Producto <span class="required">*</span></label>
-                  <input type="text" id="cfg_serv_nombre" class="input-text" placeholder="Ej. Balayage Completo, Uñas Acrílicas..." required>
+              <div class="cfg-form-grid">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_serv_nombre" class="cfg-field-label">
+                    <span>🏷️</span> Nombre del Servicio o Producto <span class="required">*</span>
+                  </label>
+                  <input type="text" id="cfg_serv_nombre" class="input-text styled-input" placeholder="Ej. Balayage Completo, Uñas Acrílicas..." required>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_serv_tipo">Tipo <span class="required">*</span></label>
-                  <select id="cfg_serv_tipo" class="input-text" required>
+                
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_serv_tipo" class="cfg-field-label">
+                    <span>📂</span> Tipo de Ítem <span class="required">*</span>
+                  </label>
+                  <select id="cfg_serv_tipo" class="input-text styled-select" required>
                     <option value="Servicio" selected>💇‍♀️ Servicio (Salón)</option>
                     <option value="Producto">🛍️ Producto (Venta Retail)</option>
                     <option value="Curso">🎓 Curso / Taller (Academia)</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_serv_estacion">Estación Asignada <span class="required">*</span></label>
-                  <select id="cfg_serv_estacion" class="input-text" required>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_serv_estacion" class="cfg-field-label">
+                    <span>💈</span> Estación Asignada <span class="required">*</span>
+                  </label>
+                  <select id="cfg_serv_estacion" class="input-text styled-select" required>
                     <!-- Rellenado dinámicamente con estaciones -->
                   </select>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_serv_precio">Precio Base / Cobro Sugerido ($) <span class="required">*</span></label>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_serv_precio" class="cfg-field-label">
+                    <span>💰</span> Precio Base / Cobro Sugerido ($) <span class="required">*</span>
+                  </label>
                   <div class="currency-input-wrap">
                     <span class="currency-prefix">$</span>
-                    <input type="number" step="0.01" min="0" class="input-currency" id="cfg_serv_precio" placeholder="0.00" required>
+                    <input type="number" step="0.01" min="0" class="input-currency styled-input" id="cfg_serv_precio" placeholder="0.00" required style="font-weight:800; color:#15803d;">
                   </div>
                 </div>
               </div>
-              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
-                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Servicio/Producto</button>
+
+              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm" style="font-weight:700;">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 18px;">
+                  <span>💾</span> Guardar Servicio / Producto
+                </button>
               </div>
             </form>
           </div>
 
           <!-- Catálogo de Servicios Existentes -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">CAT</span>
+          <div class="cfg-table-card">
+            <div class="cfg-table-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.3rem;">📋</span>
                 <div>
-                  <h2 class="section-title">Catálogo de Servicios y Productos Activos</h2>
-                  <span class="section-subtitle">Disponibles en el selector de ventas e interconectados con caja</span>
+                  <h2 style="font-size:0.95rem; font-weight:800; color:var(--dark); margin:0;">Catálogo de Servicios y Productos Activos</h2>
+                  <span style="font-size:0.75rem; color:var(--muted);">Disponibles en el selector de ventas e interconectados con caja</span>
                 </div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="kpi-status-badge badge-cuadrada" id="badge-total-servicios">0 Registros</span>
-                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-servicios" title="Eliminar todos los servicios">
-                  🗑️ Vaciar Servicios
+
+              <div class="cfg-table-tools">
+                <input type="text" id="cfg_serv_search" class="input-text styled-input" placeholder="🔍 Buscar servicio..." style="max-width:200px; font-size:0.8rem; padding:4px 10px;">
+                <span class="kpi-status-badge badge-cuadrada" id="badge-total-servicios" style="font-size:0.8rem; padding:4px 10px;">0 Registros</span>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-servicios" title="Eliminar todos los servicios" style="font-size:0.75rem; padding:4px 8px;">
+                  🗑️ Vaciar
                 </button>
               </div>
             </div>
+
             <div class="table-responsive">
-              <table class="table">
+              <table class="tb-table">
                 <thead>
                   <tr>
                     <th>Nombre</th>
                     <th>Tipo</th>
                     <th>Estación Asignada</th>
                     <th class="text-right">Precio Base</th>
-                    <th class="text-center" style="width:90px;">Acción</th>
+                    <th class="text-center" style="width:70px;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-cat-servicios">
@@ -2330,76 +2358,97 @@
               </table>
             </div>
           </div>
+
         </div>
 
         <!-- SUBPESTAÑA 2: ESTACIONES DE TRABAJO -->
         <div class="config-subview" id="config-subview-estaciones" style="display:none;">
-          <div class="ventas-form-card" style="margin-bottom:20px;">
-            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>➕</span> Dar de Alta Nueva Estación de Trabajo
-              </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-                Las estaciones determinan las áreas operativas del Salón / Academia y alimentan el BalanceScore diario.
-              </p>
+          
+          <!-- Card Formulario Nueva Estación -->
+          <div class="cfg-card">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #eff6ff, #dbeafe); color:#1d4ed8;">💈</div>
+                <div>
+                  <h3 class="cfg-title">Dar de Alta Nueva Estación de Trabajo</h3>
+                  <p class="cfg-subtitle">Las estaciones determinan las áreas operativas del Salón / Academia y alimentan el BalanceScore.</p>
+                </div>
+              </div>
             </div>
 
             <form id="form-nueva-estacion" autocomplete="off">
-              <div class="ventas-form-grid">
-                <div class="form-group">
-                  <label for="cfg_est_nombre">Nombre de la Estación <span class="required">*</span></label>
-                  <input type="text" id="cfg_est_nombre" class="input-text" placeholder="Ej. Cabello, Uñas, etc." required>
+              <div class="cfg-form-grid">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_est_nombre" class="cfg-field-label">
+                    <span>💈</span> Nombre de la Estación <span class="required">*</span>
+                  </label>
+                  <input type="text" id="cfg_est_nombre" class="input-text styled-input" placeholder="Ej. Cabello, Uñas, Pestañas, etc." required>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_est_icono">Icono / Emoji</label>
-                  <input type="text" id="cfg_est_icono" class="input-text" placeholder="Ej. 💇‍♀️, 💅, 💄, 🎓" maxlength="4" value="✨">
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_est_icono" class="cfg-field-label">
+                    <span>✨</span> Icono / Emoji Sugerido
+                  </label>
+                  <input type="text" id="cfg_est_icono" class="input-text styled-input" placeholder="Ej. 💇‍♀️, 💅, 💄, 🎓" maxlength="4" value="💈">
                 </div>
-                <div class="form-group">
-                  <label for="cfg_est_meta">Meta Quincenal de Venta ($) <span class="required">*</span></label>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_est_meta" class="cfg-field-label">
+                    <span>🎯</span> Meta Quincenal de Venta ($) <span class="required">*</span>
+                  </label>
                   <div class="currency-input-wrap">
                     <span class="currency-prefix">$</span>
-                    <input type="number" step="100" min="0" class="input-currency" id="cfg_est_meta" placeholder="15000.00" required>
+                    <input type="number" step="100" min="0" class="input-currency styled-input" id="cfg_est_meta" placeholder="15000.00" required style="font-weight:800; color:#15803d;">
                   </div>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_est_meta_clientes">Meta Quincenal de Clientes</label>
-                  <input type="number" min="1" class="input-text" id="cfg_est_meta_clientes" placeholder="45" value="45">
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_est_meta_clientes" class="cfg-field-label">
+                    <span>👥</span> Meta Quincenal de Clientes/Alumnas
+                  </label>
+                  <input type="number" min="0" class="input-text styled-input" id="cfg_est_meta_clientes" placeholder="45" value="45" style="font-weight:700;">
                 </div>
               </div>
-              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
-                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Estación</button>
+
+              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm" style="font-weight:700;">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 18px;">
+                  <span>💾</span> Guardar Estación
+                </button>
               </div>
             </form>
           </div>
 
           <!-- Catálogo de Estaciones Existentes -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">EST</span>
+          <div class="cfg-table-card">
+            <div class="cfg-table-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.3rem;">💈</span>
                 <div>
-                  <h2 class="section-title">Estaciones de Trabajo Activas</h2>
-                  <span class="section-subtitle">Áreas operativas y metas asociadas al BalanceScore</span>
+                  <h2 style="font-size:0.95rem; font-weight:800; color:var(--dark); margin:0;">Estaciones de Trabajo Activas</h2>
+                  <span style="font-size:0.75rem; color:var(--muted);">Áreas operativas y metas asociadas al BalanceScore</span>
                 </div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="kpi-status-badge badge-cuadrada" id="badge-total-estaciones">0 Estaciones</span>
-                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-estaciones" title="Eliminar todas las estaciones">
-                  🗑️ Vaciar Estaciones
+
+              <div class="cfg-table-tools">
+                <input type="text" id="cfg_est_search" class="input-text styled-input" placeholder="🔍 Buscar estación..." style="max-width:200px; font-size:0.8rem; padding:4px 10px;">
+                <span class="kpi-status-badge badge-cuadrada" id="badge-total-estaciones" style="font-size:0.8rem; padding:4px 10px;">0 Estaciones</span>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-estaciones" title="Eliminar todas las estaciones" style="font-size:0.75rem; padding:4px 8px;">
+                  🗑️ Vaciar
                 </button>
               </div>
             </div>
+
             <div class="table-responsive">
-              <table class="table">
+              <table class="tb-table">
                 <thead>
                   <tr>
-                    <th style="width:60px;">Icono</th>
+                    <th style="width:60px; text-align:center;">Icono</th>
                     <th>Nombre de la Estación</th>
                     <th class="text-right">Meta Quincenal ($)</th>
-                    <th class="text-right">Meta Quincenal Clientes</th>
+                    <th class="text-right">Meta Clientes</th>
                     <th class="text-right">Eq. Diario ($)</th>
-                    <th class="text-center" style="width:90px;">Acción</th>
+                    <th class="text-center" style="width:70px;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-cat-estaciones">
@@ -2408,69 +2457,87 @@
               </table>
             </div>
           </div>
+
         </div>
 
         <!-- SUBPESTAÑA 3: ESPECIALISTAS -->
         <div class="config-subview" id="config-subview-especialistas" style="display:none;">
-          <div class="ventas-form-card" style="margin-bottom:20px;">
-            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>➕</span> Dar de Alta Nuevo(a) Especialista
-              </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-                Especialistas y profesionales del equipo asignados a la atención y venta en el Salón y Academia.
-              </p>
+          
+          <!-- Card Formulario Nuevo Especialista -->
+          <div class="cfg-card">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #f5f3ff, #ede9fe); color:#7c3aed;">👩‍🎨</div>
+                <div>
+                  <h3 class="cfg-title">Dar de Alta Nuevo(a) Especialista</h3>
+                  <p class="cfg-subtitle">Profesionales del equipo asignados a la atención y servicios en Salón y Academia.</p>
+                </div>
+              </div>
             </div>
 
             <form id="form-nuevo-especialista" autocomplete="off">
-              <div class="ventas-form-grid">
-                <div class="form-group">
-                  <label for="cfg_esp_nombre">Nombre Completo <span class="required">*</span></label>
-                  <input type="text" id="cfg_esp_nombre" class="input-text" placeholder="Ej. Marbella Ríos, Karla Méndez..." required>
+              <div class="cfg-form-grid">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_esp_nombre" class="cfg-field-label">
+                    <span>👤</span> Nombre Completo <span class="required">*</span>
+                  </label>
+                  <input type="text" id="cfg_esp_nombre" class="input-text styled-input" placeholder="Ej. Marbella Ríos, Karla Méndez..." required>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_esp_estacion">Estación / Especialidad Asignada <span class="required">*</span></label>
-                  <select id="cfg_esp_estacion" class="input-text" required>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_esp_estacion" class="cfg-field-label">
+                    <span>💈</span> Estación / Especialidad Asignada <span class="required">*</span>
+                  </label>
+                  <select id="cfg_esp_estacion" class="input-text styled-select" required>
                     <!-- Rellenado dinámicamente con estaciones -->
                   </select>
                 </div>
-                <div class="form-group">
-                  <label for="cfg_esp_telefono">Teléfono de Contacto</label>
-                  <input type="tel" id="cfg_esp_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678 (opcional)">
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label for="cfg_esp_telefono" class="cfg-field-label">
+                    <span>📱</span> Teléfono de Contacto (WhatsApp)
+                  </label>
+                  <input type="tel" id="cfg_esp_telefono" class="input-text styled-input" placeholder="10 dígitos ej. 5512345678 (opcional)">
                 </div>
               </div>
-              <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
-                <button type="submit" class="btn btn-primary btn-sm"><span>💾</span> Guardar Especialista</button>
+
+              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm" style="font-weight:700;">Limpiar</button>
+                <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 18px;">
+                  <span>💾</span> Guardar Especialista
+                </button>
               </div>
             </form>
           </div>
 
           <!-- Catálogo de Especialistas Existentes -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">ESP</span>
+          <div class="cfg-table-card">
+            <div class="cfg-table-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.3rem;">👥</span>
                 <div>
-                  <h2 class="section-title">Especialistas Activos del Equipo</h2>
-                  <span class="section-subtitle">Profesionales disponibles para asignación en el registro de ventas</span>
+                  <h2 style="font-size:0.95rem; font-weight:800; color:var(--dark); margin:0;">Especialistas Activos del Equipo</h2>
+                  <span style="font-size:0.75rem; color:var(--muted);">Disponibles para asignación en el registro de ventas</span>
                 </div>
               </div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="kpi-status-badge badge-cuadrada" id="badge-total-especialistas">0 Especialistas</span>
-                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-especialistas" title="Eliminar todos los especialistas">
-                  🗑️ Vaciar Especialistas
+
+              <div class="cfg-table-tools">
+                <input type="text" id="cfg_esp_search" class="input-text styled-input" placeholder="🔍 Buscar especialista..." style="max-width:200px; font-size:0.8rem; padding:4px 10px;">
+                <span class="kpi-status-badge badge-cuadrada" id="badge-total-especialistas" style="font-size:0.8rem; padding:4px 10px;">0 Especialistas</span>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-especialistas" title="Eliminar todos los especialistas" style="font-size:0.75rem; padding:4px 8px;">
+                  🗑️ Vaciar
                 </button>
               </div>
             </div>
+
             <div class="table-responsive">
-              <table class="table">
+              <table class="tb-table">
                 <thead>
                   <tr>
                     <th>Nombre Completo</th>
                     <th>Especialidad / Estación</th>
                     <th>Teléfono</th>
-                    <th class="text-center" style="width:90px;">Acción</th>
+                    <th class="text-center" style="width:70px;">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-cat-especialistas">
@@ -2479,35 +2546,38 @@
               </table>
             </div>
           </div>
+
         </div>
 
         <!-- SUBPESTAÑA 4: CONFIGURACIÓN DE METAS QUINCENALES -->
         <div class="config-subview" id="config-subview-metas" style="display:none;">
-          <div class="ventas-form-card" style="margin-bottom:20px;">
-            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>🎯</span> Configuración de Metas Quincenales por Estación y Cursos
-              </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-                Las metas se introducen en base <strong>Quincenal (15 días)</strong>. El BalanceScore calcula automáticamente las metas y porcentajes de avance correspondientes para consultas por <strong>día, semana, quincena, mes completo (1 al 30/31) o rangos personalizados de fechas</strong>.
-              </p>
+          <div class="cfg-card">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #ecfdf5, #d1fae5); color:#059669;">🎯</div>
+                <div>
+                  <h3 class="cfg-title">Configuración de Metas Quincenales por Estación y Academia</h3>
+                  <p class="cfg-subtitle">
+                    Las metas se configuran en base <strong>Quincenal (15 días)</strong>. El BalanceScore calcula automáticamente los avances diarios, semanales, quincenales y mensuales.
+                  </p>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="kpi-status-badge badge-cuadrada" id="badge-autosave-metas" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:0.82rem; padding:5px 14px; font-weight:700;">
+                  ⚡ Auto-guardado en Firebase
+                </span>
+              </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
-              <span class="kpi-status-badge badge-cuadrada" id="badge-total-metas">8 Estaciones y Cursos</span>
-              <span class="kpi-status-badge badge-cuadrada" id="badge-autosave-metas" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:0.8rem; padding:6px 14px;">
-                ⚡ Auto-guardado en Firebase: Cada cambio se guarda automáticamente
-              </span>
-            </div>
-
-            <div class="table-responsive">
-              <table class="table" id="tabla-config-metas">
+            <div class="table-responsive" style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+              <table class="tb-table" id="tabla-config-metas">
                 <thead>
                   <tr>
-                    <th style="width:50px;">Icono</th>
+                    <th style="width:60px; text-align:center;">Icono</th>
                     <th>Estación / Área</th>
-                    <th style="width:200px;">Meta Quincenal ($) <span class="required">*</span></th>
-                    <th style="width:160px;">Meta Quincenal Clientes/Alumnos</th>
+                    <th style="width:210px;">Meta Quincenal ($) <span class="required">*</span></th>
+                    <th style="width:160px;">Meta Clientes/Alumnas</th>
                     <th class="text-right" style="width:140px;">Eq. Mensual ($)</th>
                     <th class="text-right" style="width:130px;">Eq. Diario ($)</th>
                   </tr>
@@ -2517,52 +2587,67 @@
                 </tbody>
               </table>
             </div>
-
-
           </div>
         </div>
 
-              <!-- SUBPESTAÑA 5: FONDO DE CAJA CHICA -->
+        <!-- SUBPESTAÑA 5: FONDO DE CAJA CHICA -->
         <div class="config-subview" id="config-subview-cajachica" style="display:none;">
-          <div class="ventas-form-card" style="margin-bottom:20px; max-width:800px;">
-            <div style="margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>🪙</span> Configuración del Fondo Base de Caja Chica
-              </h3>
-              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-                Fondo asignado para gastos menores y operativos. Este importe alimenta el Arqueo Diario de Caja Chica y descuenta automáticamente las salidas registradas en el mes.
-              </p>
+          <div class="cfg-card" style="max-width:850px;">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #fef3c7, #fde68a); color:#b45309;">🪙</div>
+                <div>
+                  <h3 class="cfg-title">Configuración del Fondo Base de Caja Chica</h3>
+                  <p class="cfg-subtitle">
+                    Fondo asignado para gastos menores. Este importe alimenta el Arqueo Diario de Caja Chica y descuenta automáticamente las salidas del mes.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <form id="form-config-cajachica" autocomplete="off">
-              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:18px;">
-                <div class="form-group">
-                  <label for="cfg_chica_fondo_base" style="font-weight:700;">Fondo Base Asignado para Caja Chica ($): <span class="required">*</span></label>
-                  <div class="currency-input-wrap">
-                    <span class="currency-prefix">$</span>
-                    <input type="number" step="0.01" min="0" class="input-currency" id="cfg_chica_fondo_base" placeholder="2000.00" required style="font-size:1.15rem; font-weight:800; color:#0f172a;">
+              <!-- Tarjetas informativas de balance actual -->
+              <div class="ventas-kpi-grid" style="margin-bottom:20px;">
+                <div class="ventas-kpi-card kpi-tarjeta">
+                  <div class="ventas-kpi-icon">🪙</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Fondo Base Configurado</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_chica_base">$0.00</span>
+                    <small style="font-size:0.72rem; color:var(--muted); font-weight:600;">Asignación inicial</small>
+                  </div>
+                </div>
+
+                <div class="ventas-kpi-card" style="border-left:4px solid #ef4444;">
+                  <div class="ventas-kpi-icon" style="background:#fee2e2; color:#b91c1c;">🔻</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Salidas del Mes</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_chica_salidas" style="color:#b91c1c;">-$0.00</span>
+                    <small style="font-size:0.72rem; color:#b91c1c; font-weight:700;">Descontadas automáticamente</small>
+                  </div>
+                </div>
+
+                <div class="ventas-kpi-card kpi-efectivo">
+                  <div class="ventas-kpi-icon">💰</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Fondo Disponible Arqueo</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_chica_disponible" style="color:#15803d;">$0.00</span>
+                    <small style="font-size:0.72rem; color:#15803d; font-weight:700;">Balance en tiempo real</small>
                   </div>
                 </div>
               </div>
 
-              <!-- Tarjetas informativas de balance actual -->
-              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:20px;">
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px;">
-                  <span style="font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; display:block;">Fondo Base Configurado</span>
-                  <span id="cfg_lbl_chica_base" style="font-size:1.25rem; font-weight:800; color:var(--dark);">$0.00</span>
-                </div>
-                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:14px 16px;">
-                  <span style="font-size:0.75rem; color:#b91c1c; font-weight:700; text-transform:uppercase; display:block;">Salidas del Mes (Descontadas)</span>
-                  <span id="cfg_lbl_chica_salidas" style="font-size:1.25rem; font-weight:800; color:#b91c1c;">-$0.00</span>
-                </div>
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:14px 16px;">
-                  <span style="font-size:0.75rem; color:#065f46; font-weight:700; text-transform:uppercase; display:block;">Fondo Disponible para Arqueo</span>
-                  <span id="cfg_lbl_chica_disponible" style="font-size:1.25rem; font-weight:800; color:#065f46;">$0.00</span>
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:20px;">
+                <label for="cfg_chica_fondo_base" style="font-weight:700; font-size:0.88rem; color:var(--dark); display:block; margin-bottom:8px;">
+                  Modificar Fondo Base Asignado para Caja Chica ($): <span class="required">*</span>
+                </label>
+                <div class="currency-input-wrap" style="max-width:320px;">
+                  <span class="currency-prefix">$</span>
+                  <input type="number" step="0.01" min="0" class="input-currency styled-input" id="cfg_chica_fondo_base" placeholder="2000.00" required style="font-size:1.2rem; font-weight:800; color:#0f172a;">
                 </div>
               </div>
 
               <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 22px;">
+                <button type="submit" class="btn btn-primary" style="font-weight:700; padding:10px 24px;">
                   <span>💾</span> Guardar Fondo de Caja Chica
                 </button>
               </div>
@@ -2570,7 +2655,7 @@
           </div>
         </div>
 
-</section>
+      </section>
 
       <!-- ================================================================
            10. REGISTRO DE AUDITORÍA Y MOVIMIENTOS DEL SISTEMA
