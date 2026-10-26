@@ -99,7 +99,7 @@
     },
     'interesadas': {
       title: 'Interesadas, Solo Preguntan y Cierres',
-      desc: '3 Opciones: Nuevo registro, Seguimiento por WhatsApp/Llamada y BalanceScore'
+      desc: '3 Opciones: BalanceScore de Conversión, Nuevo registro y Directorio de Seguimiento'
     },
     'campana': {
       title: 'Campaña Activa y Eventos del Mes',
@@ -2771,8 +2771,25 @@
 
 
   // =========================================================================
-  // 8. INTERESADAS Y CIERRES (3 OPCIONES REQUERIDAS)
+  // 8. INTERESADAS Y CIERRES (1: BALANCESCORE, 2: NUEVO REGISTRO, 3: SEGUIMIENTO)
   // =========================================================================
+  let activeLeadId = null;
+
+  function getTipifBadgeHtml(tipif) {
+    const t = (tipif || '').toLowerCase();
+    if (t === 'cierre') {
+      return '<span class="status-badge status-pagado" style="font-weight:800; padding:3px 10px;">🟢 Cierre</span>';
+    } else if (t === 'en seguimiento') {
+      return '<span class="status-badge status-pendiente" style="background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; font-weight:800; padding:3px 10px;">🟣 En seguimiento</span>';
+    } else if (t === 'solo pregunta') {
+      return '<span class="status-badge status-pendiente" style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; font-weight:800; padding:3px 10px;">🟡 Solo pregunta</span>';
+    } else if (t === 'no interesada') {
+      return '<span class="status-badge status-diferencia" style="font-weight:700; padding:3px 10px;">⚪ No interesada</span>';
+    } else {
+      return '<span class="status-badge status-pendiente" style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-weight:800; padding:3px 10px;">🔵 Interesada</span>';
+    }
+  }
+
   function switchLeadOption(optNum) {
     currentLeadOption = parseInt(optNum, 10) || 1;
 
@@ -2786,97 +2803,19 @@
       if (el) el.style.display = (n === currentLeadOption) ? 'block' : 'none';
     });
 
-    if (currentLeadOption === 2) renderLeadsDirectory();
-    if (currentLeadOption === 3) renderLeadsBalanceScore();
+    // Opción 1: BalanceScore de Conversión
+    if (currentLeadOption === 1) renderLeadsBalanceScore();
+    // Opción 3: Directorio de Seguimiento
+    if (currentLeadOption === 3) renderLeadsDirectory();
   }
 
   function loadInteresadasView() {
     const fReg = document.getElementById('lead_reg_fecha');
     if (fReg && !fReg.value) fReg.value = new Date().toISOString().split('T')[0];
-    switchLeadOption(currentLeadOption);
+    switchLeadOption(currentLeadOption || 1);
   }
 
-  // Opción 2: Directorio de Seguimiento por Llamada o WhatsApp
-  async function renderLeadsDirectory() {
-    const tbody = document.getElementById('tbody-leads-seguimiento');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando prospectos...</td></tr>';
-
-    const leads = await TB_FIREBASE.getLeadsAll();
-    const filtroTipif = document.getElementById('filtro_lead_tipif')?.value || 'TODAS';
-    const filtroUnidad = document.getElementById('filtro_lead_unidad')?.value || 'TODAS';
-    const query = (document.getElementById('buscador_leads')?.value || '').toLowerCase().trim();
-
-    const filtered = leads.filter(l => {
-      if (filtroTipif !== 'TODAS' && l.tipificacion !== filtroTipif) return false;
-      if (filtroUnidad !== 'TODAS' && l.unidad !== filtroUnidad) return false;
-      if (query) {
-        const nom = (l.nombre || '').toLowerCase();
-        const tel = (l.telefono || '').toLowerCase();
-        const serv = (l.servicio || '').toLowerCase();
-        if (!nom.includes(query) && !tel.includes(query) && !serv.includes(query)) return false;
-      }
-      return true;
-    });
-
-    const badge = document.getElementById('lead-counter-badge');
-    if (badge) badge.textContent = `${filtered.length} Registros`;
-
-    tbody.innerHTML = '';
-    if (filtered.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="8" class="table-empty-notice">
-            <span>📭</span>
-            No se encontraron interesadas con los filtros seleccionados. Use la Opción 1 para agregar nuevas prospectas.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    filtered.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(l => {
-      const tr = document.createElement('tr');
-      const cleanTel = (l.telefono || '').replace(/\D/g, '');
-      const waMsg = encodeURIComponent(`Hola ${l.nombre || ''}, te saludamos de Total Beauty Salón y Academia ✨ Respecto a tu interés en ${l.servicio || 'nuestros servicios'}, ¿te gustaría agendar tu cita o resolver alguna duda?`);
-      const waUrl = `https://wa.me/52${cleanTel}?text=${waMsg}`;
-
-      tr.innerHTML = `
-        <td><span style="font-size:0.8rem; color:var(--muted);">${l.fecha || 'Hoy'}</span></td>
-        <td><strong>${l.nombre || 'Prospecto'}</strong></td>
-        <td>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <a href="${waUrl}" target="_blank" class="btn-whatsapp" title="Enviar WhatsApp a ${l.telefono}">
-              <span>💬</span> WhatsApp
-            </a>
-            <a href="tel:${cleanTel}" class="btn-call" title="Llamar">
-              <span>📞</span>
-            </a>
-          </div>
-        </td>
-        <td>
-          <div style="font-weight:600; color:var(--dark); font-size:0.85rem;">${l.servicio || '-'}</div>
-          <span style="font-size:0.75rem; color:var(--muted);">${l.unidad || 'Salón'}</span>
-        </td>
-        <td><span style="font-size:0.8rem; color:var(--slate);">${l.canal || 'WhatsApp'}</span></td>
-        <td>
-          <select class="input-text lead-tipif-select" data-id="${l.id}" style="padding:4px 8px; font-size:0.82rem; font-weight:600;">
-            <option value="Interesada" ${l.tipificacion === 'Interesada' ? 'selected' : ''}>🔵 Interesada</option>
-            <option value="Solo pregunta" ${l.tipificacion === 'Solo pregunta' ? 'selected' : ''}>🟡 Solo pregunta</option>
-            <option value="En seguimiento" ${l.tipificacion === 'En seguimiento' ? 'selected' : ''}>🟣 En seguimiento</option>
-            <option value="Cierre" ${l.tipificacion === 'Cierre' ? 'selected' : ''}>🟢 Cierre (Agendada/Pagó)</option>
-            <option value="No interesada" ${l.tipificacion === 'No interesada' ? 'selected' : ''}>⚪ No interesada</option>
-          </select>
-        </td>
-        <td><span style="font-size:0.8rem; color:var(--muted);">${l.notas ? l.notas.substring(0, 45) + '...' : 'Sin notas'}</span></td>
-        <td class="text-center">
-          <button type="button" class="btn btn-outline-danger btn-sm btn-del-lead" data-id="${l.id}" title="Eliminar registro">✕</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Opción 3: BalanceScore de Conversión Comercial en Tiempo Real
+  // Opción 1: BalanceScore de Conversión Comercial en Tiempo Real
   async function renderLeadsBalanceScore() {
     const leads = await TB_FIREBASE.getLeadsAll();
 
@@ -2887,16 +2826,18 @@
 
     const tasa = total > 0 ? Math.round((cierres / total) * 100) : 0;
 
-    document.getElementById('kpi-bs-leads-total').textContent = total;
-    document.getElementById('kpi-bs-leads-preguntan').textContent = preguntan;
-    document.getElementById('kpi-bs-leads-seguimiento').textContent = seguimiento;
-    document.getElementById('kpi-bs-leads-cierres').textContent = cierres;
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
 
-    document.getElementById('visual-bs-interesadas').textContent = total;
-    document.getElementById('visual-bs-preguntan').textContent = preguntan;
-    document.getElementById('visual-bs-seguimiento').textContent = seguimiento;
-    document.getElementById('visual-bs-cierres').textContent = cierres;
-    document.getElementById('visual-bs-tasa').textContent = `${tasa}%`;
+    setTxt('kpi-bs-leads-total', total);
+    setTxt('kpi-bs-leads-preguntan', preguntan);
+    setTxt('kpi-bs-leads-seguimiento', seguimiento);
+    setTxt('kpi-bs-leads-cierres', cierres);
+
+    setTxt('visual-bs-interesadas', total);
+    setTxt('visual-bs-preguntan', preguntan);
+    setTxt('visual-bs-seguimiento', seguimiento);
+    setTxt('visual-bs-cierres', cierres);
+    setTxt('visual-bs-tasa', `${tasa}%`);
 
     // Comparativa Salón vs Academia
     const salonLeads = leads.filter(l => (l.unidad || '').includes('Salón'));
@@ -2907,13 +2848,13 @@
     const acadCierres = acadLeads.filter(l => l.tipificacion === 'Cierre').length;
     const acadTasa = acadLeads.length > 0 ? Math.round((acadCierres / acadLeads.length) * 100) : 0;
 
-    document.getElementById('bs-salon-leads').textContent = salonLeads.length;
-    document.getElementById('bs-salon-cierres').textContent = salonCierres;
-    document.getElementById('bs-salon-tasa').textContent = `${salonTasa}%`;
+    setTxt('bs-salon-leads', salonLeads.length);
+    setTxt('bs-salon-cierres', salonCierres);
+    setTxt('bs-salon-tasa', `${salonTasa}%`);
 
-    document.getElementById('bs-academia-leads').textContent = acadLeads.length;
-    document.getElementById('bs-academia-cierres').textContent = acadCierres;
-    document.getElementById('bs-academia-tasa').textContent = `${acadTasa}%`;
+    setTxt('bs-academia-leads', acadLeads.length);
+    setTxt('bs-academia-cierres', acadCierres);
+    setTxt('bs-academia-tasa', `${acadTasa}%`);
 
     // Desglose por Canal
     const canalCounts = {};
@@ -2925,25 +2866,249 @@
     });
 
     const tbodyCanal = document.getElementById('tbody-bs-canales');
-    tbodyCanal.innerHTML = '';
-    const canales = Object.keys(canalCounts);
-    if (canales.length === 0) {
-      tbodyCanal.innerHTML = '<tr><td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">No hay canales registrados aún</td></tr>';
-    } else {
-      canales.forEach(c => {
-        const inf = canalCounts[c];
-        const pct = inf.total > 0 ? Math.round((inf.cierres / inf.total) * 100) : 0;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${c}</strong></td>
-          <td class="text-right">${inf.total}</td>
-          <td class="text-right" style="font-weight:700; color:var(--success);">${inf.cierres}</td>
-          <td class="text-right" style="font-weight:700;">${pct}%</td>
-        `;
-        tbodyCanal.appendChild(tr);
-      });
+    if (tbodyCanal) {
+      tbodyCanal.innerHTML = '';
+      const canales = Object.keys(canalCounts);
+      if (canales.length === 0) {
+        tbodyCanal.innerHTML = '<tr><td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">No hay canales registrados aún</td></tr>';
+      } else {
+        canales.forEach(c => {
+          const inf = canalCounts[c];
+          const pct = inf.total > 0 ? Math.round((inf.cierres / inf.total) * 100) : 0;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(c)}</strong></td>
+            <td class="text-right">${inf.total}</td>
+            <td class="text-right" style="font-weight:700; color:var(--success);">${inf.cierres}</td>
+            <td class="text-right" style="font-weight:800;">${pct}%</td>
+          `;
+          tbodyCanal.appendChild(tr);
+        });
+      }
     }
   }
+
+  // Opción 3: Directorio de Seguimiento por Llamada o WhatsApp (Ordenado por el más antiguo primero, sin eliminar)
+  async function renderLeadsDirectory() {
+    const container = document.getElementById('lead-directory-container');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:24px; color:var(--muted);">Cargando directorio de prospectos...</div>';
+
+    const leads = await TB_FIREBASE.getLeadsAll();
+    const filtroTipif = document.getElementById('filtro_lead_tipif')?.value || 'TODAS';
+    const filtroUnidad = document.getElementById('filtro_lead_unidad')?.value || 'TODAS';
+    const query = (document.getElementById('buscador_leads')?.value || '').toLowerCase().trim();
+
+    // Filtrar por Tipificación Actual, Unidad y Buscador
+    const filtered = leads.filter(l => {
+      if (filtroTipif !== 'TODAS' && (l.tipificacion || 'Interesada') !== filtroTipif) return false;
+      if (filtroUnidad !== 'TODAS' && (l.unidad || '').toLowerCase() !== filtroUnidad.toLowerCase()) return false;
+      if (query) {
+        const nom = (l.nombre || '').toLowerCase();
+        const tel = (l.telefono || '').toLowerCase();
+        const serv = (l.servicio || '').toLowerCase();
+        if (!nom.includes(query) && !tel.includes(query) && !serv.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const badge = document.getElementById('lead-counter-badge');
+    if (badge) badge.textContent = `${filtered.length} Prospectos`;
+
+    container.innerHTML = '';
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:45px 20px; color:var(--muted); background:#fff; border-radius:12px; border:1px dashed var(--border);">
+          <span style="font-size:2.2rem; display:block; margin-bottom:8px;">📭</span>
+          <h4 style="color:var(--dark); margin-bottom:4px;">No se encontraron prospectos</h4>
+          <p style="font-size:0.85rem; max-width:420px; margin:0 auto;">
+            ${query || filtroTipif !== 'TODAS' ? 'Intente con otro filtro de tipificación o término de búsqueda.' : 'No hay interesadas registradas aún. Use la Opción 2 para dar de alta nuevos prospectos.'}
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    // ORDENAR POR EL MÁS ANTIGUO PRIMERO (Requisito explícito: orden cronológico ascendente)
+    filtered.sort((a, b) => {
+      const tA = (a.createdAt || a.fecha || '9999-99-99') + '';
+      const tB = (b.createdAt || b.fecha || '9999-99-99') + '';
+      return tA.localeCompare(tB);
+    });
+
+    filtered.forEach(l => {
+      const cleanTel = (l.telefono || '').replace(/\D/g, '');
+      const waMsg = encodeURIComponent(`Hola ${l.nombre || ''}, te saludamos de Total Beauty Salón y Academia ✨ Respecto a tu interés en ${l.servicio || 'nuestros servicios'}, ¿te gustaría agendar tu cita o resolver alguna duda?`);
+      const waUrl = `https://wa.me/52${cleanTel}?text=${waMsg}`;
+      const initial = (l.nombre || 'P').charAt(0).toUpperCase();
+
+      const tipifActual = l.tipificacion || 'Interesada';
+      const tipifBadge = getTipifBadgeHtml(tipifActual);
+      const isAcad = (l.unidad || '').toLowerCase().includes('academia');
+
+      const card = document.createElement('div');
+      card.className = 'lead-dir-item';
+      card.dataset.id = l.id;
+      card.innerHTML = `
+        <div class="lead-dir-left">
+          <div class="lead-avatar">${initial}</div>
+          <div class="lead-dir-info">
+            <button type="button" class="lead-name-btn" data-id="${l.id}" title="Click para ver historial de contactos y tipificar">
+              <span class="lead-name-text">${escapeHtml(l.nombre || 'Prospecto')}</span>
+              <span class="lead-click-hint">👉 Ver Historial & Tipificar</span>
+            </button>
+            <div class="lead-subinfo">
+              <span class="lead-service-tag">${escapeHtml(l.servicio || 'General')}</span>
+              <span class="lead-date-tag">📅 Reg: ${formatDateDisplay(l.fecha)}</span>
+              <span class="lead-unit-tag">${isAcad ? '🎓 Academia' : '💇‍♀️ Salón'}</span>
+              ${l.canal ? `<span style="color:var(--muted); font-size:0.75rem;">(Vía: ${escapeHtml(l.canal)})</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="lead-dir-right">
+          ${tipifBadge}
+          <div class="lead-quick-actions">
+            <a href="${waUrl}" target="_blank" class="btn-whatsapp btn-sm" title="Enviar WhatsApp a ${cleanTel}" style="text-decoration:none;">
+              <span>💬</span> WhatsApp
+            </a>
+            <a href="tel:${cleanTel}" class="btn btn-secondary btn-sm" title="Llamar" style="text-decoration:none; padding:4px 8px;">
+              <span>📞</span>
+            </a>
+            <button type="button" class="btn btn-primary btn-sm btn-open-lead-modal" data-id="${l.id}" style="font-weight:700;">
+              <span>📋</span> Historial
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Click en el nombre o botón para ver historial y registrar tipificación
+      card.querySelector('.lead-name-btn')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openLeadDetailModal(l.id);
+      });
+      card.querySelector('.btn-open-lead-modal')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openLeadDetailModal(l.id);
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  // Modal de Detalle de Contactos e Historial de Tipificación
+  async function openLeadDetailModal(leadId) {
+    activeLeadId = leadId;
+    const leads = await TB_FIREBASE.getLeadsAll();
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    const modal = document.getElementById('modal-lead-detalle');
+    if (!modal) return;
+
+    // Poblar información
+    document.getElementById('mlead-nombre').textContent = lead.nombre || 'Prospecto';
+    const cleanTel = (lead.telefono || '').replace(/\D/g, '');
+    const isAcad = (lead.unidad || '').toLowerCase().includes('academia');
+    const subText = `📱 ${lead.telefono || 'Sin teléfono'} • ${isAcad ? '🎓 Academia' : '💇‍♀️ Salón'} • 📅 Registro: ${formatDateDisplay(lead.fecha)}`;
+    document.getElementById('mlead-sub').textContent = subText;
+
+    document.getElementById('mlead-servicio').textContent = lead.servicio || 'No especificado';
+    document.getElementById('mlead-canal').textContent = lead.canal || 'WhatsApp';
+
+    const waMsg = encodeURIComponent(`Hola ${lead.nombre || ''}, te saludamos de Total Beauty Salón y Academia ✨ Respecto a tu interés en ${lead.servicio || 'nuestros servicios'}, ¿te gustaría agendar tu cita o resolver alguna duda?`);
+    const waUrl = `https://wa.me/52${cleanTel}?text=${waMsg}`;
+    const btnWa = document.getElementById('mlead-btn-wa');
+    if (btnWa) btnWa.href = waUrl;
+    const btnCall = document.getElementById('mlead-btn-call');
+    if (btnCall) btnCall.href = `tel:${cleanTel}`;
+
+    const tipifActual = lead.tipificacion || 'Interesada';
+    const badgeTipif = document.getElementById('mlead-tipif-actual');
+    if (badgeTipif) {
+      badgeTipif.innerHTML = getTipifBadgeHtml(tipifActual);
+    }
+
+    const selTipif = document.getElementById('mlead_new_tipif');
+    if (selTipif) selTipif.value = tipifActual;
+
+    renderLeadTimeline(lead);
+
+    modal.style.display = 'flex';
+  }
+
+  function closeLeadDetailModal() {
+    const modal = document.getElementById('modal-lead-detalle');
+    if (modal) modal.style.display = 'none';
+    activeLeadId = null;
+  }
+
+  function renderLeadTimeline(lead) {
+    const container = document.getElementById('mlead-timeline-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const historial = (lead.historialSeguimiento && lead.historialSeguimiento.length > 0)
+      ? [...lead.historialSeguimiento]
+      : [];
+
+    if (historial.length === 0) {
+      historial.push({
+        fechaHora: lead.createdAt || (lead.fecha ? lead.fecha + 'T10:00:00.000Z' : new Date().toISOString()),
+        medio: lead.canal || 'WhatsApp',
+        accion: 'Registro inicial del prospecto',
+        tipificacion: lead.tipificacion || 'Interesada',
+        notas: lead.notas || 'Sin notas iniciales registradas',
+        usuario: 'Recepción'
+      });
+    }
+
+    // Cronológico descendente (último contacto primero)
+    historial.sort((a, b) => (b.fechaHora || '').localeCompare(a.fechaHora || ''));
+
+    const timeline = document.createElement('div');
+    timeline.className = 'lead-timeline';
+
+    historial.forEach(h => {
+      let icon = '💬';
+      const mLower = (h.medio || h.accion || '').toLowerCase();
+      if (mLower.includes('llamada')) icon = '📞';
+      else if (mLower.includes('presencial') || mLower.includes('mostrador') || mLower.includes('sucursal')) icon = '🚪';
+      else if (mLower.includes('red') || mLower.includes('instagram') || mLower.includes('facebook')) icon = '📸';
+
+      let fechaDisplay = '--/--/----';
+      if (h.fechaHora) {
+        const d = new Date(h.fechaHora);
+        if (!isNaN(d.getTime())) {
+          fechaDisplay = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+      }
+
+      const item = document.createElement('div');
+      item.className = 'timeline-item';
+      item.innerHTML = `
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <span class="timeline-badge">${icon} ${escapeHtml(h.medio || h.accion || 'Contacto')}</span>
+            <span class="timeline-date">${fechaDisplay}</span>
+          </div>
+          <div style="margin-top:2px;">
+            ${getTipifBadgeHtml(h.tipificacion || lead.tipificacion)}
+          </div>
+          <div class="timeline-notes">
+            ${escapeHtml(h.notas || h.resultado || 'Sin comentarios adicionales')}
+          </div>
+          ${h.usuario ? `<div class="timeline-user">Registró: ${escapeHtml(h.usuario)}</div>` : ''}
+        </div>
+      `;
+      timeline.appendChild(item);
+    });
+
+    container.appendChild(timeline);
+  }
+
 
   // =========================================================================
   // 9. CAMPAÑA ACTIVA Y EVENTOS DEL MES (MONITOREO EN VIVO)
@@ -4924,7 +5089,7 @@
       });
     });
 
-    // Formulario Opción 1: Nuevo Lead
+    // Formulario Opción 2: Nuevo Lead
     document.getElementById('form-nuevo-lead')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fecha = document.getElementById('lead_reg_fecha').value;
@@ -4935,6 +5100,7 @@
       const canal = document.getElementById('lead_reg_canal').value;
       const tipificacion = document.getElementById('lead_reg_tipificacion').value;
       const notas = document.getElementById('lead_reg_notas').value.trim();
+      const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Recepción Total Beauty';
 
       if (!fecha || !nombre || !telefono || !servicio) {
         showToast('Complete los campos obligatorios (*)', 'warning');
@@ -4951,7 +5117,14 @@
         tipificacion,
         notas,
         historialSeguimiento: [
-          { fechaHora: new Date().toISOString(), accion: 'Contacto inicial', tipificacion }
+          {
+            fechaHora: new Date().toISOString(),
+            medio: canal || 'WhatsApp',
+            accion: 'Registro inicial del prospecto',
+            tipificacion,
+            notas: notas || 'Contacto inicial recibido',
+            usuario: userEmail
+          }
         ],
         createdAt: new Date().toISOString()
       };
@@ -4970,57 +5143,67 @@
       document.getElementById('form-nuevo-lead').reset();
       document.getElementById('lead_reg_fecha').value = new Date().toISOString().split('T')[0];
 
-      // Cambiar a la Opción 2 para verla en la lista
-      switchLeadOption(2);
+      // Cambiar a la Opción 3 (Directorio de Seguimiento) para ver a la persona registrada
+      switchLeadOption(3);
     });
 
-    // Filtros de la Opción 2
+    // Filtros de la Opción 3 (Directorio)
     document.getElementById('filtro_lead_tipif')?.addEventListener('change', renderLeadsDirectory);
     document.getElementById('filtro_lead_unidad')?.addEventListener('change', renderLeadsDirectory);
     document.getElementById('buscador_leads')?.addEventListener('input', renderLeadsDirectory);
     document.getElementById('btn-refresh-leads')?.addEventListener('click', () => {
       renderLeadsDirectory();
-      showToast('Directorio de leads recargado', 'info');
+      showToast('Directorio de prospectos recargado', 'info');
     });
 
-    // Cambio dinámico de tipificación en la tabla de seguimiento
-    document.addEventListener('change', async (e) => {
-      if (e.target.matches('.lead-tipif-select')) {
-        const id = e.target.dataset.id;
-        const newTipif = e.target.value;
-        const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
-        const leadBackup = localLeads[id] ? JSON.parse(JSON.stringify(localLeads[id])) : null;
-        await TB_FIREBASE.updateLeadSeguimiento(id, { accion: 'Actualización en lista' }, newTipif);
-        showToast(`Tipificación actualizada a: ${newTipif}`, 'success');
-
-        logAuditMovement({
-          modulo: 'Interesadas',
-          accion: 'UPDATE_LEAD',
-          descripcion: `Actualización de estatus de prospecto "${leadBackup?.nombre || id}" a: ${newTipif}`,
-          payload: { id, leadBackup }
-        });
-      }
+    // Modal de Detalle de Lead: Cerrar
+    document.getElementById('btn-close-lead-modal')?.addEventListener('click', closeLeadDetailModal);
+    document.getElementById('modal-lead-detalle')?.addEventListener('click', (e) => {
+      if (e.target.id === 'modal-lead-detalle') closeLeadDetailModal();
     });
 
-    // Eliminar lead
-    document.addEventListener('click', async (e) => {
-      if (e.target.matches('.btn-del-lead')) {
-        const id = e.target.dataset.id;
-        if (confirm('¿Eliminar prospecto del directorio?')) {
-          const localLeads = JSON.parse(localStorage.getItem('tb_leads_db') || '{}');
-          const leadBackup = localLeads[id];
-          await TB_FIREBASE.deleteLead(id);
-          renderLeadsDirectory();
-          showToast('Registro eliminado', 'info');
+    // Guardar nuevo seguimiento y tipificación desde el modal
+    document.getElementById('form-lead-nuevo-seguimiento')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!activeLeadId) return;
 
-          logAuditMovement({
-            modulo: 'Interesadas',
-            accion: 'BAJA_LEAD',
-            descripcion: `Eliminación de prospecto: "${leadBackup?.nombre || id}" (${leadBackup?.servicio || 'General'})`,
-            payload: { id, leadBackup }
-          });
-        }
+      const nuevaTipificacion = document.getElementById('mlead_new_tipif').value;
+      const medio = document.getElementById('mlead_new_medio').value;
+      const notas = document.getElementById('mlead_new_notas').value.trim();
+      const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Recepción Total Beauty';
+
+      if (!notas) {
+        showToast('Por favor ingrese las notas del seguimiento', 'warning');
+        return;
       }
+
+      const nuevoSeguimiento = {
+        medio,
+        notas,
+        tipificacion: nuevaTipificacion,
+        usuario: userEmail,
+        accion: `Seguimiento por ${medio}`
+      };
+
+      await TB_FIREBASE.updateLeadSeguimiento(activeLeadId, nuevoSeguimiento, nuevaTipificacion);
+      showToast(`✅ Tipificación actualizada a: ${nuevaTipificacion}`, 'success');
+
+      logAuditMovement({
+        modulo: 'Interesadas',
+        accion: 'UPDATE_LEAD',
+        descripcion: `Nuevo seguimiento para prospecto ID: ${activeLeadId} - Tipificación: "${nuevaTipificacion}" (${medio}): "${notas}"`,
+        payload: { id: activeLeadId, nuevoSeguimiento, nuevaTipificacion }
+      });
+
+      // Limpiar notas
+      document.getElementById('mlead_new_notas').value = '';
+
+      // Recargar modal con datos frescos
+      await openLeadDetailModal(activeLeadId);
+
+      // Actualizar el directorio y métricas de fondo
+      renderLeadsDirectory();
+      renderLeadsBalanceScore();
     });
 
     // -----------------------------------------------------------------------

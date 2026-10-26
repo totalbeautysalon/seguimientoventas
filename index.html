@@ -1722,192 +1722,23 @@
            ================================================================ -->
       <section class="module-view" id="view-interesadas">
 
-        <!-- Selector de las 3 opciones requeridas -->
+        <!-- Selector de las 3 opciones requeridas (ORDENADO SEGÚN REQUERIMIENTO) -->
         <div class="options-nav-pills">
           <button type="button" class="option-pill active" id="btn-lead-opt-1" data-opt="1">
-            <span>➕</span> Opción 1: Nuevo Registro & Tipificación
+            <span>📊</span> Opción 1: BalanceScore de Conversión
           </button>
           <button type="button" class="option-pill" id="btn-lead-opt-2" data-opt="2">
-            <span>📋</span> Opción 2: Seguimiento en Tipificación (Llamada / WhatsApp)
+            <span>➕</span> Opción 2: Nuevo Registro & Tipificación
           </button>
           <button type="button" class="option-pill" id="btn-lead-opt-3" data-opt="3">
-            <span>📊</span> Opción 3: BalanceScore de Conversión
+            <span>📋</span> Opción 3: Seguimiento en Tipificación (Llamada / WhatsApp)
           </button>
         </div>
 
         <!-- ==============================================================
-             OPCIÓN 1: FORMULARIO DE NUEVO REGISTRO DE INTERESADA
+             OPCIÓN 1 (PRIMERO): BALANCESCORE Y MÉTRICAS DE CONVERSIÓN
              ============================================================== -->
         <div class="lead-subview active-subview" id="lead-subview-1">
-          <div class="ventas-form-card">
-            <div style="margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-              <h3 style="font-size:1.1rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
-                <span>➕</span> Registrar Persona Interesada y Tipificación Inicial
-              </h3>
-              <p style="font-size:0.82rem; color:var(--muted); margin-top:2px;">
-                Ingrese los datos del prospecto para iniciar el seguimiento y alimentar las métricas en tiempo real.
-              </p>
-            </div>
-
-            <form id="form-nuevo-lead" autocomplete="off">
-              <div class="ventas-form-grid">
-                
-                <div class="form-group">
-                  <label for="lead_reg_fecha">Fecha de Contacto <span class="required">*</span></label>
-                  <input type="date" id="lead_reg_fecha" class="input-date" required>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_nombre">Nombre de la Persona <span class="required">*</span></label>
-                  <input type="text" id="lead_reg_nombre" class="input-text" placeholder="Nombre completo" required>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_telefono">Teléfono WhatsApp <span class="required">*</span></label>
-                  <input type="tel" id="lead_reg_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678" required>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_unidad">Unidad de Negocio <span class="required">*</span></label>
-                  <select id="lead_reg_unidad" class="input-text" required>
-                    <option value="Salón de Belleza" selected>💇‍♀️ Salón de Belleza</option>
-                    <option value="Academia Total Beauty">🎓 Academia Total Beauty</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_servicio">Servicio o Curso de Interés <span class="required">*</span></label>
-                  <input type="text" id="lead_reg_servicio" class="input-text" placeholder="Ej. Balayage, Uñas, Curso Colorimetría..." required list="lista-servicios-lead">
-                  <datalist id="lista-servicios-lead">
-                    <option value="Balayage y Colorimetría">
-                    <option value="Uñas Acrílicas y Gelish">
-                    <option value="Maquillaje y Peinado Social">
-                    <option value="Lash & Brow / Pestañas">
-                    <option value="Pedicure Spa">
-                    <option value="Tratamiento Facial">
-                    <option value="Curso de Uñas Acrílicas (Academia)">
-                    <option value="Curso de Colorimetría Básica / Avanzada (Academia)">
-                    <option value="Diplomado Integral de Belleza (Academia)">
-                  </datalist>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_canal">Canal de Captación <span class="required">*</span></label>
-                  <select id="lead_reg_canal" class="input-text" required>
-                    <option value="WhatsApp" selected>📱 WhatsApp Directo</option>
-                    <option value="Instagram">📸 Instagram (@totalbeauty)</option>
-                    <option value="Facebook">👥 Facebook</option>
-                    <option value="TikTok">🎵 TikTok</option>
-                    <option value="Recomendación">⭐ Recomendación de Clienta</option>
-                    <option value="Mostrador">🚪 Mostrador / Visita a Sucursal</option>
-                    <option value="Otro">🌐 Otro Medio</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="lead_reg_tipificacion">Tipificación Inicial <span class="required">*</span></label>
-                  <select id="lead_reg_tipificacion" class="input-text" required>
-                    <option value="Interesada" selected>🔵 Interesada (Pide informes completos)</option>
-                    <option value="Solo pregunta">🟡 Solo pregunta (Pregunta precio y no responde más)</option>
-                    <option value="En seguimiento">🟣 En seguimiento (Por confirmar cita o pago)</option>
-                    <option value="Cierre">🟢 Cierre - Agendada / Pagó anticipo</option>
-                    <option value="No interesada">⚪ No interesada (Fuera de presupuesto / horario)</option>
-                  </select>
-                </div>
-
-                <div class="form-group form-group-full">
-                  <label for="lead_reg_notas">Notas / Objeciones / Seguimiento</label>
-                  <textarea id="lead_reg_notas" class="textarea-custom" style="min-height:60px;" placeholder="Detalles de la conversación, disponibilidad de horario de la clienta, dudas pendientes..."></textarea>
-                </div>
-
-              </div>
-
-              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
-                <button type="submit" class="btn btn-firebase" id="btn-submit-lead">
-                  <span>💾</span> Guardar Interesada en Firebase
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- ==============================================================
-             OPCIÓN 2: SEGUIMIENTO DE REGISTROS (LLAMADA O MENSAJE WHATSAPP)
-             ============================================================== -->
-        <div class="lead-subview" id="lead-subview-2" style="display:none;">
-          
-          <div class="filter-bar">
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <label for="filtro_lead_tipif" style="font-weight:700; color:var(--dark);">Filtrar por Status:</label>
-              <select id="filtro_lead_tipif" class="input-text" style="max-width:180px; padding:6px 10px;">
-                <option value="TODAS">Todas las Tipificaciones</option>
-                <option value="Interesada">🔵 Interesadas</option>
-                <option value="Solo pregunta">🟡 Solo Preguntan</option>
-                <option value="En seguimiento">🟣 En Seguimiento</option>
-                <option value="Cierre">🟢 Cierres Concretados</option>
-                <option value="No interesada">⚪ No Interesadas</option>
-              </select>
-
-              <label for="filtro_lead_unidad" style="font-weight:700; color:var(--dark); margin-left:8px;">Unidad:</label>
-              <select id="filtro_lead_unidad" class="input-text" style="max-width:160px; padding:6px 10px;">
-                <option value="TODAS">Salón y Academia</option>
-                <option value="Salón de Belleza">💇‍♀️ Salón</option>
-                <option value="Academia Total Beauty">🎓 Academia</option>
-              </select>
-
-              <input type="text" id="buscador_leads" class="input-text" placeholder="Buscar por nombre o teléfono..." style="max-width:220px; padding:6px 10px;">
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-leads">
-              <span>🔄</span> Recargar Leads
-            </button>
-          </div>
-
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">🎯</span>
-                <div>
-                  <h2 class="section-title">Directorio de Seguimiento y Tipificación</h2>
-                  <span class="section-subtitle">Contacte por WhatsApp o llamada y actualice el status al instante</span>
-                </div>
-              </div>
-              <span class="kpi-status-badge badge-cuadrada" id="lead-counter-badge">0 Registros</span>
-            </div>
-            <div class="section-body">
-              <div class="table-responsive">
-                <table class="tb-table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Nombre</th>
-                      <th>Contacto Directo</th>
-                      <th>Unidad & Servicio</th>
-                      <th>Canal</th>
-                      <th style="width:190px;">Tipificación Actual</th>
-                      <th>Última Nota</th>
-                      <th style="text-align:center; width:60px;">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tbody-leads-seguimiento">
-                    <tr>
-                      <td colspan="8" class="table-empty-notice">
-                        <span>📭</span>
-                        No hay interesadas registradas. Use la Opción 1 para agregar prospectos.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- ==============================================================
-             OPCIÓN 3: BALANCESCORE Y MÉTRICAS DE CONVERSIÓN COMERCIAL
-             ============================================================== -->
-        <div class="lead-subview" id="lead-subview-3" style="display:none;">
           
           <div class="kpi-grid">
             <div class="kpi-card">
@@ -2016,23 +1847,173 @@
                       <thead>
                         <tr>
                           <th>Canal</th>
-                          <th class="text-right">Interesadas</th>
+                          <th class="text-right">Prospectos</th>
                           <th class="text-right">Cierres</th>
-                          <th class="text-right">% Éxito</th>
+                          <th class="text-right">% Conversión</th>
                         </tr>
                       </thead>
                       <tbody id="tbody-bs-canales">
-                        <tr>
-                          <td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">Sin datos suficientes</td>
-                        </tr>
+                        <tr><td colspan="4" class="text-center" style="color:var(--muted); padding:14px;">Cargando canales...</td></tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
               </div>
-
             </div>
 
+          </div>
+
+        </div>
+
+        <!-- ==============================================================
+             OPCIÓN 2 (SEGUNDO): NUEVO REGISTRO & TIPIFICACIÓN INICIAL
+             ============================================================== -->
+        <div class="lead-subview" id="lead-subview-2" style="display:none;">
+          <div class="ventas-form-card">
+            <div style="margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+              <h3 style="font-size:1.1rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px;">
+                <span>➕</span> Registrar Persona Interesada y Tipificación Inicial
+              </h3>
+              <p style="font-size:0.82rem; color:var(--muted); margin-top:2px;">
+                Ingrese los datos del prospecto para iniciar el seguimiento y alimentar las métricas en tiempo real.
+              </p>
+            </div>
+
+            <form id="form-nuevo-lead" autocomplete="off">
+              <div class="ventas-form-grid">
+                
+                <div class="form-group">
+                  <label for="lead_reg_fecha">Fecha de Contacto <span class="required">*</span></label>
+                  <input type="date" id="lead_reg_fecha" class="input-date" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_nombre">Nombre de la Persona <span class="required">*</span></label>
+                  <input type="text" id="lead_reg_nombre" class="input-text" placeholder="Nombre completo" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_telefono">Teléfono WhatsApp <span class="required">*</span></label>
+                  <input type="tel" id="lead_reg_telefono" class="input-text" placeholder="10 dígitos ej. 5512345678" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_unidad">Unidad de Negocio <span class="required">*</span></label>
+                  <select id="lead_reg_unidad" class="input-text" required>
+                    <option value="Salón de Belleza" selected>💇‍♀️ Salón de Belleza</option>
+                    <option value="Academia Total Beauty">🎓 Academia Total Beauty</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_servicio">Servicio o Curso de Interés <span class="required">*</span></label>
+                  <input type="text" id="lead_reg_servicio" class="input-text" placeholder="Ej. Balayage, Uñas, Curso Colorimetría..." required list="lista-servicios-lead">
+                  <datalist id="lista-servicios-lead">
+                    <option value="Balayage y Colorimetría">
+                    <option value="Uñas Acrílicas y Gelish">
+                    <option value="Maquillaje y Peinado Social">
+                    <option value="Lash & Brow / Pestañas">
+                    <option value="Pedicure Spa">
+                    <option value="Tratamiento Facial">
+                    <option value="Curso de Uñas Acrílicas (Academia)">
+                    <option value="Curso de Colorimetría Básica / Avanzada (Academia)">
+                    <option value="Diplomado Integral de Belleza (Academia)">
+                  </datalist>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_canal">Canal de Captación <span class="required">*</span></label>
+                  <select id="lead_reg_canal" class="input-text" required>
+                    <option value="WhatsApp" selected>📱 WhatsApp Directo</option>
+                    <option value="Instagram">📸 Instagram (@totalbeauty)</option>
+                    <option value="Facebook">👥 Facebook</option>
+                    <option value="TikTok">🎵 TikTok</option>
+                    <option value="Recomendación">⭐ Recomendación de Clienta</option>
+                    <option value="Mostrador">🚪 Mostrador / Visita a Sucursal</option>
+                    <option value="Otro">🌐 Otro Medio</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="lead_reg_tipificacion">Tipificación Inicial <span class="required">*</span></label>
+                  <select id="lead_reg_tipificacion" class="input-text" required>
+                    <option value="Interesada" selected>🔵 Interesada (Pide informes completos)</option>
+                    <option value="Solo pregunta">🟡 Solo pregunta (Pregunta precio y no responde más)</option>
+                    <option value="En seguimiento">🟣 En seguimiento (Por confirmar cita o pago)</option>
+                    <option value="Cierre">🟢 Cierre - Agendada / Pagó anticipo</option>
+                    <option value="No interesada">⚪ No interesada (Fuera de presupuesto / horario)</option>
+                  </select>
+                </div>
+
+                <div class="form-group form-group-full">
+                  <label for="lead_reg_notas">Notas / Objeciones / Seguimiento</label>
+                  <textarea id="lead_reg_notas" class="textarea-custom" style="min-height:60px;" placeholder="Detalles de la conversación, disponibilidad de horario de la clienta, dudas pendientes..."></textarea>
+                </div>
+
+              </div>
+
+              <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="reset" class="btn btn-secondary btn-sm">Limpiar</button>
+                <button type="submit" class="btn btn-firebase" id="btn-submit-lead">
+                  <span>💾</span> Guardar Interesada en Firebase
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ==============================================================
+             OPCIÓN 3 (AL FINAL): SEGUIMIENTO EN TIPIFICACIÓN (DIRECTORIO)
+             ============================================================== -->
+        <div class="lead-subview" id="lead-subview-3" style="display:none;">
+          
+          <!-- Barra de Filtros por Tipificación Actual y Búsqueda -->
+          <div class="filter-bar" style="margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <label for="filtro_lead_tipif" style="font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px;">
+                <span>🎯</span> Tipificación Actual:
+              </label>
+              <select id="filtro_lead_tipif" class="input-text styled-select" style="max-width:210px; padding:6px 12px; font-weight:700;">
+                <option value="TODAS">Todas las Tipificaciones</option>
+                <option value="Interesada">🔵 Interesadas</option>
+                <option value="Solo pregunta">🟡 Solo Preguntan</option>
+                <option value="En seguimiento">🟣 En Seguimiento</option>
+                <option value="Cierre">🟢 Cierres Concretados</option>
+                <option value="No interesada">⚪ No Interesadas</option>
+              </select>
+
+              <label for="filtro_lead_unidad" style="font-weight:700; color:var(--dark); margin-left:6px;">Unidad:</label>
+              <select id="filtro_lead_unidad" class="input-text styled-select" style="max-width:170px; padding:6px 10px;">
+                <option value="TODAS">Salón y Academia</option>
+                <option value="Salón de Belleza">💇‍♀️ Salón</option>
+                <option value="Academia Total Beauty">🎓 Academia</option>
+              </select>
+
+              <input type="text" id="buscador_leads" class="input-text styled-input" placeholder="🔍 Buscar por nombre o teléfono..." style="max-width:240px; padding:6px 12px;">
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="kpi-status-badge badge-cuadrada" id="lead-counter-badge" style="font-size:0.85rem; padding:5px 12px;">0 Prospectos</span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-leads" style="font-weight:700;">
+                <span>🔄</span> Recargar
+              </button>
+            </div>
+          </div>
+
+          <!-- Directorio de Contactos (Mostrando el nombre, historial y sin opción de eliminar) -->
+          <div class="form-section">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h2 class="section-title">📖 Directorio de Personas Interesadas</h2>
+                <span class="section-subtitle">Ordenado por las más antiguas primero. Haga clic en el nombre de la persona para ver su historial de contactos o registrar una nueva tipificación.</span>
+              </div>
+            </div>
+            
+            <div class="section-body" style="padding:16px;">
+              <div id="lead-directory-container" class="lead-dir-list">
+                <div style="text-align:center; padding:30px; color:var(--muted);">Cargando directorio de prospectos...</div>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -3252,5 +3233,109 @@
 
   <div id="toast-container"></div>
   <script src="app.js"></script>
+
+  <!-- ========================================================================
+       MODAL DE HISTORIAL DE CONTACTOS Y REGISTRO DE NUEVA TIPIFICACIÓN
+       ======================================================================== -->
+  <div class="modal-backdrop-custom" id="modal-lead-detalle" style="display:none; z-index:99990;">
+    <div class="master-modal-card" style="max-width:680px; width:95%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden;">
+      
+      <div class="master-modal-header" style="background:linear-gradient(135deg, #1e293b, #0f172a); padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:1.6rem;">👤</span>
+          <div>
+            <h3 id="mlead-nombre" style="margin:0; font-size:1.15rem; font-weight:800; color:#fff;">Nombre del Prospecto</h3>
+            <p id="mlead-sub" style="margin:2px 0 0 0; font-size:0.8rem; color:#94a3b8;">Historial de contactos y seguimiento</p>
+          </div>
+        </div>
+        <button type="button" id="btn-close-lead-modal" style="background:none; border:none; color:#cbd5e1; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+
+      <div class="master-modal-body" style="overflow-y:auto; padding:20px; flex:1; background:#f8fafc;">
+        
+        <!-- Ficha de Información del Prospecto -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+              <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Interés Registrado:</span>
+              <div style="font-size:1rem; font-weight:800; color:var(--dark);" id="mlead-servicio">--</div>
+              <span style="font-size:0.75rem; color:var(--muted);">Canal de Captación: <strong id="mlead-canal">--</strong></span>
+            </div>
+            <div>
+              <span style="font-size:0.72rem; font-weight:700; color:var(--muted); display:block; margin-bottom:2px; text-transform:uppercase;">Tipificación Actual:</span>
+              <span id="mlead-tipif-actual" class="status-badge status-pendiente" style="font-size:0.85rem; padding:4px 12px; font-weight:800;">
+                Interesada
+              </span>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px dashed #e2e8f0;">
+            <a href="#" target="_blank" id="mlead-btn-wa" class="btn-whatsapp btn-sm" style="text-decoration:none;">
+              <span>💬</span> Enviar WhatsApp
+            </a>
+            <a href="#" id="mlead-btn-call" class="btn btn-secondary btn-sm" style="text-decoration:none; font-weight:700;">
+              <span>📞</span> Llamar por Teléfono
+            </a>
+          </div>
+        </div>
+
+        <!-- Historial de Contactos (Timeline) -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+          <div style="font-size:0.88rem; font-weight:800; color:var(--dark); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>📋</span> Historial Cronológico de Contactos Realizados
+          </div>
+          <div id="mlead-timeline-container">
+            <div style="text-align:center; padding:14px; color:var(--muted); font-size:0.85rem;">Cargando historial...</div>
+          </div>
+        </div>
+
+        <!-- Formulario para Registrar Nueva Tipificación -->
+        <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:10px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+          <div style="font-size:0.9rem; font-weight:800; color:#1e40af; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>➕</span> Registrar Nuevo Contacto y Actualizar Tipificación
+          </div>
+          
+          <form id="form-lead-nuevo-seguimiento" autocomplete="off">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label for="mlead_new_tipif" style="font-weight:700; font-size:0.82rem;">Nueva Tipificación <span class="required">*</span></label>
+                <select id="mlead_new_tipif" class="input-text styled-select" required>
+                  <option value="Interesada">🔵 Interesada (Pide informes / activa)</option>
+                  <option value="Solo pregunta">🟡 Solo pregunta (Preguntó precio)</option>
+                  <option value="En seguimiento">🟣 En seguimiento (Por confirmar cita/pago)</option>
+                  <option value="Cierre">🟢 Cierre (Cita agendada / Alumna inscrita)</option>
+                  <option value="No interesada">⚪ No interesada (Fuera de presupuesto/horario)</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label for="mlead_new_medio" style="font-weight:700; font-size:0.82rem;">Medio de Contacto <span class="required">*</span></label>
+                <select id="mlead_new_medio" class="input-text styled-select" required>
+                  <option value="WhatsApp" selected>💬 Mensaje WhatsApp</option>
+                  <option value="Llamada Telefónica">📞 Llamada Telefónica</option>
+                  <option value="Visita / Mostrador">🚪 Visita a Sucursal</option>
+                  <option value="Red Social (Instagram / FB)">📸 Mensaje Directo Red Social</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+              <label for="mlead_new_notas" style="font-weight:700; font-size:0.82rem;">Resultado / Notas del Contacto <span class="required">*</span></label>
+              <textarea id="mlead_new_notas" class="textarea-custom styled-input" style="min-height:65px; font-size:0.85rem;" placeholder="Escriba los acuerdos, dudas que se resolvieron o comentarios de la clienta..." required></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+              <button type="submit" class="btn btn-firebase" id="btn-save-new-seguimiento" style="font-weight:700; padding:8px 18px;">
+                <span>💾</span> Guardar Seguimiento y Tipificación
+              </button>
+            </div>
+          </form>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
 </body>
 </html>
