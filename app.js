@@ -913,13 +913,16 @@
             </div>
           </td>
           <td>
-            <div style="font-weight:700; color:var(--dark); font-size:0.9rem;">${v.servicio || '-'}</div>
+            <div style="font-weight:700; color:var(--dark); font-size:0.9rem; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+              <span>${escapeHtml(v.servicio || '-')}</span>
+              ${v.servicios && v.servicios.length > 1 ? `<span class="badge" style="background:#fef9c3; color:#854d0e; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:800;">${v.servicios.length} servicios</span>` : ''}
+            </div>
             <div style="font-size:0.78rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-top:2px;">
-              <span>💅</span> ${v.especialista || 'Sin especialista'}
+              <span>💅</span> ${escapeHtml(v.especialista || 'Sin especialista')}
             </div>
           </td>
           <td>
-            <span class="venta-estacion-badge">🪞 ${v.estacion || '-'}</span>
+            <span class="venta-estacion-badge">🪞 ${escapeHtml(v.estacion || '-')}</span>
           </td>
           <td>${metodoBadge}</td>
           <td>${statusBadge}</td>
@@ -981,13 +984,16 @@
           </div>
 
           <div class="venta-card-body">
-            <div class="venta-card-service-title">${v.servicio || 'Servicio'}</div>
+            <div class="venta-card-service-title" style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+              <span>${escapeHtml(v.servicio || 'Servicio')}</span>
+              ${v.servicios && v.servicios.length > 1 ? `<span class="badge" style="background:#fef9c3; color:#854d0e; font-size:0.72rem; padding:2px 6px; border-radius:10px; font-weight:800;">${v.servicios.length} servicios</span>` : ''}
+            </div>
             <div class="venta-card-tags">
-              <span class="venta-tag tag-estacion">🪞 ${v.estacion || 'Estación'}</span>
-              <span class="venta-tag tag-especialista">💅 ${v.especialista || 'Especialista'}</span>
+              <span class="venta-tag tag-estacion">🪞 ${escapeHtml(v.estacion || 'Estación')}</span>
+              <span class="venta-tag tag-especialista">💅 ${escapeHtml(v.especialista || 'Especialista')}</span>
               <span class="venta-tag tag-hora">🕒 ${horaStr}</span>
             </div>
-            ${v.notas ? `<div class="venta-card-notes">💬 ${v.notas}</div>` : ''}
+            ${v.notas ? `<div class="venta-card-notes">💬 ${escapeHtml(v.notas)}</div>` : ''}
           </div>
 
           <div class="venta-card-footer">
@@ -1023,23 +1029,52 @@
       const imp = parseFloat(v.totalCobrado) || 0;
       const mp = (v.metodoPago || '').toLowerCase();
 
-      const est = (v.estacion || '').toLowerCase();
-      const serv = (v.servicio || '').toLowerCase();
+      // Si tiene desglose de servicios múltiples en el ticket, distribuir proporcionalmente
+      if (Array.isArray(v.servicios) && v.servicios.length > 0) {
+        const sumServicios = v.servicios.reduce((s, it) => s + (parseFloat(it.precio) || 0), 0);
+        v.servicios.forEach(it => {
+          const sPrice = parseFloat(it.precio) || 0;
+          const ratio = sumServicios > 0 ? (sPrice / sumServicios) : (1 / v.servicios.length);
+          const itemImp = imp * ratio;
 
-      let targetCat = 'servicios';
-      if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
-        targetCat = 'cursos';
-      } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
-        targetCat = 'productos';
-      }
+          const est = (it.estacion || '').toLowerCase();
+          const serv = (it.servicio || '').toLowerCase();
 
-      if (v.desglosePago) {
-        matrix[targetCat].e += parseFloat(v.desglosePago.efectivo) || 0;
-        matrix[targetCat].j += parseFloat(v.desglosePago.tarjeta) || 0;
-        matrix[targetCat].t += parseFloat(v.desglosePago.transferencia) || 0;
+          let targetCat = 'servicios';
+          if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
+            targetCat = 'cursos';
+          } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
+            targetCat = 'productos';
+          }
+
+          if (v.desglosePago) {
+            matrix[targetCat].e += (parseFloat(v.desglosePago.efectivo) || 0) * ratio;
+            matrix[targetCat].j += (parseFloat(v.desglosePago.tarjeta) || 0) * ratio;
+            matrix[targetCat].t += (parseFloat(v.desglosePago.transferencia) || 0) * ratio;
+          } else {
+            const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
+            matrix[targetCat][col] += itemImp;
+          }
+        });
       } else {
-        const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
-        matrix[targetCat][col] += imp;
+        const est = (v.estacion || '').toLowerCase();
+        const serv = (v.servicio || '').toLowerCase();
+
+        let targetCat = 'servicios';
+        if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
+          targetCat = 'cursos';
+        } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
+          targetCat = 'productos';
+        }
+
+        if (v.desglosePago) {
+          matrix[targetCat].e += parseFloat(v.desglosePago.efectivo) || 0;
+          matrix[targetCat].j += parseFloat(v.desglosePago.tarjeta) || 0;
+          matrix[targetCat].t += parseFloat(v.desglosePago.transferencia) || 0;
+        } else {
+          const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
+          matrix[targetCat][col] += imp;
+        }
       }
     });
 
@@ -5641,8 +5676,10 @@
     });
 
     // -----------------------------------------------------------------------
-    // EVENTOS: REGISTRO DIARIO DE VENTAS
+    // EVENTOS: REGISTRO DIARIO DE VENTAS (WIZARD CON MULTI-SERVICIO EN TICKET)
     // -----------------------------------------------------------------------
+    let currentTicketServicios = [];
+
     // Al seleccionar un servicio: autocompletar estación y precio sugerido
     document.getElementById('venta_servicio')?.addEventListener('change', (e) => {
       const selected = e.target.selectedOptions[0];
@@ -5654,10 +5691,131 @@
           if (estEl) estEl.value = est;
         }
         if (prc && parseFloat(prc) > 0) {
-          const totEl = document.getElementById('venta_total');
-          if (totEl) totEl.value = parseFloat(prc).toFixed(2);
+          const prcEl = document.getElementById('venta_servicio_precio');
+          if (prcEl) prcEl.value = parseFloat(prc).toFixed(2);
         }
       }
+    });
+
+    // Renderizar lista dinámica de servicios agregados al ticket
+    function renderTicketServiciosList() {
+      const listEl = document.getElementById('ticket-servicios-items-list');
+      const countEl = document.getElementById('lbl-ticket-servicios-count');
+      const subtotalEl = document.getElementById('lbl-ticket-servicios-subtotal');
+      if (!listEl) return;
+
+      const subtotal = currentTicketServicios.reduce((sum, item) => sum + (parseFloat(item.precio) || 0), 0);
+      const count = currentTicketServicios.length;
+
+      if (countEl) countEl.textContent = `${count} ${count === 1 ? 'servicio' : 'servicios'}`;
+      if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+
+      if (count === 0) {
+        listEl.innerHTML = `
+          <div id="ticket-servicios-empty" style="text-align:center; padding:18px 10px; color:#64748b; font-size:0.85rem; background:#f8fafc; border-radius:8px; border:1px dashed #cbd5e1;">
+            Seleccione un servicio arriba y toque <strong>"➕ Agregar este servicio al ticket"</strong> (o toque directamente <strong>"Continuar ➔"</strong> para agregar el servicio seleccionado).
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = currentTicketServicios.map((it, idx) => `
+        <div class="ticket-servicio-item" style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #d4af37; border-radius:8px; padding:10px 14px; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.15rem;">✂️</span>
+            <div>
+              <div style="font-weight:800; font-size:0.92rem; color:#000000;">
+                <span style="color:#d4af37; font-size:0.8rem; margin-right:4px;">#${idx + 1}</span>${escapeHtml(it.servicio)}
+              </div>
+              <div style="font-size:0.78rem; color:#64748b; display:flex; align-items:center; gap:8px; margin-top:2px; flex-wrap:wrap;">
+                <span>🪞 ${escapeHtml(it.estacion)}</span>
+                <span>&bull;</span>
+                <span>💅 ${escapeHtml(it.especialista)}</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-weight:800; font-size:0.95rem; color:#15803d;">${formatCurrency(it.precio)}</span>
+            <button type="button" class="btn btn-outline-danger btn-sm btn-del-ticket-item" data-idx="${idx}" title="Quitar servicio del ticket" style="padding:3px 8px; font-size:0.75rem; border-radius:6px; font-weight:700;">✕</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Evento para quitar servicio individual del ticket
+      listEl.querySelectorAll('.btn-del-ticket-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const delIdx = parseInt(btn.dataset.idx, 10);
+          if (!isNaN(delIdx) && delIdx >= 0 && delIdx < currentTicketServicios.length) {
+            const removed = currentTicketServicios.splice(delIdx, 1)[0];
+            renderTicketServiciosList();
+            showToast(`🗑️ Servicio "${removed.servicio}" quitado del ticket`, 'info');
+            // Recalcular total sugerido
+            const newSub = currentTicketServicios.reduce((s, it) => s + (parseFloat(it.precio) || 0), 0);
+            const totEl = document.getElementById('venta_total');
+            if (totEl) totEl.value = newSub > 0 ? newSub.toFixed(2) : '';
+          }
+        });
+      });
+    }
+
+    // Función para agregar el servicio actual de los inputs al ticket
+    function addCurrentServiceToTicket(silent = false) {
+      const srvSelect = document.getElementById('venta_servicio');
+      const estSelect = document.getElementById('venta_estacion');
+      const espSelect = document.getElementById('venta_especialista');
+      const prcInput = document.getElementById('venta_servicio_precio');
+
+      const srvVal = srvSelect?.value;
+      const srvText = srvSelect && srvSelect.selectedIndex >= 0 && srvSelect.options[srvSelect.selectedIndex]?.value
+        ? srvSelect.options[srvSelect.selectedIndex].text.split(' - $')[0].trim()
+        : '';
+      const estVal = estSelect?.value;
+      const espVal = espSelect?.value;
+      const prcVal = parseFloat(prcInput?.value) || 0;
+
+      if (!srvVal) {
+        if (!silent) showToast('Por favor seleccione el servicio o producto', 'warning');
+        srvSelect?.focus();
+        return false;
+      }
+      if (!estVal) {
+        if (!silent) showToast('Por favor seleccione la estación de trabajo', 'warning');
+        estSelect?.focus();
+        return false;
+      }
+      if (!espVal) {
+        if (!silent) showToast('Por favor seleccione la especialista', 'warning');
+        espSelect?.focus();
+        return false;
+      }
+
+      currentTicketServicios.push({
+        servicio: srvText || srvVal,
+        estacion: estVal,
+        especialista: espVal,
+        precio: prcVal
+      });
+
+      renderTicketServiciosList();
+
+      // Limpiar select de servicio y precio para permitir agregar el siguiente cómodamente
+      if (srvSelect) srvSelect.selectedIndex = 0;
+      if (prcInput) prcInput.value = '';
+
+      // Actualizar automáticamente el total cobrado con la suma de servicios
+      const subtotal = currentTicketServicios.reduce((sum, item) => sum + (parseFloat(item.precio) || 0), 0);
+      const totEl = document.getElementById('venta_total');
+      if (totEl) totEl.value = subtotal.toFixed(2);
+
+      if (!silent) {
+        showToast(`✅ "${srvText || srvVal}" agregado al ticket (${currentTicketServicios.length})`, 'success');
+      }
+      return true;
+    }
+
+    document.getElementById('btn-add-servicio-ticket')?.addEventListener('click', () => {
+      addCurrentServiceToTicket(false);
     });
 
     // Enlaces directos a configuración
@@ -5684,26 +5842,6 @@
       const clienta = document.getElementById('venta_clienta')?.value.trim() || 'Cliente Mostrador';
       const telefono = document.getElementById('venta_telefono')?.value.trim() || 'No especificado';
       
-      const srvSelect = document.getElementById('venta_servicio');
-      const srvText = srvSelect && srvSelect.selectedIndex >= 0 && srvSelect.options[srvSelect.selectedIndex]?.value 
-        ? srvSelect.options[srvSelect.selectedIndex].text 
-        : '--';
-        
-      const estSelect = document.getElementById('venta_estacion');
-      const estText = estSelect && estSelect.selectedIndex >= 0 && estSelect.options[estSelect.selectedIndex]?.value 
-        ? estSelect.options[estSelect.selectedIndex].text 
-        : '--';
-
-      const espSelect = document.getElementById('venta_especialista');
-      const espText = espSelect && espSelect.selectedIndex >= 0 && espSelect.options[espSelect.selectedIndex]?.value 
-        ? espSelect.options[espSelect.selectedIndex].text 
-        : '--';
-
-      const totVal = parseFloat(document.getElementById('venta_total')?.value) || 0;
-      const metodoVal = document.getElementById('venta_metodo_pago')?.value || 'Efectivo';
-      const statusVal = document.getElementById('venta_status_pago')?.value || 'Pagado completo';
-      const notasVal = document.getElementById('venta_notas')?.value.trim();
-
       const elFecha = document.getElementById('resumen-val-fecha');
       if (elFecha) elFecha.textContent = fecha;
 
@@ -5714,13 +5852,62 @@
       if (elTel) elTel.textContent = telefono;
 
       const elSrv = document.getElementById('resumen-val-servicio');
-      if (elSrv) elSrv.textContent = srvText;
-
       const elEst = document.getElementById('resumen-val-estacion');
-      if (elEst) elEst.textContent = estText;
-
       const elEsp = document.getElementById('resumen-val-especialista');
-      if (elEsp) elEsp.textContent = espText;
+      const detWrap = document.getElementById('resumen-servicios-detallados-wrap');
+      const detList = document.getElementById('resumen-servicios-detallados-list');
+
+      if (currentTicketServicios.length === 1) {
+        const item = currentTicketServicios[0];
+        if (elSrv) elSrv.textContent = `${item.servicio} ($${parseFloat(item.precio || 0).toFixed(2)})`;
+        if (elEst) elEst.textContent = item.estacion;
+        if (elEsp) elEsp.textContent = item.especialista;
+        if (detWrap) detWrap.style.display = 'none';
+      } else if (currentTicketServicios.length > 1) {
+        const srvNames = currentTicketServicios.map(s => s.servicio).join(' + ');
+        const estNames = [...new Set(currentTicketServicios.map(s => s.estacion))].join(', ');
+        const espNames = [...new Set(currentTicketServicios.map(s => s.especialista))].join(', ');
+
+        if (elSrv) elSrv.innerHTML = `${escapeHtml(srvNames)} <span class="badge" style="background:#fef9c3; color:#854d0e; font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:800; margin-left:4px;">${currentTicketServicios.length} servicios</span>`;
+        if (elEst) elEst.textContent = estNames;
+        if (elEsp) elEsp.textContent = espNames;
+
+        if (detWrap) detWrap.style.display = 'block';
+        if (detList) {
+          detList.innerHTML = currentTicketServicios.map((s, i) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:0.85rem;">
+              <div>
+                <strong>#${i + 1} ${escapeHtml(s.servicio)}</strong>
+                <span style="color:#64748b; font-size:0.75rem; margin-left:6px;">(🪞 ${escapeHtml(s.estacion)} &bull; 💅 ${escapeHtml(s.especialista)})</span>
+              </div>
+              <strong style="color:#15803d;">${formatCurrency(s.precio)}</strong>
+            </div>
+          `).join('');
+        }
+      } else {
+        const srvSelect = document.getElementById('venta_servicio');
+        const srvText = srvSelect && srvSelect.selectedIndex >= 0 && srvSelect.options[srvSelect.selectedIndex]?.value 
+          ? srvSelect.options[srvSelect.selectedIndex].text 
+          : '--';
+        const estSelect = document.getElementById('venta_estacion');
+        const estText = estSelect && estSelect.selectedIndex >= 0 && estSelect.options[estSelect.selectedIndex]?.value 
+          ? estSelect.options[estSelect.selectedIndex].text 
+          : '--';
+        const espSelect = document.getElementById('venta_especialista');
+        const espText = espSelect && espSelect.selectedIndex >= 0 && espSelect.options[espSelect.selectedIndex]?.value 
+          ? espSelect.options[espSelect.selectedIndex].text 
+          : '--';
+
+        if (elSrv) elSrv.textContent = srvText;
+        if (elEst) elEst.textContent = estText;
+        if (elEsp) elEsp.textContent = espText;
+        if (detWrap) detWrap.style.display = 'none';
+      }
+
+      const totVal = parseFloat(document.getElementById('venta_total')?.value) || 0;
+      const metodoVal = document.getElementById('venta_metodo_pago')?.value || 'Efectivo';
+      const statusVal = document.getElementById('venta_status_pago')?.value || 'Pagado completo';
+      const notasVal = document.getElementById('venta_notas')?.value.trim();
 
       const elTot = document.getElementById('resumen-val-total');
       if (elTot) elTot.textContent = formatCurrency(totVal);
@@ -5839,23 +6026,26 @@
         return true;
       }
       if (step === 2) {
-        const srv = document.getElementById('venta_servicio')?.value;
-        const est = document.getElementById('venta_estacion')?.value;
-        const esp = document.getElementById('venta_especialista')?.value;
-        if (!srv) {
-          showToast('Por favor seleccione el servicio o producto', 'warning');
-          document.getElementById('venta_servicio')?.focus();
-          return false;
+        // Si no hay ningún servicio agregado en la lista del ticket, intentar agregar el seleccionado actualmente
+        if (currentTicketServicios.length === 0) {
+          const added = addCurrentServiceToTicket(true);
+          if (!added) {
+            showToast('Por favor seleccione y agregue al menos un servicio al ticket', 'warning');
+            return false;
+          }
+        } else {
+          // Si ya hay servicios agregados y en los campos hay otro seleccionado, agregarlo también
+          const srv = document.getElementById('venta_servicio')?.value;
+          if (srv) {
+            addCurrentServiceToTicket(true);
+          }
         }
-        if (!est) {
-          showToast('Por favor seleccione la estación de trabajo', 'warning');
-          document.getElementById('venta_estacion')?.focus();
-          return false;
-        }
-        if (!esp) {
-          showToast('Por favor seleccione la especialista', 'warning');
-          document.getElementById('venta_especialista')?.focus();
-          return false;
+
+        // Actualizar el total sugerido para el Paso 3 si está vacío o en 0
+        const subtotal = currentTicketServicios.reduce((sum, item) => sum + (parseFloat(item.precio) || 0), 0);
+        const totEl = document.getElementById('venta_total');
+        if (totEl && (!totEl.value || parseFloat(totEl.value) === 0)) {
+          totEl.value = subtotal > 0 ? subtotal.toFixed(2) : '';
         }
         return true;
       }
@@ -6040,19 +6230,34 @@
     document.getElementById('form-nueva-venta')?.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      // Si por alguna razón no se agregó ningún servicio al ticket, intentar con los campos activos
+      if (currentTicketServicios.length === 0) {
+        addCurrentServiceToTicket(true);
+      }
+
       const fecha = document.getElementById('venta_fecha').value;
       const telefono = document.getElementById('venta_telefono').value.trim(); // Opcional
       const clienta = document.getElementById('venta_clienta').value.trim();
-      const servicio = document.getElementById('venta_servicio').value;
-      const estacion = document.getElementById('venta_estacion').value;
-      const especialista = document.getElementById('venta_especialista').value;
+      
+      const srvCombined = currentTicketServicios.length > 0 
+        ? currentTicketServicios.map(s => s.servicio).join(' + ')
+        : (document.getElementById('venta_servicio')?.value || '');
+
+      const estCombined = currentTicketServicios.length > 0
+        ? [...new Set(currentTicketServicios.map(s => s.estacion))].join(', ')
+        : (document.getElementById('venta_estacion')?.value || '');
+
+      const espCombined = currentTicketServicios.length > 0
+        ? [...new Set(currentTicketServicios.map(s => s.especialista))].join(', ')
+        : (document.getElementById('venta_especialista')?.value || '');
+
       const metodoPago = document.getElementById('venta_metodo_pago').value;
       const totalCobrado = parseFloat(document.getElementById('venta_total').value) || 0;
       const statusPago = document.getElementById('venta_status_pago').value;
       const notas = document.getElementById('venta_notas').value.trim();
 
-      // Teléfono YA NO es obligatorio (los obligatorios son fecha, servicio, estación, especialista, método de pago, total, status)
-      if (!fecha || !servicio || !estacion || !especialista || !metodoPago || isNaN(totalCobrado) || !statusPago) {
+      // Validación obligatoria
+      if (!fecha || !srvCombined || !estCombined || !espCombined || !metodoPago || isNaN(totalCobrado) || !statusPago) {
         showToast('Por favor llene todos los campos obligatorios marcados con *', 'warning');
         return;
       }
@@ -6086,9 +6291,10 @@
         fecha,
         telefono,
         clienta,
-        servicio,
-        estacion,
-        especialista,
+        servicio: srvCombined,
+        servicios: currentTicketServicios.slice(),
+        estacion: estCombined,
+        especialista: espCombined,
         metodoPago,
         desglosePago,
         montoEfectivo,
@@ -6101,7 +6307,8 @@
       };
 
       await TB_FIREBASE.saveVenta(venta);
-      showToast(`✅ Venta de ${formatCurrency(totalCobrado)} guardada en Firebase`, 'success');
+      const servCountStr = currentTicketServicios.length > 1 ? ` (${currentTicketServicios.length} servicios)` : '';
+      showToast(`✅ Venta de ${formatCurrency(totalCobrado)} guardada en Firebase${servCountStr}`, 'success');
 
       logAuditMovement({
         modulo: 'Ventas',
@@ -6110,12 +6317,16 @@
         payload: { fecha: venta.fecha, id: venta.id, venta }
       });
 
-      // Limpiar formulario excepto la fecha
+      // Limpiar formulario y vaciar lista del ticket
+      currentTicketServicios = [];
+      renderTicketServiciosList();
+
       document.getElementById('venta_telefono').value = '';
       document.getElementById('venta_clienta').value = '';
       document.getElementById('venta_servicio').value = '';
       document.getElementById('venta_estacion').value = '';
       document.getElementById('venta_especialista').value = '';
+      if (document.getElementById('venta_servicio_precio')) document.getElementById('venta_servicio_precio').value = '';
       document.getElementById('venta_total').value = '';
       document.getElementById('venta_notas').value = '';
       if (document.getElementById('pago_monto_efectivo')) document.getElementById('pago_monto_efectivo').value = '';
