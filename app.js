@@ -4980,6 +4980,254 @@
       });
     });
 
+    // -----------------------------------------------------------------------
+    // WIZARD DINÁMICO: REGISTRO DE VENTAS PASO A PASO
+    // -----------------------------------------------------------------------
+    let currentVentaStep = 1;
+
+    function updateVentaSummary() {
+      const fecha = document.getElementById('venta_fecha')?.value || '--';
+      const clienta = document.getElementById('venta_clienta')?.value.trim() || 'Cliente Mostrador';
+      const telefono = document.getElementById('venta_telefono')?.value.trim() || 'No especificado';
+      
+      const srvSelect = document.getElementById('venta_servicio');
+      const srvText = srvSelect && srvSelect.selectedIndex >= 0 && srvSelect.options[srvSelect.selectedIndex]?.value 
+        ? srvSelect.options[srvSelect.selectedIndex].text 
+        : '--';
+        
+      const estSelect = document.getElementById('venta_estacion');
+      const estText = estSelect && estSelect.selectedIndex >= 0 && estSelect.options[estSelect.selectedIndex]?.value 
+        ? estSelect.options[estSelect.selectedIndex].text 
+        : '--';
+
+      const espSelect = document.getElementById('venta_especialista');
+      const espText = espSelect && espSelect.selectedIndex >= 0 && espSelect.options[espSelect.selectedIndex]?.value 
+        ? espSelect.options[espSelect.selectedIndex].text 
+        : '--';
+
+      const totVal = parseFloat(document.getElementById('venta_total')?.value) || 0;
+      const metodoVal = document.getElementById('venta_metodo_pago')?.value || 'Efectivo';
+      const statusVal = document.getElementById('venta_status_pago')?.value || 'Pagado completo';
+      const notasVal = document.getElementById('venta_notas')?.value.trim();
+
+      const elFecha = document.getElementById('resumen-val-fecha');
+      if (elFecha) elFecha.textContent = fecha;
+
+      const elClienta = document.getElementById('resumen-val-clienta');
+      if (elClienta) elClienta.textContent = clienta;
+
+      const elTel = document.getElementById('resumen-val-telefono');
+      if (elTel) elTel.textContent = telefono;
+
+      const elSrv = document.getElementById('resumen-val-servicio');
+      if (elSrv) elSrv.textContent = srvText;
+
+      const elEst = document.getElementById('resumen-val-estacion');
+      if (elEst) elEst.textContent = estText;
+
+      const elEsp = document.getElementById('resumen-val-especialista');
+      if (elEsp) elEsp.textContent = espText;
+
+      const elTot = document.getElementById('resumen-val-total');
+      if (elTot) elTot.textContent = formatCurrency(totVal);
+
+      const elMet = document.getElementById('resumen-val-metodo');
+      if (elMet) {
+        let icon = '💵';
+        if (metodoVal.toLowerCase().includes('tarj')) icon = '💳';
+        else if (metodoVal.toLowerCase().includes('transf')) icon = '📱';
+        elMet.textContent = `${icon} ${metodoVal}`;
+      }
+
+      const elStat = document.getElementById('resumen-val-status');
+      if (elStat) {
+        let icon = '✅';
+        if (statusVal.toLowerCase().includes('anticipo')) icon = '🟡';
+        else if (statusVal.toLowerCase().includes('pendiente')) icon = '🔴';
+        elStat.textContent = `${icon} ${statusVal}`;
+      }
+
+      const elNotas = document.getElementById('resumen-val-notas');
+      if (elNotas) {
+        elNotas.textContent = notasVal ? notasVal : '(Sin notas adicionales)';
+        elNotas.style.fontStyle = notasVal ? 'normal' : 'italic';
+      }
+    }
+
+    function validateVentaStep(step) {
+      if (step === 1) {
+        const fecha = document.getElementById('venta_fecha')?.value;
+        if (!fecha) {
+          showToast('Por favor ingrese la fecha de la venta', 'warning');
+          document.getElementById('venta_fecha')?.focus();
+          return false;
+        }
+        return true;
+      }
+      if (step === 2) {
+        const srv = document.getElementById('venta_servicio')?.value;
+        const est = document.getElementById('venta_estacion')?.value;
+        const esp = document.getElementById('venta_especialista')?.value;
+        if (!srv) {
+          showToast('Por favor seleccione el servicio o producto', 'warning');
+          document.getElementById('venta_servicio')?.focus();
+          return false;
+        }
+        if (!est) {
+          showToast('Por favor seleccione la estación de trabajo', 'warning');
+          document.getElementById('venta_estacion')?.focus();
+          return false;
+        }
+        if (!esp) {
+          showToast('Por favor seleccione la especialista', 'warning');
+          document.getElementById('venta_especialista')?.focus();
+          return false;
+        }
+        return true;
+      }
+      if (step === 3) {
+        const tot = parseFloat(document.getElementById('venta_total')?.value);
+        if (isNaN(tot) || tot <= 0) {
+          showToast('Por favor ingrese un monto total cobrado válido', 'warning');
+          document.getElementById('venta_total')?.focus();
+          return false;
+        }
+        const metodo = document.getElementById('venta_metodo_pago')?.value;
+        if (!metodo) {
+          showToast('Por favor seleccione el método de pago', 'warning');
+          return false;
+        }
+        const status = document.getElementById('venta_status_pago')?.value;
+        if (!status) {
+          showToast('Por favor seleccione el status del pago', 'warning');
+          return false;
+        }
+        return true;
+      }
+      return true;
+    }
+
+    function goToVentaStep(targetStep) {
+      if (targetStep < 1) targetStep = 1;
+      if (targetStep > 4) targetStep = 4;
+
+      currentVentaStep = targetStep;
+
+      // Actualizar barra de progreso
+      const progressFill = document.getElementById('ventas-progress-bar');
+      if (progressFill) {
+        const pct = (targetStep / 4) * 100;
+        progressFill.style.width = `${pct}%`;
+      }
+
+      // Actualizar indicadores de pasos
+      const stepTitles = [
+        '',
+        '📅 Fecha y Clienta',
+        '✂️ Servicio y Estación',
+        '💰 Cobro y Pago',
+        '📋 Resumen y Confirmación'
+      ];
+
+      document.querySelectorAll('.stepper-step').forEach(btn => {
+        const s = parseInt(btn.dataset.step, 10);
+        btn.classList.remove('active', 'completed');
+        if (s === targetStep) {
+          btn.classList.add('active');
+        } else if (s < targetStep) {
+          btn.classList.add('completed');
+        }
+      });
+
+      const mobilePill = document.getElementById('step-mobile-pill');
+      if (mobilePill) mobilePill.textContent = `Paso ${targetStep} de 4`;
+
+      const mobileTitle = document.getElementById('step-mobile-title');
+      if (mobileTitle) mobileTitle.textContent = stepTitles[targetStep] || '';
+
+      // Alternar paneles de paso
+      for (let i = 1; i <= 4; i++) {
+        const pane = document.getElementById(`step-pane-${i}`);
+        if (pane) {
+          if (i === targetStep) {
+            pane.style.display = 'block';
+            pane.classList.add('active');
+          } else {
+            pane.style.display = 'none';
+            pane.classList.remove('active');
+          }
+        }
+      }
+
+      // Si entramos al paso 4, refrescar resumen
+      if (targetStep === 4) {
+        updateVentaSummary();
+      }
+    }
+
+    // Navegación de botones
+    document.getElementById('btn-step1-next')?.addEventListener('click', () => {
+      if (validateVentaStep(1)) goToVentaStep(2);
+    });
+
+    document.getElementById('btn-step2-prev')?.addEventListener('click', () => {
+      goToVentaStep(1);
+    });
+    document.getElementById('btn-step2-next')?.addEventListener('click', () => {
+      if (validateVentaStep(2)) goToVentaStep(3);
+    });
+
+    document.getElementById('btn-step3-prev')?.addEventListener('click', () => {
+      goToVentaStep(2);
+    });
+    document.getElementById('btn-step3-next')?.addEventListener('click', () => {
+      if (validateVentaStep(3)) goToVentaStep(4);
+    });
+
+    document.getElementById('btn-step4-prev')?.addEventListener('click', () => {
+      goToVentaStep(3);
+    });
+
+    // Botones de modificación directa en el resumen
+    document.querySelectorAll('.btn-edit-step').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tgt = parseInt(btn.dataset.targetStep, 10) || 1;
+        goToVentaStep(tgt);
+      });
+    });
+
+    // Clic en los botones de paso superior
+    document.querySelectorAll('.stepper-step').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = parseInt(btn.dataset.step, 10);
+        if (s === 1) {
+          goToVentaStep(1);
+        } else if (s === 2) {
+          if (validateVentaStep(1)) goToVentaStep(2);
+        } else if (s === 3) {
+          if (validateVentaStep(1) && validateVentaStep(2)) goToVentaStep(3);
+        } else if (s === 4) {
+          if (validateVentaStep(1) && validateVentaStep(2) && validateVentaStep(3)) goToVentaStep(4);
+        }
+      });
+    });
+
+    // Control de tecla Enter en el formulario
+    document.getElementById('form-nueva-venta')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        if (currentVentaStep === 1) {
+          e.preventDefault();
+          if (validateVentaStep(1)) goToVentaStep(2);
+        } else if (currentVentaStep === 2) {
+          e.preventDefault();
+          if (validateVentaStep(2)) goToVentaStep(3);
+        } else if (currentVentaStep === 3) {
+          e.preventDefault();
+          if (validateVentaStep(3)) goToVentaStep(4);
+        }
+      }
+    });
+
     document.getElementById('form-nueva-venta')?.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -5044,6 +5292,9 @@
         syncVentasToCajaPrincipal(fecha, false);
       }
       renderCampanaActiva();
+
+      // Regresar al Paso 1 del wizard de ventas
+      goToVentaStep(1);
     });
 
     // -----------------------------------------------------------------------

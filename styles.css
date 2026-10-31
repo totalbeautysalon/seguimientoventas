@@ -3501,3 +3501,408 @@ body {
     padding: 7px 10px;
   }
 }
+
+/* ==========================================================================
+   WIZARD DINÁMICO DE REGISTRO DE VENTAS (PASO A PASO & MOBILE FIRST)
+   ========================================================================== */
+.ventas-wizard-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+
+/* Header del Stepper */
+.ventas-stepper-header {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.stepper-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.stepper-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e11d48, #be123c);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 999px;
+}
+
+.stepper-steps-wrap {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stepper-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.stepper-step .step-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.stepper-step .step-label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.stepper-step:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.stepper-step.active {
+  background: #fff1f2;
+  border-color: #f43f5e;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.15);
+}
+
+.stepper-step.active .step-circle {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.stepper-step.active .step-label {
+  color: #9f1239;
+  font-weight: 800;
+}
+
+.stepper-step.completed {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.stepper-step.completed .step-circle {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.stepper-step.completed .step-label {
+  color: #166534;
+}
+
+.stepper-mobile-status {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.step-pill-indicator {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: #e11d48;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.step-title-indicator {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--dark, #0f172a);
+}
+
+/* Paneles del Wizard */
+.wizard-step-pane {
+  animation: fadeInStep 0.25s ease forwards;
+}
+
+@keyframes fadeInStep {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wizard-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.wizard-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #e11d48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.wizard-pane-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--dark, #0f172a);
+  margin: 0;
+}
+
+.wizard-pane-desc {
+  font-size: 0.82rem;
+  color: var(--muted, #64748b);
+  margin: 3px 0 0 0;
+}
+
+.wizard-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* Acciones de Navegación */
+.wizard-nav-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.btn-wizard-prev, .btn-wizard-next, .btn-wizard-submit {
+  min-height: 44px;
+  padding: 10px 22px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-wizard-submit {
+  background: linear-gradient(135deg, #16a34a, #15803d) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35) !important;
+}
+
+.btn-wizard-submit:hover {
+  background: linear-gradient(135deg, #15803d, #166534) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.45) !important;
+}
+
+.nav-arrow {
+  font-size: 1.1rem;
+}
+
+/* Tarjeta de Resumen (Paso 4) */
+.wizard-summary-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.summary-section.highlight-summary {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+}
+
+.summary-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.summary-tag {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--dark, #0f172a);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.btn-edit-step {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: var(--primary, #e11d48);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit-step:hover {
+  background: #fff1f2;
+  border-color: #f43f5e;
+}
+
+.summary-grid-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-label {
+  font-size: 0.74rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.summary-value {
+  font-size: 0.92rem;
+  color: #0f172a;
+}
+
+.summary-total-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.summary-hero-amount {
+  font-size: 1.85rem;
+  font-weight: 900;
+  color: #15803d;
+  line-height: 1.1;
+}
+
+.summary-badges-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.summary-badge-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+/* Responsividad para Móviles */
+@media (max-width: 640px) {
+  .ventas-wizard-card {
+    padding: 14px 10px;
+  }
+  .stepper-steps-wrap {
+    gap: 4px;
+  }
+  .stepper-step {
+    padding: 8px 4px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stepper-step .step-label {
+    font-size: 0.68rem;
+  }
+  .stepper-step .step-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+  }
+  .stepper-mobile-status {
+    display: flex;
+  }
+  .wizard-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .ventas-cobro-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .wizard-nav-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+  .wizard-nav-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  .summary-grid-row {
+    grid-template-columns: 1fr;
+  }
+  .summary-total-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .summary-badges-col {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
