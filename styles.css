@@ -333,8 +333,10 @@ body {
   width: 100%;
 }
 
-.module-view.active-view {
-  display: block;
+.module-view.active-view:not(.view-forbidden) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   animation: fadeIn 0.2s ease-in-out;
 }
 

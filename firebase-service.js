@@ -600,6 +600,8 @@ const TB_FIREBASE = (function () {
     if (currentUser && currentUser.idToken) {
       params.push(`auth=${encodeURIComponent(currentUser.idToken)}`);
     }
+    // Cache buster en tiempo real para evitar respuestas obsoletas
+    params.push(`_cb=${Date.now()}`);
     if (extraParams) {
       if (typeof extraParams === 'string') {
         const cleanExtra = (extraParams.startsWith('?') || extraParams.startsWith('&'))
@@ -719,27 +721,19 @@ const TB_FIREBASE = (function () {
 
 
     try {
-
-      const res = await fetch(getDbUrl(`ventas_diarias/${fecha}`));
-
+      const res = await fetch(getDbUrl(`ventas_diarias/${fecha}`), { cache: 'no-store' });
       if (res.ok) {
-
         const cloud = await res.json();
-
         if (cloud && typeof cloud === 'object') {
-
-          const merged = { ...local, ...cloud };
-
-          localVentas[fecha] = merged;
-
+          localVentas[fecha] = cloud;
           localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
-
-          return Object.values(merged);
-
+          return Object.values(cloud);
+        } else if (cloud === null) {
+          localVentas[fecha] = {};
+          localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
+          return [];
         }
-
       }
-
     } catch (e) {}
 
 

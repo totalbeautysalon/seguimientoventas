@@ -72,6 +72,56 @@
     }, 4000);
   }
 
+  // --- HIDRATACIÓN INMEDIATA DE MEMORIA DESDE LOCALSTORAGE (0 ms) ---
+  function hydrateMemoryFromLocalStorage() {
+    try {
+      const srv = localStorage.getItem('tb_cat_servicios');
+      if (srv) {
+        const parsed = JSON.parse(srv);
+        if (Array.isArray(parsed) && parsed.length > 0) catServicios = parsed;
+      }
+      const est = localStorage.getItem('tb_cat_estaciones');
+      if (est) {
+        const parsed = JSON.parse(est);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          catEstaciones = parsed;
+          catEstaciones.forEach(e => {
+            if (e.metaQuincenal === undefined) e.metaQuincenal = parseFloat(e.meta) || 0;
+            if (e.clientesMeta === undefined) e.clientesMeta = parseInt(e.metaClientes, 10) || 0;
+          });
+        }
+      }
+      const esp = localStorage.getItem('tb_cat_especialistas');
+      if (esp) {
+        const parsed = JSON.parse(esp);
+        if (Array.isArray(parsed) && parsed.length > 0) catEspecialistas = parsed;
+      }
+      const usr = localStorage.getItem('tb_cat_usuarios_roles');
+      if (usr) {
+        const parsed = JSON.parse(usr);
+        if (Array.isArray(parsed) && parsed.length > 0) catUsuariosRoles = parsed;
+      }
+      const crs = localStorage.getItem('tb_cat_metas_cursos');
+      if (crs) {
+        const parsed = JSON.parse(crs);
+        if (Array.isArray(parsed) && parsed[0]) catCursosMeta = parsed[0];
+      }
+      const caja = localStorage.getItem('tb_control_caja');
+      if (caja) {
+        const parsed = JSON.parse(caja);
+        if (parsed && typeof parsed === 'object') controlCajaData = parsed;
+      }
+      const chica = localStorage.getItem('tb_cajachica_config');
+      if (chica) {
+        const parsed = JSON.parse(chica);
+        if (parsed && parsed.fondoBase) cajaChicaFundData.fondoBase = parseFloat(parsed.fondoBase) || 0;
+      }
+    } catch (e) {
+      console.warn('Error hidratando memoria local:', e);
+    }
+  }
+  hydrateMemoryFromLocalStorage();
+
   // --- NAVEGACIÓN ENTRE MÓDULOS ---
   const moduleTitles = {
     'arqueo-principal': {
@@ -142,9 +192,17 @@
 
     document.querySelectorAll('.module-view').forEach(view => {
       view.classList.remove('active-view');
+      view.style.display = 'none';
     });
     const target = document.getElementById(`view-${modKey}`);
-    if (target) target.classList.add('active-view');
+    if (target) {
+      target.classList.remove('view-forbidden');
+      target.classList.add('active-view');
+      target.style.removeProperty('display');
+      target.style.display = 'block';
+      target.style.visibility = 'visible';
+      target.style.opacity = '1';
+    }
 
     const info = moduleTitles[modKey] || { title: 'Total Beauty', desc: '' };
     document.getElementById('topbar-module-title').textContent = info.title;
@@ -169,28 +227,8 @@
       });
     }
 
-    // Carga de datos correspondientes
-    if (modKey === 'arqueo-chica') {
-      loadCajaChicaFundData();
-    }
-    if (modKey === 'ventas') {
-      const vFecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
-      renderVentas(vFecha);
-    }
-    if (modKey === 'historial') loadHistorial();
-    if (modKey === 'balancescore') renderBalanceScoreStations();
-    if (modKey === 'ingresos') renderIngresosReport();
-    if (modKey === 'interesadas') loadInteresadasView();
-    if (modKey === 'campana') {
-      renderCampanaActiva();
-      renderEventosTimeline();
-    }
-    if (modKey === 'configuracion') {
-      loadAndRenderConfiguracion();
-    }
-    if (modKey === 'auditoria') {
-      renderAuditoriaView();
-    }
+    // Carga y actualización inmediata de datos de la sección
+    refreshActiveModuleData();
   }
 
   // =========================================================================
@@ -336,19 +374,20 @@
 
   function refreshActiveModuleData() {
     if (!currentModule) return;
-    if (currentModule === 'configuracion') {
-      loadAndRenderConfiguracion();
-    } else if (currentModule === 'balancescore') {
-      renderBalanceScoreStations();
-    } else if (currentModule === 'ventas') {
-      const vf = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
-      renderVentas(vf);
-    } else if (currentModule === 'auditoria') {
-      renderAuditoriaView();
-    } else if (currentModule === 'arqueo-principal') {
+    if (currentModule === 'arqueo-principal') {
       const curFecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
       syncVentasToCajaPrincipal(curFecha, false);
       loadControlCajaData();
+    } else if (currentModule === 'ventas') {
+      populateSalesDropdowns();
+      const vf = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      renderVentas(vf);
+    } else if (currentModule === 'balancescore') {
+      renderBalanceScoreStations();
+    } else if (currentModule === 'configuracion') {
+      loadAndRenderConfiguracion();
+    } else if (currentModule === 'auditoria') {
+      renderAuditoriaView();
     } else if (currentModule === 'arqueo-chica') {
       loadCajaChicaFundData();
     } else if (currentModule === 'historial') {
@@ -3675,63 +3714,68 @@
 
   async function loadCatalogsData() {
     try {
-      // CARGA ESTRICTA DESDE FIREBASE: Sin inyección de datos de prueba
-      catEstaciones = await TB_FIREBASE.getCatalogo('estaciones');
-      if (!Array.isArray(catEstaciones)) catEstaciones = [];
-      catEspecialistas = await TB_FIREBASE.getCatalogo('especialistas');
-      if (!Array.isArray(catEspecialistas)) catEspecialistas = [];
-      catServicios = await TB_FIREBASE.getCatalogo('servicios');
-      if (!Array.isArray(catServicios)) catServicios = [];
-      catUsuariosRoles = await TB_FIREBASE.getCatalogo('usuarios_roles');
+      // CARGA RÁPIDA EN PARALELO DESDE FIREBASE
+      const [estRes, espRes, srvRes, usrRes, crsRes] = await Promise.all([
+        TB_FIREBASE.getCatalogo('estaciones'),
+        TB_FIREBASE.getCatalogo('especialistas'),
+        TB_FIREBASE.getCatalogo('servicios'),
+        TB_FIREBASE.getCatalogo('usuarios_roles'),
+        TB_FIREBASE.getCatalogo('metas_cursos')
+      ]);
 
-      if (!Array.isArray(catUsuariosRoles)) catUsuariosRoles = [];
-      let franUser = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
-      if (!franUser) {
-        franUser = {
-          email: 'francisco@totalb.com',
-          nombre: 'Francisco (Admin Principal)',
-          rol: 'Administrador',
-          isAdmin: true,
-          modulos: [...ALL_MODULE_KEYS],
-          updatedAt: new Date().toISOString()
-        };
-        catUsuariosRoles.unshift(franUser);
-        await TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
-      } else {
-        franUser.rol = 'Administrador';
-        franUser.isAdmin = true;
-        franUser.modulos = [...ALL_MODULE_KEYS];
+      if (Array.isArray(estRes)) {
+        catEstaciones = estRes;
+        catEstaciones.forEach(est => {
+          if (est.metaQuincenal === undefined) est.metaQuincenal = parseFloat(est.meta) || 0;
+          if (est.clientesMeta === undefined) est.clientesMeta = parseInt(est.metaClientes, 10) || 0;
+        });
       }
-      
-      // Normalizar estaciones para asegurar metaQuincenal y clientesMeta
-      catEstaciones.forEach(est => {
-        if (est.metaQuincenal === undefined) est.metaQuincenal = parseFloat(est.meta) || 0;
-        if (est.clientesMeta === undefined) est.clientesMeta = parseInt(est.metaClientes, 10) || 0;
-      });
+      if (Array.isArray(espRes)) catEspecialistas = espRes;
+      if (Array.isArray(srvRes)) catServicios = srvRes;
+      if (Array.isArray(usrRes)) {
+        catUsuariosRoles = usrRes;
+        let franUser = catUsuariosRoles.find(u => (u.email || '').toLowerCase().trim() === 'francisco@totalb.com');
+        if (!franUser) {
+          franUser = {
+            email: 'francisco@totalb.com',
+            nombre: 'Francisco (Admin Principal)',
+            rol: 'Administrador',
+            isAdmin: true,
+            modulos: [...ALL_MODULE_KEYS],
+            updatedAt: new Date().toISOString()
+          };
+          catUsuariosRoles.unshift(franUser);
+          TB_FIREBASE.saveCatalogo('usuarios_roles', catUsuariosRoles);
+        } else {
+          franUser.rol = 'Administrador';
+          franUser.isAdmin = true;
+          franUser.modulos = [...ALL_MODULE_KEYS];
+        }
+      }
 
-      const cursosStored = await TB_FIREBASE.getCatalogo('metas_cursos');
-      if (cursosStored && cursosStored.length > 0 && cursosStored[0]) {
+      if (Array.isArray(crsRes) && crsRes[0]) {
         catCursosMeta = {
           id: 'Cursos',
           nombre: 'Cursos & Talleres Academia',
           icono: '🎓',
           isCurso: true,
-          metaQuincenal: parseFloat(cursosStored[0].metaQuincenal || 0),
-          clientesMeta: parseInt(cursosStored[0].clientesMeta || 0, 10)
-        };
-      } else {
-        catCursosMeta = {
-          id: 'Cursos',
-          nombre: 'Cursos & Talleres Academia',
-          icono: '🎓',
-          metaQuincenal: 0,
-          clientesMeta: 0,
-          isCurso: true
+          metaQuincenal: parseFloat(crsRes[0].metaQuincenal || 0),
+          clientesMeta: parseInt(crsRes[0].clientesMeta || 0, 10)
         };
       }
 
       populateSalesDropdowns();
       populateConfigStationDropdowns();
+
+      // ACTUALIZAR EN VIVO LA VISTA ACTIVA SI DEPENDE DE CATÁLOGOS
+      if (currentModule === 'balancescore') {
+        renderBalanceScoreStations();
+      } else if (currentModule === 'configuracion') {
+        renderCatServiciosTable();
+        renderCatEstacionesTable();
+        renderCatEspecialistasTable();
+        renderCatMetasTable();
+      }
     } catch (err) {
       console.warn('Error en loadCatalogsData:', err);
     }
@@ -4655,6 +4699,11 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    // Hidratación inmediata en memoria local (0 ms)
+    hydrateMemoryFromLocalStorage();
+    populateSalesDropdowns();
+    populateConfigStationDropdowns();
+
     // Configurar Canvas de Firmas
     sigCtxPrincipal = setupSignaturePad(sigPadPrincipal, () => { sigDataPrincipal = true; });
     sigCtxChica = setupSignaturePad(sigPadChica, () => { sigDataChica = true; });
@@ -6873,6 +6922,12 @@
       const vId = view.id.replace('view-', '');
       if (allowed.includes(vId)) {
         view.classList.remove('view-forbidden');
+        if (view.classList.contains('active-view')) {
+          view.style.removeProperty('display');
+          view.style.display = 'block';
+          view.style.visibility = 'visible';
+          view.style.opacity = '1';
+        }
       } else {
         view.classList.add('view-forbidden');
         view.classList.remove('active-view');
@@ -7516,34 +7571,13 @@
       const respChica = document.getElementById('chica_responsable');
       if (respChica) respChica.value = user.email;
 
-      // 5. Cargar datos en background con captura de errores
-      try {
-        await loadControlCajaData();
-      } catch (e) {
-        console.warn('loadControlCajaData error:', e);
-      }
-      try {
-        await loadCatalogsData();
-      } catch (e) {
-        console.warn('loadCatalogsData error:', e);
-      }
-
-      // 6. Sincronizar y re-confirmar permisos con Firebase Cloud
-      try {
-        await syncAndApplyUserPermissions(user.email);
-      } catch (e) {
-        console.warn('syncAndApplyUserPermissions error:', e);
-      }
-
-      // 7. GESTIÓN DE MÓDULO ACTIVO Y LANZADOR DE INICIO:
+      // 5. GESTIÓN INMEDIATA DE MÓDULO ACTIVO Y LANZADOR (SIN ESPERAR LA RED)
       const allowed = getAllowedModulesForCurrentUser();
       const savedMod = localStorage.getItem('tb_active_module');
 
       if (isFreshLogin) {
-        // Al iniciar sesión desde el formulario: mostrar el menú interactivo para seleccionar opción
         openModuleLauncher();
       } else {
-        // Al recargar la página (F5 o refresh): NO salirse de donde estaba, mantener el módulo activo y actualizar datos
         let targetMod = savedMod;
         if (!targetMod || !hasModulePermission(targetMod)) {
           targetMod = allowed[0] || 'ventas';
@@ -7551,8 +7585,16 @@
         switchModule(targetMod);
       }
 
-      // Actualizar datos del módulo activo de manera inmediata
-      refreshActiveModuleData();
+      // 6. CARGAR DATOS FRESCOS DESDE FIREBASE EN SEGUNDO PLANO Y EN PARALELO
+      Promise.all([
+        loadControlCajaData(),
+        loadCatalogsData(),
+        syncAndApplyUserPermissions(user.email)
+      ]).then(() => {
+        refreshActiveModuleData();
+      }).catch(err => {
+        console.warn('Error sincronizando con Firebase:', err);
+      });
     }
 
     function onLogoutSuccess() {
@@ -7591,20 +7633,8 @@
       if (authErrorBox) authErrorBox.style.display = 'none';
       if (authSuccessBox) authSuccessBox.style.display = 'none';
 
-      // Limpiar datos en memoria y caches locales al cerrar sesión
-      catServicios = [];
-      catEstaciones = [];
-      catEspecialistas = [];
-      catCursosMeta = { id: 'Cursos', nombre: 'Cursos & Talleres Academia', icono: '🎓', metaQuincenal: 0, clientesMeta: 0, isCurso: true };
-      ['servicios', 'estaciones', 'especialistas', 'metas_cursos', 'metas'].forEach(t => {
-        localStorage.removeItem(`tb_cat_${t}`);
-      });
-      populateSalesDropdowns();
-      populateConfigStationDropdowns();
-      renderCatServiciosTable();
-      renderCatEstacionesTable();
-      renderCatEspecialistasTable();
-      renderCatMetasTable();
+      // Limpiar datos de sesión activa
+      currentModule = null;
     }
 
     // Toggle ver contraseña
