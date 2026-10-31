@@ -538,18 +538,28 @@
                 <textarea id="val_observaciones" class="textarea-custom" rows="2" placeholder="Notas sobre el cierre o aclaraciones..." style="min-height:54px;"></textarea>
               </div>
 
-              <!-- FIRMA DIGITAL -->
+              <!-- FIRMA DIGITAL CON CUADRITO NEGRO INTERACTIVO -->
               <div class="signature-box-container" style="max-width:440px; margin:0 auto 20px auto;">
-                <label style="font-weight:700; color:var(--dark); margin-bottom:6px; display:block; text-align:center;">
+                <label style="font-weight:700; color:#ffffff; margin-bottom:8px; display:block; text-align:center;">
                   ✍️ Firma digital del responsable:
                 </label>
-                <div class="signature-canvas-wrap" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px;">
-                  <canvas id="signature-pad" width="440" height="110" style="width:100%; height:110px;"></canvas>
-                  <div class="signature-tools" style="padding:4px 8px; display:flex; justify-content:space-between; align-items:center;">
-                    <span class="signature-hint" style="font-size:0.75rem; color:var(--muted); font-style:italic;">Dibuje su firma aquí</span>
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-signature" style="font-size:0.75rem; padding:3px 8px;">Limpiar</button>
+                <div class="signature-touch-box" id="box-firma-principal" role="button" tabindex="0" title="Toca para firmar">
+                  <div class="sig-touch-placeholder" id="placeholder-firma-principal">
+                    <div class="sig-touch-icon">✍️</div>
+                    <div class="sig-touch-main-text">Toca para firmar</div>
+                    <div class="sig-touch-subtext">Se abrirá en pantalla grande para mayor comodidad</div>
+                  </div>
+                  <div class="sig-touch-preview" id="preview-firma-principal" style="display:none;">
+                    <div class="sig-touch-img-wrap">
+                      <img id="img-preview-firma-principal" src="" alt="Firma registrada">
+                    </div>
+                    <div class="sig-touch-confirmed-badge">
+                      <span>✅ Firma registrada</span> &bull; <span class="sig-touch-reedit">Toca para cambiar</span>
+                    </div>
                   </div>
                 </div>
+                <!-- Canvas de compatibilidad para almacenamiento y PDF -->
+                <canvas id="signature-pad" width="440" height="110" style="display:none;"></canvas>
               </div>
 
               <!-- BOTÓN GUARDAR -->
@@ -683,23 +693,23 @@
               </div>
             </div>
             <div class="section-body">
-              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:18px 22px; max-width:720px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <div style="background:#0c0c0c; border:1px solid #262626; border-radius:12px; padding:18px 22px; max-width:720px; box-shadow:0 4px 16px rgba(0,0,0,0.6);">
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:18px; align-items:center;">
                   <div>
-                    <span style="font-size:0.75rem; text-transform:uppercase; color:var(--muted); font-weight:700; display:block; margin-bottom:4px;">Fondo Base Asignado</span>
-                    <span id="lbl-chica-base" style="font-size:1.25rem; font-weight:800; color:var(--dark);">$0.00</span>
-                    <span style="font-size:0.75rem; color:#64748b; display:block;">(De Configuración)</span>
+                    <span style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; font-weight:700; display:block; margin-bottom:4px;">Fondo Base Asignado</span>
+                    <span id="lbl-chica-base" style="font-size:1.25rem; font-weight:800; color:#ffffff;">$0.00</span>
+                    <span style="font-size:0.75rem; color:#d4af37; display:block;">(De Configuración)</span>
                   </div>
                   <div>
-                    <span style="font-size:0.75rem; text-transform:uppercase; color:#b91c1c; font-weight:700; display:block; margin-bottom:4px;">Salidas del Mes Registradas</span>
-                    <span id="lbl-chica-descuentos" style="font-size:1.25rem; font-weight:800; color:#b91c1c;">-$0.00</span>
-                    <span style="font-size:0.75rem; color:#64748b; display:block;">(Descontadas en BD)</span>
+                    <span style="font-size:0.75rem; text-transform:uppercase; color:#ef4444; font-weight:700; display:block; margin-bottom:4px;">Salidas del Mes Registradas</span>
+                    <span id="lbl-chica-descuentos" style="font-size:1.25rem; font-weight:800; color:#ef4444;">-$0.00</span>
+                    <span style="font-size:0.75rem; color:#94a3b8; display:block;">(Descontadas en BD)</span>
                   </div>
                   <div>
                     <label for="chica_fondo_inicial" style="font-size:0.78rem; text-transform:uppercase; color:var(--primary); font-weight:800; display:block; margin-bottom:4px;">Fondo Inicial Disponible</label>
                     <div class="currency-input-wrap">
                       <span class="currency-prefix">$</span>
-                      <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger" id="chica_fondo_inicial" value="0.00" readonly style="background:#fff; font-weight:800; font-size:1.15rem; color:#0f172a; border-color:#cbd5e1;">
+                      <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger" id="chica_fondo_inicial" value="0.00" readonly style="background:#141414; font-weight:800; font-size:1.15rem; color:#fef08a; border:1px solid #333333;">
                     </div>
                   </div>
                 </div>
@@ -888,20 +898,32 @@
               <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px;">
                 
                 <div class="form-group" style="max-width:440px; margin:0 auto 20px auto;">
-                  <label for="chica_val_nombre" style="font-weight:700; color:var(--dark);">Responsable de Caja Chica: <span class="required">*</span></label>
-                  <input type="text" class="input-text" id="chica_val_nombre" placeholder="Correo del responsable" required readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:600; color:#1e293b;">
+                  <label for="chica_val_nombre" style="font-weight:700; color:#ffffff;">Responsable de Caja Chica: <span class="required">*</span></label>
+                  <input type="text" class="input-text" id="chica_val_nombre" placeholder="Correo del responsable" required readonly style="background:#141414; cursor:not-allowed; font-weight:600; color:#ffffff; border:1px solid #333333;">
                 </div>
 
-                <!-- FIRMA DIGITAL DEL RESPONSABLE (DIRECTAMENTE ARRIBA DEL BOTÓN GUARDAR) -->
+                <!-- FIRMA DIGITAL DEL RESPONSABLE (CUADRITO NEGRO INTERACTIVO) -->
                 <div class="signature-box-container" style="max-width:520px; margin:0 auto 24px auto;">
-                  <label style="font-weight:700; color:var(--dark); margin-bottom:6px; display:block;">Firma digital del responsable:</label>
-                  <div class="signature-canvas-wrap" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px;">
-                    <canvas id="chica-signature-pad" width="450" height="120" style="width:100%; height:120px;"></canvas>
-                    <div class="signature-tools" style="padding:4px 8px; display:flex; justify-content:space-between; align-items:center;">
-                      <span class="signature-hint" style="font-size:0.75rem; color:var(--muted); font-style:italic;">✍️ Dibuje su firma aquí</span>
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-chica-sig">Limpiar</button>
+                  <label style="font-weight:700; color:#ffffff; margin-bottom:8px; display:block; text-align:center;">
+                    ✍️ Firma digital del responsable:
+                  </label>
+                  <div class="signature-touch-box" id="box-firma-chica" role="button" tabindex="0" title="Toca para firmar">
+                    <div class="sig-touch-placeholder" id="placeholder-firma-chica">
+                      <div class="sig-touch-icon">✍️</div>
+                      <div class="sig-touch-main-text">Toca para firmar</div>
+                      <div class="sig-touch-subtext">Se abrirá en pantalla grande para mayor comodidad</div>
+                    </div>
+                    <div class="sig-touch-preview" id="preview-firma-chica" style="display:none;">
+                      <div class="sig-touch-img-wrap">
+                        <img id="img-preview-firma-chica" src="" alt="Firma registrada">
+                      </div>
+                      <div class="sig-touch-confirmed-badge">
+                        <span>✅ Firma registrada</span> &bull; <span class="sig-touch-reedit">Toca para cambiar</span>
+                      </div>
                     </div>
                   </div>
+                  <!-- Canvas de compatibilidad para almacenamiento y PDF -->
+                  <canvas id="chica-signature-pad" width="450" height="120" style="display:none;"></canvas>
                 </div>
 
                 <!-- BOTÓN PRINCIPAL CAJA CHICA: SOLO GUARDAR -->
@@ -939,10 +961,10 @@
           </div>
         </div>
 
-        <div id="historial-empty-state" style="text-align:center; padding:50px 20px; background:#fff; border-radius:var(--radius-lg); border:1px solid var(--border); display:none;">
+        <div id="historial-empty-state" style="text-align:center; padding:50px 20px; background:#0c0c0c; border-radius:var(--radius-lg); border:1px solid #262626; color:#ffffff; display:none;">
           <span style="font-size:3rem;">📂</span>
-          <h3 style="margin-top:10px; color:var(--dark);">No hay arqueos registrados para esta fecha</h3>
-          <p style="color:var(--muted); font-size:0.9rem; margin-top:4px;">Los arqueos guardados en Firebase aparecerán listados aquí.</p>
+          <h3 style="margin-top:10px; color:#ffffff;">No hay arqueos registrados para esta fecha</h3>
+          <p style="color:#a1a1aa; font-size:0.9rem; margin-top:4px;">Los arqueos guardados en Firebase aparecerán listados aquí.</p>
         </div>
 
         <div class="history-card-grid" id="history-grid-container"></div>
@@ -3703,11 +3725,11 @@
        MODAL LIGHTBOX PARA VER FOTOGRAFÍA EN GRANDE
        ======================================================================== -->
   <div class="modal-backdrop-custom" id="modal-ver-foto" style="display:none; z-index:99999;">
-    <div style="background:#fff; border-radius:12px; padding:16px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-      <button type="button" id="btn-close-ver-foto" style="position:absolute; top:8px; right:12px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#475569;">✕</button>
-      <h4 id="ver-foto-titulo" style="margin:0 0 10px 0; font-size:1rem; color:#1e293b; font-weight:700;">Comprobante de Entrega</h4>
-      <img id="img-ver-foto-full" src="" alt="Comprobante" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0;">
-      <div id="ver-foto-meta" style="margin-top:8px; font-size:0.8rem; color:#64748b;"></div>
+    <div style="background:#0c0c0c; border:1.5px solid #d4af37; border-radius:12px; padding:16px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.85);">
+      <button type="button" id="btn-close-ver-foto" style="position:absolute; top:8px; right:12px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#d4af37;">✕</button>
+      <h4 id="ver-foto-titulo" style="margin:0 0 10px 0; font-size:1rem; color:#ffffff; font-weight:700;">Comprobante de Entrega</h4>
+      <img id="img-ver-foto-full" src="" alt="Comprobante" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:6px; border:1px solid #333333;">
+      <div id="ver-foto-meta" style="margin-top:8px; font-size:0.8rem; color:#d4af37;"></div>
     </div>
   </div>
 
@@ -3715,7 +3737,7 @@
        MODAL DE VISUALIZACIÓN Y DESCARGA DE PDF DE REPORTES DIARIOS DE ARQUEO
        ======================================================================== -->
   <div class="modal-backdrop-custom" id="modal-view-pdf-report" style="display:none; z-index:99999;">
-    <div style="background:#fff; border-radius:12px; width:95vw; max-width:920px; height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.4); overflow:hidden;">
+    <div style="background:#0c0c0c; border:1.5px solid #d4af37; border-radius:12px; width:95vw; max-width:920px; height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.85); overflow:hidden;">
       <div style="padding:14px 20px; background:#0f172a; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
         <div>
           <h3 id="pdf-modal-title" style="margin:0; font-size:1.05rem; font-weight:800; display:flex; align-items:center; gap:8px;">
@@ -3759,25 +3781,25 @@
         <button type="button" id="btn-close-lead-modal" style="background:none; border:none; color:#cbd5e1; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
       </div>
 
-      <div class="master-modal-body" style="overflow-y:auto; padding:20px; flex:1; background:#f8fafc;">
+      <div class="master-modal-body" style="overflow-y:auto; padding:20px; flex:1; background:#0a0a0a;">
         
         <!-- Ficha de Información del Prospecto -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:14px 16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
             <div>
-              <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Interés Registrado:</span>
-              <div style="font-size:1rem; font-weight:800; color:var(--dark);" id="mlead-servicio">--</div>
-              <span style="font-size:0.75rem; color:var(--muted);">Canal de Captación: <strong id="mlead-canal">--</strong></span>
+              <span style="font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">Interés Registrado:</span>
+              <div style="font-size:1rem; font-weight:800; color:#ffffff;" id="mlead-servicio">--</div>
+              <span style="font-size:0.75rem; color:#94a3b8;">Canal de Captación: <strong id="mlead-canal" style="color:#d4af37;">--</strong></span>
             </div>
             <div>
-              <span style="font-size:0.72rem; font-weight:700; color:var(--muted); display:block; margin-bottom:2px; text-transform:uppercase;">Tipificación Actual:</span>
+              <span style="font-size:0.72rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:2px; text-transform:uppercase;">Tipificación Actual:</span>
               <span id="mlead-tipif-actual" class="status-badge status-pendiente" style="font-size:0.85rem; padding:4px 12px; font-weight:800;">
                 Interesada
               </span>
             </div>
           </div>
 
-          <div style="display:flex; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px dashed #e2e8f0;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px dashed #262626;">
             <a href="#" target="_blank" id="mlead-btn-wa" class="btn-whatsapp btn-sm" style="text-decoration:none;">
               <span>💬</span> Enviar WhatsApp
             </a>
@@ -3788,18 +3810,18 @@
         </div>
 
         <!-- Historial de Contactos (Timeline) -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
-          <div style="font-size:0.88rem; font-weight:800; color:var(--dark); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+          <div style="font-size:0.88rem; font-weight:800; color:#ffffff; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
             <span>📋</span> Historial Cronológico de Contactos Realizados
           </div>
           <div id="mlead-timeline-container">
-            <div style="text-align:center; padding:14px; color:var(--muted); font-size:0.85rem;">Cargando historial...</div>
+            <div style="text-align:center; padding:14px; color:#94a3b8; font-size:0.85rem;">Cargando historial...</div>
           </div>
         </div>
 
         <!-- Formulario para Registrar Nueva Tipificación -->
-        <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:10px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">
-          <div style="font-size:0.9rem; font-weight:800; color:#1e40af; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+          <div style="font-size:0.9rem; font-weight:800; color:#d4af37; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
             <span>➕</span> Registrar Nuevo Contacto y Actualizar Tipificación
           </div>
           
@@ -3881,5 +3903,55 @@
       </div>
     </div>
   </div>
+  <!-- ========================================================================
+       MODAL DE FIRMA DIGITAL EN PANTALLA GRANDE / HORIZONTAL
+       ======================================================================== -->
+  <div class="modal-backdrop-custom modal-signature-overlay" id="modal-signature-fullscreen" style="display:none; z-index:999999;">
+    <div class="signature-fullscreen-card">
+      
+      <!-- Encabezado del modal -->
+      <div class="signature-fullscreen-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.35rem;">✍️</span>
+          <div>
+            <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:#ffffff;" id="sig-modal-title">Firma Digital del Responsable</h3>
+            <p style="margin:2px 0 0 0; font-size:0.75rem; color:#d4af37;" id="sig-modal-subtitle">Dibuje su firma dentro del recuadro blanco</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-sig-modal" id="btn-close-signature-modal" title="Cerrar sin guardar">✕</button>
+      </div>
+
+      <!-- Aviso Dinámico de Orientación (si está en vertical) -->
+      <div class="sig-orientation-alert" id="sig-orientation-alert">
+        <span class="sig-orientation-icon">📱 ↷</span>
+        <span>Para mayor comodidad y espacio, se recomienda colocar el teléfono en <strong>horizontal</strong></span>
+      </div>
+
+      <!-- Área de Firma (Fondo Blanco, Trazos Negros) -->
+      <div class="signature-canvas-fullscreen-wrap" id="sig-canvas-wrap">
+        <canvas id="signature-fullscreen-canvas"></canvas>
+        <div class="signature-watermark-hint" id="sig-modal-watermark">
+          <span>✍️ Dibuje su firma aquí</span>
+        </div>
+      </div>
+
+      <!-- Barra de Acciones: Confirmar o Reintentar -->
+      <div class="signature-fullscreen-footer">
+        <button type="button" class="btn btn-secondary btn-sig-retry" id="btn-sig-retry">
+          <span>🔄</span> <span>Reintentar</span>
+        </button>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-sig-cancel" style="padding:10px 18px;">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-primary btn-sig-confirm" id="btn-sig-confirm">
+            <span>✅</span> <span>Confirmar</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </body>
 </html>

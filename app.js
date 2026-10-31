@@ -464,6 +464,233 @@
   }
 
   // =========================================================================
+  // SISTEMA DE FIRMA DIGITAL EN PANTALLA COMPLETA / HORIZONTAL CON CUADRITO NEGRO
+  // =========================================================================
+  let activeSignatureTarget = null; // 'principal' | 'chica'
+  let modalSigCanvas = null;
+  let modalSigCtx = null;
+  let hasModalSignatureDrawn = false;
+  let isDrawingModal = false;
+
+  function initInteractiveSignatureSystem() {
+    modalSigCanvas = document.getElementById('signature-fullscreen-canvas');
+    if (!modalSigCanvas) return;
+
+    modalSigCtx = modalSigCanvas.getContext('2d');
+
+    function checkOrientation() {
+      const banner = document.getElementById('sig-orientation-alert');
+      if (!banner) return;
+      const isPortrait = (window.innerHeight > window.innerWidth);
+      banner.style.display = isPortrait ? 'flex' : 'none';
+    }
+
+    function resizeModalCanvas(preserveContent = true) {
+      if (!modalSigCanvas) return;
+      const wrap = document.getElementById('sig-canvas-wrap');
+      if (!wrap) return;
+
+      let tempImgData = null;
+      if (preserveContent && hasModalSignatureDrawn && modalSigCanvas.width > 0 && modalSigCanvas.height > 0) {
+        tempImgData = modalSigCanvas.toDataURL();
+      }
+
+      const rect = wrap.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const targetWidth = Math.max(280, Math.floor(rect.width));
+      const targetHeight = Math.max(160, Math.floor(rect.height));
+
+      modalSigCanvas.width = targetWidth * dpr;
+      modalSigCanvas.height = targetHeight * dpr;
+      modalSigCanvas.style.width = `${targetWidth}px`;
+      modalSigCanvas.style.height = `${targetHeight}px`;
+
+      modalSigCtx = modalSigCanvas.getContext('2d');
+      modalSigCtx.scale(dpr, dpr);
+      modalSigCtx.lineWidth = 3.2;
+      modalSigCtx.lineCap = 'round';
+      modalSigCtx.lineJoin = 'round';
+      modalSigCtx.strokeStyle = '#000000';
+
+      if (tempImgData) {
+        const img = new Image();
+        img.onload = () => {
+          modalSigCtx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        };
+        img.src = tempImgData;
+      }
+    }
+
+    function getCoords(e) {
+      const rect = modalSigCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawingModal = true;
+      hasModalSignatureDrawn = true;
+      const wm = document.getElementById('sig-modal-watermark');
+      if (wm) wm.style.display = 'none';
+
+      const { x, y } = getCoords(e);
+      modalSigCtx.beginPath();
+      modalSigCtx.moveTo(x, y);
+    }
+
+    function moveDraw(e) {
+      if (!isDrawingModal) return;
+      e.preventDefault();
+      const { x, y } = getCoords(e);
+      modalSigCtx.lineTo(x, y);
+      modalSigCtx.stroke();
+    }
+
+    function stopDraw(e) {
+      if (!isDrawingModal) return;
+      e.preventDefault();
+      isDrawingModal = false;
+      modalSigCtx.closePath();
+    }
+
+    modalSigCanvas.addEventListener('mousedown', startDraw);
+    modalSigCanvas.addEventListener('mousemove', moveDraw);
+    window.addEventListener('mouseup', stopDraw);
+
+    modalSigCanvas.addEventListener('touchstart', startDraw, { passive: false });
+    modalSigCanvas.addEventListener('touchmove', moveDraw, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+
+    function openSignatureModal(target) {
+      activeSignatureTarget = target;
+      const modal = document.getElementById('modal-signature-fullscreen');
+      if (!modal) return;
+
+      modal.style.display = 'flex';
+      checkOrientation();
+
+      const titleEl = document.getElementById('sig-modal-title');
+      if (titleEl) {
+        titleEl.textContent = (target === 'chica') ? 'Firma: Arqueo Caja Chica' : 'Firma: Arqueo Caja Principal';
+      }
+
+      setTimeout(() => {
+        resizeModalCanvas(false);
+        const wrap = document.getElementById('sig-canvas-wrap');
+        const rect = wrap ? wrap.getBoundingClientRect() : { width: 500, height: 250 };
+        modalSigCtx.clearRect(0, 0, rect.width, rect.height);
+        hasModalSignatureDrawn = false;
+        const wm = document.getElementById('sig-modal-watermark');
+        if (wm) wm.style.display = 'block';
+      }, 70);
+    }
+
+    function closeSignatureModal() {
+      const modal = document.getElementById('modal-signature-fullscreen');
+      if (modal) modal.style.display = 'none';
+      isDrawingModal = false;
+    }
+
+    // Clic en los cuadritos negros de los formularios
+    document.getElementById('box-firma-principal')?.addEventListener('click', () => {
+      openSignatureModal('principal');
+    });
+    document.getElementById('box-firma-chica')?.addEventListener('click', () => {
+      openSignatureModal('chica');
+    });
+
+    // Botón Reintentar (limpiar trazo)
+    document.getElementById('btn-sig-retry')?.addEventListener('click', () => {
+      if (modalSigCanvas && modalSigCtx) {
+        const wrap = document.getElementById('sig-canvas-wrap');
+        const rect = wrap ? wrap.getBoundingClientRect() : { width: modalSigCanvas.width, height: modalSigCanvas.height };
+        modalSigCtx.clearRect(0, 0, rect.width, rect.height);
+        hasModalSignatureDrawn = false;
+        const wm = document.getElementById('sig-modal-watermark');
+        if (wm) wm.style.display = 'block';
+        showToast('Lienzo limpio. Puede dibujar nuevamente.', 'info');
+      }
+    });
+
+    // Botón Confirmar
+    document.getElementById('btn-sig-confirm')?.addEventListener('click', () => {
+      if (!hasModalSignatureDrawn) {
+        showToast('⚠️ Por favor realice su firma en el recuadro blanco antes de confirmar', 'warning');
+        return;
+      }
+
+      const dataUrl = modalSigCanvas.toDataURL('image/png');
+
+      if (activeSignatureTarget === 'principal') {
+        sigDataPrincipal = true;
+        const ph = document.getElementById('placeholder-firma-principal');
+        const pv = document.getElementById('preview-firma-principal');
+        const img = document.getElementById('img-preview-firma-principal');
+        if (img) img.src = dataUrl;
+        if (ph) ph.style.display = 'none';
+        if (pv) pv.style.display = 'flex';
+
+        if (sigPadPrincipal && sigCtxPrincipal) {
+          const i = new Image();
+          i.onload = () => {
+            sigCtxPrincipal.clearRect(0, 0, sigPadPrincipal.width, sigPadPrincipal.height);
+            sigCtxPrincipal.drawImage(i, 0, 0, sigPadPrincipal.width, sigPadPrincipal.height);
+          };
+          i.src = dataUrl;
+        }
+      } else if (activeSignatureTarget === 'chica') {
+        sigDataChica = true;
+        const ph = document.getElementById('placeholder-firma-chica');
+        const pv = document.getElementById('preview-firma-chica');
+        const img = document.getElementById('img-preview-firma-chica');
+        if (img) img.src = dataUrl;
+        if (ph) ph.style.display = 'none';
+        if (pv) pv.style.display = 'flex';
+
+        if (sigPadChica && sigCtxChica) {
+          const i = new Image();
+          i.onload = () => {
+            sigCtxChica.clearRect(0, 0, sigPadChica.width, sigPadChica.height);
+            sigCtxChica.drawImage(i, 0, 0, sigPadChica.width, sigPadChica.height);
+          };
+          i.src = dataUrl;
+        }
+      }
+
+      closeSignatureModal();
+      showToast('✅ Firma registrada y confirmada', 'success');
+    });
+
+    // Botones Cancelar / Cerrar
+    document.getElementById('btn-sig-cancel')?.addEventListener('click', closeSignatureModal);
+    document.getElementById('btn-close-signature-modal')?.addEventListener('click', closeSignatureModal);
+
+    // Ajustar orientación y dimensiones dinámicamente
+    window.addEventListener('resize', () => {
+      const modal = document.getElementById('modal-signature-fullscreen');
+      if (modal && modal.style.display === 'flex') {
+        checkOrientation();
+        resizeModalCanvas(true);
+      }
+    });
+
+    window.addEventListener('orientationchange', () => {
+      const modal = document.getElementById('modal-signature-fullscreen');
+      if (modal && modal.style.display === 'flex') {
+        setTimeout(() => {
+          checkOrientation();
+          resizeModalCanvas(true);
+        }, 150);
+      }
+    });
+  }
+
+  // =========================================================================
   // 1. REGISTRO DIARIO DE VENTAS (100% INTERCONECTADO)
   // =========================================================================
   // =========================================================================
@@ -1141,6 +1368,12 @@
       sigCtxPrincipal.clearRect(0, 0, sigPadPrincipal.width, sigPadPrincipal.height);
       sigDataPrincipal = false;
     }
+    const phP = document.getElementById('placeholder-firma-principal');
+    const pvP = document.getElementById('preview-firma-principal');
+    const imgP = document.getElementById('img-preview-firma-principal');
+    if (phP) phP.style.display = 'flex';
+    if (pvP) pvP.style.display = 'none';
+    if (imgP) imgP.src = '';
     const now = new Date();
     const dStr = now.toISOString().split('T')[0];
     const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -1552,6 +1785,12 @@
       sigCtxChica.clearRect(0, 0, sigPadChica.width, sigPadChica.height);
       sigDataChica = false;
     }
+    const phC = document.getElementById('placeholder-firma-chica');
+    const pvC = document.getElementById('preview-firma-chica');
+    const imgC = document.getElementById('img-preview-firma-chica');
+    if (phC) phC.style.display = 'flex';
+    if (pvC) pvC.style.display = 'none';
+    if (imgC) imgC.src = '';
     const now = new Date();
     const dStr = now.toISOString().split('T')[0];
     const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -4821,23 +5060,12 @@
       setVentasViewMode('tarjetas');
     }
 
-    // Configurar Canvas de Firmas
+    // Configurar Canvas de Firmas base
     sigCtxPrincipal = setupSignaturePad(sigPadPrincipal, () => { sigDataPrincipal = true; });
     sigCtxChica = setupSignaturePad(sigPadChica, () => { sigDataChica = true; });
 
-    document.getElementById('btn-clear-signature')?.addEventListener('click', () => {
-      if (sigCtxPrincipal && sigPadPrincipal) {
-        sigCtxPrincipal.clearRect(0, 0, sigPadPrincipal.width, sigPadPrincipal.height);
-        sigDataPrincipal = false;
-      }
-    });
-
-    document.getElementById('btn-clear-chica-sig')?.addEventListener('click', () => {
-      if (sigCtxChica && sigPadChica) {
-        sigCtxChica.clearRect(0, 0, sigPadChica.width, sigPadChica.height);
-        sigDataChica = false;
-      }
-    });
+    // Inicializar Sistema de Firma Digital con Cuadrito Negro y Modal Pantalla Grande
+    initInteractiveSignatureSystem();
 
     // Menú Lateral
     document.querySelectorAll('.menu-item-link').forEach(link => {
