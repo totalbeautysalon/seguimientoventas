@@ -227,6 +227,11 @@
       });
     }
 
+    // Si entramos a Registro de Ventas en móvil, asegurar vista de tarjetas amplia y sin amontonar
+    if (modKey === 'ventas' && typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setVentasViewMode(currentVentasViewMode || 'tarjetas');
+    }
+
     // Carga y actualización inmediata de datos de la sección
     refreshActiveModuleData();
   }
@@ -466,7 +471,27 @@
   let currentVentasList = [];
   let currentVentasMetodoFilter = 'todos';
   let currentVentasSearchTerm = '';
-  let currentVentasViewMode = 'tabla';
+  let currentVentasViewMode = (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'tarjetas' : 'tabla';
+
+  function setVentasViewMode(mode) {
+    currentVentasViewMode = mode;
+    const btnTabla = document.getElementById('btn-view-tabla');
+    const btnTarjetas = document.getElementById('btn-view-tarjetas');
+    const tableWrap = document.getElementById('ventas-table-wrapper');
+    const cardsWrap = document.getElementById('ventas-cards-wrapper');
+
+    if (mode === 'tarjetas') {
+      if (btnTarjetas) btnTarjetas.classList.add('active');
+      if (btnTabla) btnTabla.classList.remove('active');
+      if (tableWrap) tableWrap.style.display = 'none';
+      if (cardsWrap) cardsWrap.style.display = 'block';
+    } else {
+      if (btnTabla) btnTabla.classList.add('active');
+      if (btnTarjetas) btnTarjetas.classList.remove('active');
+      if (tableWrap) tableWrap.style.display = 'block';
+      if (cardsWrap) cardsWrap.style.display = 'none';
+    }
+  }
 
   async function renderVentas(fecha) {
     if (!fecha) {
@@ -4704,6 +4729,11 @@
     populateSalesDropdowns();
     populateConfigStationDropdowns();
 
+    // En pantallas móviles, inicializar vista de tarjetas en Ventas para evitar amontonamiento
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setVentasViewMode('tarjetas');
+    }
+
     // Configurar Canvas de Firmas
     sigCtxPrincipal = setupSignaturePad(sigPadPrincipal, () => { sigDataPrincipal = true; });
     sigCtxChica = setupSignaturePad(sigPadChica, () => { sigDataChica = true; });
@@ -5576,7 +5606,8 @@
       if (mobilePill) mobilePill.textContent = `Paso ${targetStep} de 4`;
 
       const mobileTitle = document.getElementById('step-mobile-title');
-      if (mobileTitle) mobileTitle.textContent = stepTitles[targetStep] || '';
+      const pctValue = Math.round((targetStep / 4) * 100);
+      if (mobileTitle) mobileTitle.textContent = `${pctValue}% completado`;
 
       // Alternar paneles de paso
       for (let i = 1; i <= 4; i++) {
@@ -5595,6 +5626,14 @@
       // Si entramos al paso 4, refrescar resumen
       if (targetStep === 4) {
         updateVentaSummary();
+      }
+
+      // En pantallas móviles, scroll suave al inicio de la tarjeta del asistente
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        const wizardCard = document.querySelector('.ventas-wizard-card');
+        if (wizardCard) {
+          wizardCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     }
 
@@ -6125,23 +6164,11 @@
 
     // Switcher de Vista: Tabla vs Tarjetas
     document.getElementById('btn-view-tabla')?.addEventListener('click', () => {
-      document.getElementById('btn-view-tabla').classList.add('active');
-      document.getElementById('btn-view-tarjetas').classList.remove('active');
-      const tableWrap = document.getElementById('ventas-table-wrapper');
-      const cardsWrap = document.getElementById('ventas-cards-wrapper');
-      if (tableWrap) tableWrap.style.display = 'block';
-      if (cardsWrap) cardsWrap.style.display = 'none';
-      currentVentasViewMode = 'tabla';
+      setVentasViewMode('tabla');
     });
 
     document.getElementById('btn-view-tarjetas')?.addEventListener('click', () => {
-      document.getElementById('btn-view-tarjetas').classList.add('active');
-      document.getElementById('btn-view-tabla').classList.remove('active');
-      const tableWrap = document.getElementById('ventas-table-wrapper');
-      const cardsWrap = document.getElementById('ventas-cards-wrapper');
-      if (tableWrap) tableWrap.style.display = 'none';
-      if (cardsWrap) cardsWrap.style.display = 'block';
-      currentVentasViewMode = 'tarjetas';
+      setVentasViewMode('tarjetas');
     });
 
     // Filtro por término de búsqueda en lista

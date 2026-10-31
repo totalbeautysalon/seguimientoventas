@@ -546,8 +546,13 @@ body {
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+
+.table-responsive .tb-table {
+  min-width: 680px;
 }
 
 .tb-table {
@@ -3855,29 +3860,87 @@ body {
   color: #166534;
 }
 
-/* Responsividad para Móviles */
-@media (max-width: 640px) {
+/* Responsividad para Móviles: Formulario Wizard y Listado de Ventas */
+@media (max-width: 768px) {
   .ventas-wizard-card {
-    padding: 14px 10px;
+    padding: 14px 12px !important;
+    overflow-x: hidden;
+  }
+  .ventas-stepper-header {
+    margin-bottom: 16px !important;
+  }
+  .stepper-progress-track {
+    height: 7px !important;
+    margin-bottom: 12px !important;
   }
   .stepper-steps-wrap {
-    gap: 4px;
+    display: flex !important;
+    width: 100% !important;
+    gap: 0 !important;
   }
-  .stepper-step {
-    padding: 8px 4px;
-    flex-direction: column;
-    gap: 4px;
+  /* En teléfonos, ocultar los pasos que NO sean el actual activo */
+  .stepper-steps-wrap .stepper-step:not(.active) {
+    display: none !important;
   }
-  .stepper-step .step-label {
-    font-size: 0.68rem;
+  /* El paso activo se muestra al 100% como un encabezado destacado, limpio y sin desbordes */
+  .stepper-steps-wrap .stepper-step.active {
+    display: flex !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
+    border: 2px solid #f43f5e !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 14px rgba(244, 63, 94, 0.16) !important;
   }
-  .stepper-step .step-circle {
-    width: 22px;
-    height: 22px;
-    font-size: 0.75rem;
+  .stepper-steps-wrap .stepper-step.active .step-circle {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background: #e11d48 !important;
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 6px rgba(225, 29, 72, 0.35) !important;
+  }
+  .stepper-steps-wrap .stepper-step.active .step-label {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    color: #9f1239 !important;
+    white-space: normal !important;
+    text-align: center !important;
   }
   .stepper-mobile-status {
-    display: flex;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: 10px !important;
+    padding: 8px 14px !important;
+    background: #f8fafc !important;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  .step-pill-indicator {
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    color: #e11d48 !important;
+    background: #fff1f2 !important;
+    padding: 4px 10px !important;
+    border-radius: 20px !important;
+    border: 1px solid #fecdd3 !important;
+  }
+  .step-title-indicator {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
   }
   .wizard-fields-grid {
     grid-template-columns: 1fr;
@@ -3906,6 +3969,123 @@ body {
     align-items: flex-start;
     flex-direction: row;
     flex-wrap: wrap;
+  }
+
+  /* Pills de método y estatus en móvil: cuadrícula 2x2 cómoda al tacto */
+  .metodo-pago-pills-wrap,
+  .status-pago-pills-wrap {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .btn-metodo-pill,
+  .btn-status-pill {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 10px 8px !important;
+    font-size: 0.84rem !important;
+  }
+
+  /* Listado de Ventas Registradas en Móvil: Barra de herramientas táctil */
+  .ventas-list-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+  }
+  .ventas-search-box {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .ventas-filter-chips {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+  }
+  .ventas-filter-chip {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 6px 14px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Grid de Tarjetas Visuales: 1 columna amplia y despejada (sin verse amontonada) */
+  .ventas-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .venta-visual-card {
+    padding: 14px 14px !important;
+    border-radius: 14px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+    background: #ffffff !important;
+    gap: 10px !important;
+  }
+  .venta-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+  .venta-card-client-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+  }
+  .venta-card-client-name {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    color: var(--dark) !important;
+    line-height: 1.2 !important;
+  }
+  .venta-card-phone {
+    margin-top: 3px !important;
+  }
+  .venta-card-body {
+    padding-top: 6px !important;
+    border-top: none !important;
+  }
+  .venta-card-service-title {
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    margin-bottom: 8px !important;
+  }
+  .venta-card-tags {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .venta-tag {
+    font-size: 0.78rem !important;
+    padding: 4px 10px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+  }
+  .venta-card-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding-top: 10px !important;
+    margin-top: 4px !important;
+    border-top: 1px dashed #e2e8f0 !important;
+  }
+  .venta-card-amount {
+    font-size: 1.3rem !important;
+    font-weight: 900 !important;
+    color: #15803d !important;
+  }
+
+  /* Tabla con ancho mínimo protegido para evitar amontonamiento */
+  #ventas-table-wrapper .tb-table {
+    min-width: 750px !important;
   }
 }
 
