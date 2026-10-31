@@ -265,163 +265,62 @@
             </div>
           </div>
 
-          <!-- 1. FONDO INICIAL DE CAJA -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">1</span>
-                <div>
-                  <h2 class="section-title">FONDO INICIAL DE CAJA</h2>
-                  <span class="section-subtitle">Efectivo base asignado para cambio y apertura de caja</span>
-                </div>
-              </div>
+          <!-- BARRA RÁPIDA DE FONDO Y ENTREGAS DE DINERO -->
+          <div class="caja-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#f8fafc; padding:14px 18px; border-radius:12px; border:1px solid #e2e8f0;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span style="font-size:0.88rem; font-weight:700; color:var(--dark);">
+                🪙 Fondo en Caja: <strong id="lbl-fondo-disponible" style="color:#16a34a; font-size:1.05rem;">$0.00</strong>
+              </span>
+              <span style="font-size:0.75rem; color:var(--muted);">
+                (Base: <span id="lbl-fondo-base">$0.00</span> &bull; Entregado Hoy: <span id="lbl-total-entregado" style="color:#dc2626; font-weight:700;">$0.00</span>)
+              </span>
             </div>
-            <div class="section-body">
-              <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-end;">
-                <div style="min-width:260px;">
-                  <div class="form-group">
-                    <label for="f_inicial_caja">Importe Fondo Inicial Disponible ($):</label>
-                    <div class="currency-input-wrap">
-                      <span class="currency-prefix">$</span>
-                      <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="f_inicial_caja" value="0.00" readonly style="font-weight:800; color:#16a34a; background:#f0fdf4;">
-                    </div>
-                  </div>
-                </div>
-                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
-                  <button type="button" class="btn btn-warning btn-sm" id="btn-open-entrega-dinero" style="font-weight:700; padding:8px 14px; font-size:0.85rem;">
-                    💸 Entregar Dinero
-                  </button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-ver-entregas-hoy" style="font-weight:600; padding:8px 12px; font-size:0.85rem;">
-                    📋 Ver Entregas Hoy (<span id="count-entregas-hoy">0</span>)
-                  </button>
-                </div>
-              </div>
-              <div id="info-desglose-fondo" style="font-size:0.82rem; color:var(--slate); margin-top:4px;">
-                Fondo Base Registrado: <strong id="lbl-fondo-base">$0.00</strong> &bull; Total Entregado Hoy: <strong id="lbl-total-entregado" style="color:#dc2626;">$0.00</strong> &bull; Disponible en Caja: <strong id="lbl-fondo-disponible" style="color:#16a34a;">$0.00</strong>
-              </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <button type="button" class="btn btn-warning btn-sm" id="btn-open-entrega-dinero" style="font-weight:700; padding:8px 16px; font-size:0.85rem; border-radius:8px;">
+                💸 Entregar Dinero
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-ver-entregas-hoy" style="font-weight:600; padding:8px 14px; font-size:0.85rem; border-radius:8px;">
+                📋 Ver Entregas Hoy (<span id="count-entregas-hoy">0</span>)
+              </button>
             </div>
           </div>
 
-          <!-- 2. INGRESOS DEL DÍA (CONECTADO CON REGISTRO DE VENTAS) -->
-          <div class="form-section">
+          <!-- 1. CONTEO FÍSICO DEL EFECTIVO (SOLO CANTIDAD EN CAJA) -->
+          <div class="form-section" id="sec-conteo-fisico">
             <div class="section-header">
               <div class="section-title-wrap">
-                <span class="section-badge">2</span>
+                <span class="section-badge">💵</span>
                 <div>
-                  <h2 class="section-title">INGRESOS DEL DÍA</h2>
-                  <span class="section-subtitle">Registrar todos los pagos recibidos durante la jornada (Sincronizado automáticamente en segundo plano cada 30s).</span>
+                  <h2 class="section-title">EFECTIVO FÍSICO EN CAJA (AL CIERRE)</h2>
+                  <span class="section-subtitle">Capture únicamente la cantidad total de dinero en efectivo que tiene físicamente en la caja</span>
                 </div>
               </div>
             </div>
-            <div class="section-body">
-              <div class="table-responsive">
-                <table class="tb-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 35%;">Concepto</th>
-                      <th class="text-right">Efectivo ($)</th>
-                      <th class="text-right">Transferencia ($)</th>
-                      <th class="text-right">Tarjeta / otro ($)</th>
-                      <th class="text-right" style="background:#f8fafc;">Total ($)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr data-row-ingreso="servicios">
-                      <td><strong>Servicios de belleza</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_servicios_efec" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_servicios_transf" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_servicios_tarj" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ing_servicios_total" value="0.00" readonly></div></td>
-                    </tr>
-                    <tr data-row-ingreso="cursos">
-                      <td><strong>Cursos de la academia</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_cursos_efec" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_cursos_transf" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_cursos_tarj" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ing_cursos_total" value="0.00" readonly></div></td>
-                    </tr>
-                    <tr data-row-ingreso="productos">
-                      <td><strong>Venta de productos</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_productos_efec" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_productos_transf" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ing_productos_tarj" value="0.00"></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ing_productos_total" value="0.00" readonly></div></td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td>TOTAL DE INGRESOS</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ing_total_efectivo" value="0.00" readonly></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ing_total_transf" value="0.00" readonly></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ing_total_tarjeta" value="0.00" readonly></div></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ing_gran_total" value="0.00" readonly></div></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              <div style="margin-top: 14px; max-width: 320px;">
-                <div class="form-group">
-                  <label for="ing_operaciones_cobradas">Número de operaciones cobradas:</label>
-                  <input type="number" min="0" class="input-text" id="ing_operaciones_cobradas" placeholder="0">
+            <div class="section-body" style="padding: 24px 20px;">
+              <div style="max-width: 440px; margin: 0 auto; text-align: center;">
+                <label for="conteo_total_efectivo" style="font-size: 1rem; font-weight: 800; color: var(--dark); margin-bottom: 8px; display: block;">
+                  ¿Cuánto dinero en efectivo hay físicamente en la caja? <span class="required">*</span>
+                </label>
+                <div class="currency-input-wrap" style="background:#fff; border: 2px solid var(--primary); border-radius: 12px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(157, 23, 77, 0.12); display: flex; align-items: center;">
+                  <span class="currency-prefix" style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-right: 6px;">$</span>
+                  <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="conteo_total_efectivo" placeholder="0.00" value="" style="font-size: 1.8rem; font-weight: 800; color: #0f172a; text-align: right; width: 100%; border: none; outline: none; background: transparent;">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 0.8rem; color: var(--muted);">
+                  <span>Sume billetes y monedas al cierre</span>
+                  <span id="hint-conteo-estado" style="font-weight: 700; color: var(--primary);">Pendiente de captura</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 3. CONTEO FÍSICO DEL EFECTIVO (CAJA PRINCIPAL) -->
-          <div class="form-section">
+          <!-- 2. CONCILIACIÓN DE CAJA (AUTOMÁTICA) -->
+          <div class="form-section" id="sec-conciliacion-caja">
             <div class="section-header">
               <div class="section-title-wrap">
-                <span class="section-badge">3</span>
-                <div>
-                  <h2 class="section-title">CONTEO FÍSICO DEL EFECTIVO (CAJA PRINCIPAL)</h2>
-                  <span class="section-subtitle">Contar el dinero físico de la caja principal al cierre.</span>
-                </div>
-              </div>
-            </div>
-            <div class="section-body">
-              <div class="cash-counter-grid">
-                
-                <!-- Billetes -->
-                <div class="denomination-column">
-                  <div class="denomination-column-title"><span>💵 Billetes</span><span>Importe</span></div>
-                  <div class="denomination-row" data-val="1000"><span class="denomination-label">Billetes de $1,000</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_1000" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_1000">$0.00</span></div>
-                  <div class="denomination-row" data-val="500"><span class="denomination-label">Billetes de $500</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_500" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_500">$0.00</span></div>
-                  <div class="denomination-row" data-val="200"><span class="denomination-label">Billetes de $200</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_200" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_200">$0.00</span></div>
-                  <div class="denomination-row" data-val="100"><span class="denomination-label">Billetes de $100</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_100" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_100">$0.00</span></div>
-                  <div class="denomination-row" data-val="50"><span class="denomination-label">Billetes de $50</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_50" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_50">$0.00</span></div>
-                  <div class="denomination-row" data-val="20"><span class="denomination-label">Billetes de $20</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="billete_20" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_20">$0.00</span></div>
-                </div>
-
-                <!-- Monedas -->
-                <div class="denomination-column">
-                  <div class="denomination-column-title"><span>🪙 Monedas</span><span>Importe</span></div>
-                  <div class="denomination-row" data-val="10"><span class="denomination-label">Monedas de $10</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="moneda_10" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_10">$0.00</span></div>
-                  <div class="denomination-row" data-val="5"><span class="denomination-label">Monedas de $5</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="moneda_5" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_5">$0.00</span></div>
-                  <div class="denomination-row" data-val="2"><span class="denomination-label">Monedas de $2</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="moneda_2" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_2">$0.00</span></div>
-                  <div class="denomination-row" data-val="1"><span class="denomination-label">Monedas de $1</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="moneda_1" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_1">$0.00</span></div>
-                  <div class="denomination-row" data-val="0.50"><span class="denomination-label">Monedas de $0.50</span><div class="denomination-controls"><button type="button" class="denom-btn" data-action="dec">-</button><input type="number" min="0" class="input-qty calc-trigger denom-input" id="moneda_050" value="0"><button type="button" class="denom-btn" data-action="inc">+</button></div><span class="denomination-subtotal" id="sub_050">$0.00</span></div>
-                  <div class="denomination-row" style="background:#f8fafc; min-height:43px;"><span class="denomination-label" style="color:var(--muted); font-size:0.75rem;">Total conteo físico exacto</span></div>
-                </div>
-
-              </div>
-
-              <div class="cash-total-banner">
-                <span class="title">TOTAL DE EFECTIVO CONTADO:</span>
-                <span class="amount" id="conteo_total_efectivo">$0.00</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. CONCILIACIÓN DE CAJA (FÓRMULA EXACTA) -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">4</span>
+                <span class="section-badge">⚖️</span>
                 <div>
                   <h2 class="section-title">CONCILIACIÓN DE CAJA</h2>
-                  <span class="section-subtitle">Fondo inicial + Ingresos efectivo - Retiros de resguardo/depósito</span>
+                  <span class="section-subtitle">Fondo inicial + Ventas del día en efectivo vs Efectivo contado</span>
                 </div>
               </div>
             </div>
@@ -430,42 +329,42 @@
                 <table class="tb-table">
                   <thead>
                     <tr>
-                      <th style="width: 45%;">Concepto</th>
+                      <th style="width: 50%;">Concepto</th>
                       <th class="text-right" style="width: 250px;">Importe ($)</th>
-                      <th>Operación</th>
+                      <th>Detalle de Operación</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td>Fondo inicial de caja</td>
+                      <td>Fondo disponible inicial de caja</td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_fondo_inicial" value="0.00" readonly></div></td>
-                      <td><span style="font-weight:700; color:var(--slate);">Base inicial</span></td>
+                      <td><span style="font-weight:700; color:var(--slate);">Base de apertura</span></td>
                     </tr>
                     <tr>
-                      <td>Más: ingresos recibidos en efectivo</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly></div></td>
-                      <td><span style="font-weight:700; color:var(--success);">(+) Suma</span></td>
+                      <td>(+) Ventas del día registradas en efectivo</td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly style="font-weight:700; color:#16a34a;"></div></td>
+                      <td><span style="font-weight:700; color:var(--success);">(+) Registro Diario de Ventas</span></td>
                     </tr>
-                    <tr style="background-color:#f8fafc;">
-                      <td><strong>Efectivo esperado en caja</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800;"></div></td>
-                      <td><strong>(=) Fondo + Ingresos</strong></td>
+                    <tr style="background-color:#f8fafc; font-weight:800;">
+                      <td><strong>(=) Efectivo esperado en caja al cierre</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800; font-size:1rem;"></div></td>
+                      <td><strong>(=) Fondo + Ventas Efectivo</strong></td>
                     </tr>
-                    <tr>
-                      <td>Efectivo contado físicamente</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly></div></td>
-                      <td><strong>(De Conteo Físico)</strong></td>
+                    <tr style="background-color:#eff6ff;">
+                      <td style="color:#1e40af; font-weight:700;">Efectivo físico en caja (Capturado)</td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly style="color:#1e40af; font-size:1.05rem;"></div></td>
+                      <td><strong style="color:#1e40af;">(Total Contado)</strong></td>
                     </tr>
                     <tr style="background-color:#fef2f2;">
                       <td><strong style="font-size:1rem;">Diferencia de caja</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_diferencia_caja" value="0.00" readonly style="font-size:1.1rem; font-weight:800;"></div></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_diferencia_caja" value="0.00" readonly style="font-size:1.15rem; font-weight:800;"></div></td>
                       <td><span id="concil_diferencia_label" style="font-weight:700;">Sin diferencia</span></td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              <!-- Resultado del arqueo (automático, no editable) -->
+              <!-- Resultado del arqueo -->
               <div style="margin-top: 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <label style="font-weight:700; color:var(--dark); font-size:0.9rem;">Resultado del arqueo:</label>
                 <div id="display_resultado_caja_wrap">
@@ -478,56 +377,59 @@
               <!-- Explicación de diferencias (SOLO SE MUESTRA SI HAY DIFERENCIA) -->
               <div class="form-group" id="wrap_concil_explicacion" style="display:none; margin-top: 16px;">
                 <label for="concil_explicacion" style="color:#b91c1c; font-weight:700;">Explicación de la diferencia detectada: <span class="required">*</span></label>
-                <textarea id="concil_explicacion" class="textarea-custom" placeholder="Indique la causa o aclaración de la diferencia..."></textarea>
+                <textarea id="concil_explicacion" class="textarea-custom" placeholder="Indique la causa o aclaración de la diferencia detectada..."></textarea>
               </div>
             </div>
           </div>
 
-          <!-- 5. CONTROL DE TRANSFERENCIAS Y OTROS PAGOS -->
-          <div class="form-section">
+          <!-- 3. CONTROL DE TRANSFERENCIAS Y OTROS PAGOS (CONDICIONAL) -->
+          <div class="form-section" id="sec-control-pagos-no-efectivo" style="display:none;">
             <div class="section-header">
               <div class="section-title-wrap">
-                <span class="section-badge">5</span>
+                <span class="section-badge">💳</span>
                 <div>
-                  <h2 class="section-title">CONTROL DE TRANSFERENCIAS Y OTROS PAGOS</h2>
-                  <span class="section-subtitle">Verificación contra cuenta bancaria y vouchers (Sincronizado automáticamente en segundo plano).</span>
+                  <h2 class="section-title">CONTROL DE TRANSFERENCIAS Y PAGOS CON TARJETA</h2>
+                  <span class="section-subtitle">Se detectaron ventas no en efectivo en el día. Verifique contra comprobantes bancarios y vouchers.</span>
                 </div>
               </div>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-auto-verif-pagos" style="font-size:0.75rem; font-weight:700; padding:4px 10px;">
+                ✓ Marcar Verificados
+              </button>
             </div>
             <div class="section-body">
               <div class="table-responsive">
                 <table class="tb-table">
                   <thead>
                     <tr>
-                      <th style="width: 40%;">Concepto</th>
-                      <th class="text-right">Importe registrado ($)</th>
-                      <th class="text-right">Importe verificado ($)</th>
+                      <th style="width: 40%;">Método de Pago</th>
+                      <th class="text-right">Registrado en Ventas ($)</th>
+                      <th class="text-right">Verificado en Terminal / Banco ($)</th>
                       <th class="text-right">Diferencia ($)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Transferencias bancarias</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_transf_reg" value="0.00"></div></td>
+                    <tr id="row_ctrl_transf">
+                      <td><strong>Transferencias bancarias</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_transf_reg" value="0.00" readonly style="background:#f8fafc;"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_transf_verif" value="0.00"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ctrl_transf_dif" value="0.00" readonly></div></td>
                     </tr>
-                    <tr>
-                      <td>Pagos con tarjeta</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_tarj_reg" value="0.00"></div></td>
+                    <tr id="row_ctrl_tarj">
+                      <td><strong>Pagos con tarjeta</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_tarj_reg" value="0.00" readonly style="background:#f8fafc;"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_tarj_verif" value="0.00"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ctrl_tarj_dif" value="0.00" readonly></div></td>
                     </tr>
-                    <tr>
-                      <td>Otros medios de pago</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_otros_reg" value="0.00"></div></td>
+                    <tr id="row_ctrl_otros" style="display:none;">
+                      <td><strong>Otros medios de pago</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_otros_reg" value="0.00" readonly style="background:#f8fafc;"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="ctrl_otros_verif" value="0.00"></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="ctrl_otros_dif" value="0.00" readonly></div></td>
                     </tr>
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td>TOTAL</td>
+                      <td>TOTAL NO EFECTIVO</td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ctrl_total_reg" value="0.00" readonly></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ctrl_total_verif" value="0.00" readonly></div></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="ctrl_total_dif" value="0.00" readonly></div></td>
@@ -538,130 +440,124 @@
             </div>
           </div>
 
-
-
-          <!-- 6. RESUMEN FINAL DEL DÍA -->
-          <div class="form-section">
+          <!-- 4. ENTREGA Y VALIDACIÓN (SIMPLIFICADO) -->
+          <div class="form-section" id="sec-entrega-validacion">
             <div class="section-header">
               <div class="section-title-wrap">
-                <span class="section-badge">6</span>
-                <div>
-                  <h2 class="section-title">RESUMEN FINAL DEL DÍA</h2>
-                  <span class="section-subtitle">Consolidado general de operaciones y observaciones.</span>
-                </div>
-              </div>
-            </div>
-            <div class="section-body">
-              <div class="table-responsive">
-                <table class="tb-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 65%;">Indicador</th>
-                      <th class="text-right" style="width: 35%;">Resultado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td>Total de ingresos del día, todos los medios de pago</td><td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="resumen_total_ingresos" value="0.00" readonly></div></td></tr>
-                    <tr><td>Total de efectivo contado</td><td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="resumen_total_efectivo" value="0.00" readonly></div></td></tr>
-                    <tr id="row_resumen_transf" style="display:none;"><td>Total de transferencias verificadas</td><td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="resumen_total_transf" value="0.00" readonly></div></td></tr>
-                    <tr id="row_resumen_tarjetas" style="display:none;"><td>Total de pagos con tarjeta u otros medios verificados</td><td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="resumen_total_tarjetas" value="0.00" readonly></div></td></tr>
-                    <tr id="row_resumen_entregado">
-                      <td>
-                        <strong>Efectivo entregado</strong>
-                        <div id="resumen_detalle_entregas" style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:2px;">Sin entregas hoy</div>
-                      </td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="resumen_total_retiros" value="0.00" readonly style="color:#b91c1c; font-weight:700;"></div></td>
-                    </tr>
-                    <tr style="background:#fef2f2;"><td><strong>Diferencia de caja</strong></td><td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="resumen_diferencia_caja" value="0.00" readonly style="font-weight:800;"></div></td></tr>
-                    <tr><td>Número de servicios cobrados</td><td><input type="number" min="0" class="input-text text-right" id="resumen_num_servicios" placeholder="0"></td></tr>
-                    <tr><td>Número de pagos de cursos</td><td><input type="number" min="0" class="input-text text-right" id="resumen_num_cursos" placeholder="0"></td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="form-group" style="margin-top: 18px;">
-                <label for="resumen_observaciones_dia">Observaciones del día:</label>
-                <textarea id="resumen_observaciones_dia" class="textarea-custom" placeholder="Notas sobre la jornada..."></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- 7. ENTREGA Y VALIDACIÓN -->
-          <div class="form-section">
-            <div class="section-header">
-              <div class="section-title-wrap">
-                <span class="section-badge">7</span>
+                <span class="section-badge">✍️</span>
                 <div>
                   <h2 class="section-title">ENTREGA Y VALIDACIÓN</h2>
-                  <span class="section-subtitle">Conformidad, entrega formal y firmas</span>
+                  <span class="section-subtitle">Destino del efectivo al cierre, observaciones y firma digital</span>
                 </div>
               </div>
             </div>
             <div class="section-body">
-              <div style="background:#f8fafc; border-left:4px solid var(--primary); padding:12px 16px; margin-bottom:18px; border-radius:var(--radius-sm); font-size:0.88rem; color:var(--slate);">
-                <strong>Declaración:</strong> Declaro que los importes registrados corresponden al dinero recibido, los comprobantes disponibles y el conteo realizado al cierre de la jornada.
-              </div>
-
-              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:18px;">
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:16px;">
                 <div class="form-group">
-                  <label for="val_responsable_nombre">Responsable de caja: <span class="required">*</span></label>
-                  <input type="text" class="input-text" id="val_responsable_nombre" placeholder="Correo del responsable" required readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:600; color:#1e293b;">
-                </div>
-                <div class="form-group">
-                  <label for="val_hora_cierre">Hora de cierre:</label>
-                  <input type="time" class="input-time" id="val_hora_cierre" readonly style="background:#f1f5f9; cursor:not-allowed; pointer-events:none;">
-                </div>
-                <div class="form-group">
-                  <label for="val_hora_entrega">Hora de entrega de dinero:</label>
-                  <input type="time" class="input-time" id="val_hora_entrega" readonly style="background:#f1f5f9; cursor:not-allowed; pointer-events:none;">
-                </div>
-              </div>
-
-              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:18px;">
-                <div class="form-group">
-                  <label for="val_destino_efectivo"><strong>El efectivo:</strong> <span class="required">*</span></label>
-                  <select class="input-text" id="val_destino_efectivo" style="font-weight:600;">
-                    <option value="se_queda_en_caja">1.- Se queda en caja</option>
+                  <label for="val_destino_efectivo"><strong>Destino del efectivo en caja:</strong> <span class="required">*</span></label>
+                  <select class="input-text styled-select" id="val_destino_efectivo" style="font-weight:700;">
+                    <option value="se_queda_en_caja" selected>1.- Se queda en caja (Fondo base)</option>
                     <option value="se_guarda_en_sobre">2.- Se guarda en sobre</option>
                     <option value="se_resguarda_otro">3.- Se resguarda en otro lugar</option>
                   </select>
                 </div>
+
+                <div class="form-group" id="wrap_importe_entregado" style="display:none;">
+                  <label for="val_importe_entregado">
+                    <strong>Importe a resguardar / retirar:</strong>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-entregado" style="padding:2px 8px; font-size:0.72rem; margin-left:6px; font-weight:700;">
+                      Copiar Contado
+                    </button>
+                  </label>
+                  <div class="currency-input-wrap">
+                    <span class="currency-prefix">$</span>
+                    <input type="number" step="0.01" min="0" class="input-currency" id="val_importe_entregado" value="0.00" style="font-weight:700;">
+                  </div>
+                </div>
+
                 <div class="form-group" id="wrap_efectivo_otro_lugar" style="display:none;">
                   <label for="val_efectivo_otro_lugar">Especificar lugar de resguardo: <span class="required">*</span></label>
-                  <input type="text" class="input-text" id="val_efectivo_otro_lugar" placeholder="Ej. Caja fuerte de dirección, oficina principal, etc.">
-                </div>
-                <div class="form-group">
-                  <label for="val_importe_entregado">Importe entregado: <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-entregado" style="padding:2px 6px; font-size:0.7rem; margin-left:6px;">Copiar Contado</button></label>
-                  <div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="number" step="0.01" min="0" class="input-currency" id="val_importe_entregado" value="0.00"></div>
+                  <input type="text" class="input-text" id="val_efectivo_otro_lugar" placeholder="Ej. Caja fuerte de dirección, oficina...">
                 </div>
               </div>
 
-              <div class="form-group" style="margin-bottom:20px;">
-                <label for="val_observaciones">Observaciones de entrega:</label>
-                <textarea id="val_observaciones" class="textarea-custom" placeholder="Notas de entrega o resguardo..."></textarea>
+              <div class="form-group" style="margin-bottom:18px;">
+                <label for="val_observaciones">Observaciones o notas del arqueo (opcional):</label>
+                <textarea id="val_observaciones" class="textarea-custom" rows="2" placeholder="Notas sobre el cierre o aclaraciones..." style="min-height:54px;"></textarea>
               </div>
 
-              <!-- FIRMA DIGITAL DEL RESPONSABLE (DIRECTAMENTE ARRIBA DEL BOTÓN GUARDAR) -->
-              <div class="signature-box-container" style="max-width:520px; margin:0 auto 24px auto;">
-                <label style="font-weight:700; color:var(--dark); margin-bottom:6px; display:block;">Firma digital del responsable:</label>
+              <!-- FIRMA DIGITAL -->
+              <div class="signature-box-container" style="max-width:440px; margin:0 auto 20px auto;">
+                <label style="font-weight:700; color:var(--dark); margin-bottom:6px; display:block; text-align:center;">
+                  ✍️ Firma digital del responsable:
+                </label>
                 <div class="signature-canvas-wrap" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px;">
-                  <canvas id="signature-pad" width="450" height="120" style="width:100%; height:120px;"></canvas>
+                  <canvas id="signature-pad" width="440" height="110" style="width:100%; height:110px;"></canvas>
                   <div class="signature-tools" style="padding:4px 8px; display:flex; justify-content:space-between; align-items:center;">
-                    <span class="signature-hint" style="font-size:0.75rem; color:var(--muted); font-style:italic;">✍️ Dibuje su firma aquí</span>
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-signature">Limpiar</button>
+                    <span class="signature-hint" style="font-size:0.75rem; color:var(--muted); font-style:italic;">Dibuje su firma aquí</span>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-signature" style="font-size:0.75rem; padding:3px 8px;">Limpiar</button>
                   </div>
                 </div>
               </div>
 
-              <!-- BOTÓN PRINCIPAL: SOLO GUARDAR -->
-              <div style="text-align: center; padding-top: 10px;">
-                <button type="button" class="btn btn-firebase" id="btn-save-firebase-bottom" style="padding: 12px 48px; font-size: 1.1rem; font-weight:800; border-radius:8px; box-shadow:0 4px 12px rgba(234, 88, 12, 0.3);">
-                  Guardar
+              <!-- BOTÓN GUARDAR -->
+              <div style="text-align: center; padding-top: 6px;">
+                <button type="button" class="btn btn-firebase" id="btn-save-firebase-bottom" style="padding: 12px 50px; font-size: 1.1rem; font-weight:800; border-radius:8px; box-shadow:0 4px 14px rgba(234, 88, 12, 0.35);">
+                  💾 Guardar Arqueo y Generar PDF
                 </button>
               </div>
             </div>
           </div>
 
+          <!-- CAMPOS INTERNOS OCULTOS (Sincronización en segundo plano y compatibilidad Firebase) -->
+          <div id="arqueo-principal-hidden-fields" style="display:none;" aria-hidden="true">
+            <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="f_inicial_caja" value="0.00">
+            <!-- Ingresos por rubros -->
+            <input type="number" step="0.01" id="ing_servicios_efec" value="0.00">
+            <input type="number" step="0.01" id="ing_servicios_transf" value="0.00">
+            <input type="number" step="0.01" id="ing_servicios_tarj" value="0.00">
+            <input type="text" id="ing_servicios_total" value="0.00">
+            <input type="number" step="0.01" id="ing_cursos_efec" value="0.00">
+            <input type="number" step="0.01" id="ing_cursos_transf" value="0.00">
+            <input type="number" step="0.01" id="ing_cursos_tarj" value="0.00">
+            <input type="text" id="ing_cursos_total" value="0.00">
+            <input type="number" step="0.01" id="ing_productos_efec" value="0.00">
+            <input type="number" step="0.01" id="ing_productos_transf" value="0.00">
+            <input type="number" step="0.01" id="ing_productos_tarj" value="0.00">
+            <input type="text" id="ing_productos_total" value="0.00">
+            <input type="text" id="ing_total_efectivo" value="0.00">
+            <input type="text" id="ing_total_transf" value="0.00">
+            <input type="text" id="ing_total_tarjeta" value="0.00">
+            <input type="text" id="ing_gran_total" value="0.00">
+            <input type="number" id="ing_operaciones_cobradas" value="0">
+            <!-- Conteo denominaciones para compatibilidad -->
+            <input type="number" id="billete_1000" value="0"><span id="sub_1000">$0.00</span>
+            <input type="number" id="billete_500" value="0"><span id="sub_500">$0.00</span>
+            <input type="number" id="billete_200" value="0"><span id="sub_200">$0.00</span>
+            <input type="number" id="billete_100" value="0"><span id="sub_100">$0.00</span>
+            <input type="number" id="billete_50" value="0"><span id="sub_50">$0.00</span>
+            <input type="number" id="billete_20" value="0"><span id="sub_20">$0.00</span>
+            <input type="number" id="moneda_10" value="0"><span id="sub_10">$0.00</span>
+            <input type="number" id="moneda_5" value="0"><span id="sub_5">$0.00</span>
+            <input type="number" id="moneda_2" value="0"><span id="sub_2">$0.00</span>
+            <input type="number" id="moneda_1" value="0"><span id="sub_1">$0.00</span>
+            <input type="number" id="moneda_050" value="0"><span id="sub_050">$0.00</span>
+            <!-- Resumen final -->
+            <input type="text" id="resumen_total_ingresos" value="0.00">
+            <input type="text" id="resumen_total_efectivo" value="0.00">
+            <input type="text" id="resumen_total_transf" value="0.00">
+            <input type="text" id="resumen_total_tarjetas" value="0.00">
+            <input type="text" id="resumen_total_retiros" value="0.00">
+            <div id="resumen_detalle_entregas">Sin entregas hoy</div>
+            <input type="text" id="resumen_diferencia_caja" value="0.00">
+            <input type="number" id="resumen_num_servicios" value="0">
+            <input type="number" id="resumen_num_cursos" value="0">
+            <textarea id="resumen_observaciones_dia"></textarea>
+            <!-- Validación complementaria -->
+            <input type="text" id="val_responsable_nombre">
+            <input type="time" id="val_hora_cierre">
+            <input type="time" id="val_hora_entrega">
+          </div>
         </form>
       </section>
 
@@ -2934,182 +2830,176 @@
        PLANTILLA DE IMPRESIÓN OFICIAL: CAJA PRINCIPAL
        ======================================================================== -->
   <div id="printable-report">
-    <!-- PÁGINA 1 -->
-    <div class="pdf-page" id="pdf-page-1">
-      <div class="pdf-header">
-        <div class="pdf-brand">
-          <img src="assets/logoheader.png" alt="Logo" class="pdf-logo-img" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+    <!-- REPORTE OFICIAL 1 SOLA HOJA (PÁGINA CARTA) -->
+    <div class="pdf-page" id="pdf-page-1" style="page-break-after:avoid; margin:0; padding:18px 22px;">
+      
+      <!-- 1. HEADER COMPACTO CON LOGO -->
+      <div class="pdf-header" style="margin-bottom:8px; padding-bottom:6px; border-bottom:2px solid #0f172a;">
+        <div class="pdf-brand" style="gap:10px;">
+          <img src="assets/logoheader.png" alt="Logo" class="pdf-logo-img" style="height:38px;" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
           <div class="pdf-brand-titles">
-            <h1>TOTAL BEAUTY SALÓN Y ACADEMIA</h1>
-            <h2>FORMATO DE ARQUEO DIARIO DE CAJA PRINCIPAL</h2>
+            <h1 style="font-size:11.5pt; font-weight:800; margin:0; color:#0f172a; letter-spacing:0.02em;">TOTAL BEAUTY SALÓN Y ACADEMIA</h1>
+            <h2 style="font-size:8.8pt; font-weight:700; margin:1px 0 0 0; color:#475569;">FORMATO OFICIAL DE ARQUEO DIARIO DE CAJA PRINCIPAL</h2>
           </div>
         </div>
-        <div class="pdf-meta-box">
-          <div class="meta-line"><strong>Fecha:</strong> <span class="underlined" id="p_fecha">__ / __ / ____</span></div>
-          <div class="meta-line"><strong>Responsable de caja:</strong> <span class="underlined" id="p_responsable" style="min-width: 200px;">________________________</span></div>
-          <div class="meta-line"><strong>Hora:</strong> <span class="underlined" id="p_hora">______</span></div>
+        <div class="pdf-meta-box" style="font-size:8pt; line-height:1.35; text-align:right;">
+          <div><strong>Fecha:</strong> <span class="underlined" id="p_fecha" style="min-width:85px; font-weight:700;">__/__/____</span></div>
+          <div><strong>Hora de Cierre:</strong> <span class="underlined" id="p_hora" style="min-width:65px;">--:--</span></div>
+          <div><strong>Responsable:</strong> <span class="underlined" id="p_responsable" style="min-width:140px; font-weight:700;">_______________</span></div>
         </div>
       </div>
 
-      <div class="pdf-section-title">1. FONDO INICIAL DE CAJA</div>
-      <table class="pdf-table">
-        <thead><tr><th style="width: 75%;">Concepto</th><th class="amount" style="width: 25%;">Importe</th></tr></thead>
-        <tbody>
-          <tr><td>Fondo inicial de caja</td><td class="amount" id="p_f_caja">$0.00</td></tr>
-        </tbody>
-      </table>
-
-      <div class="pdf-section-title">2. INGRESOS DEL DÍA</div>
-      <div class="pdf-section-subtitle">Registrar todos los pagos recibidos durante la jornada (Conectado a ventas diarias).</div>
-      <table class="pdf-table">
-        <thead>
-          <tr>
-            <th style="width: 40%;">Concepto</th>
-            <th class="amount" style="width: 15%;">Efectivo</th>
-            <th class="amount" style="width: 15%;">Transferencia</th>
-            <th class="amount" style="width: 15%;">Tarjeta / otro</th>
-            <th class="amount" style="width: 15%;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Servicios de belleza</td><td class="amount" id="p_ing_servicios_e">$0.00</td><td class="amount" id="p_ing_servicios_t">$0.00</td><td class="amount" id="p_ing_servicios_j">$0.00</td><td class="amount" id="p_ing_servicios_tot">$0.00</td></tr>
-          <tr><td>Cursos de la academia</td><td class="amount" id="p_ing_cursos_e">$0.00</td><td class="amount" id="p_ing_cursos_t">$0.00</td><td class="amount" id="p_ing_cursos_j">$0.00</td><td class="amount" id="p_ing_cursos_tot">$0.00</td></tr>
-          <tr><td>Venta de productos</td><td class="amount" id="p_ing_productos_e">$0.00</td><td class="amount" id="p_ing_productos_t">$0.00</td><td class="amount" id="p_ing_productos_j">$0.00</td><td class="amount" id="p_ing_productos_tot">$0.00</td></tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>TOTAL DE INGRESOS</td>
-            <td class="amount" id="p_ing_tot_e">$0.00</td>
-            <td class="amount" id="p_ing_tot_t">$0.00</td>
-            <td class="amount" id="p_ing_tot_j">$0.00</td>
-            <td class="amount" id="p_ing_tot_gran">$0.00</td>
-          </tr>
-        </tfoot>
-      </table>
-      <div style="text-align: right; font-size: 8.5pt; margin-bottom: 6px;">
-        <strong>Número de operaciones cobradas:</strong> <span class="underlined" id="p_operaciones">0</span>
+      <!-- 2. CONCILIACIÓN GENERAL DE CAJA (CUADRO PRINCIPAL) -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+          <span style="font-size:8.5pt; font-weight:800; text-transform:uppercase; color:#0f172a;">1. CONCILIACIÓN DE EFECTIVO EN CAJA</span>
+          <span id="p_badge_status_pdf" style="font-size:7.5pt; font-weight:800; padding:2px 8px; border-radius:4px; border:1px solid #16a34a; background:#f0fdf4; color:#15803d;">✅ CAJA CUADRADA</span>
+        </div>
+        <table class="pdf-table" style="margin-bottom:3px; font-size:7.8pt;">
+          <thead>
+            <tr style="background:#f1f5f9;">
+              <th style="width:60%; padding:2.5px 6px;">Concepto de Conciliación</th>
+              <th class="amount" style="width:25%; padding:2.5px 6px;">Importe ($)</th>
+              <th style="width:15%; padding:2.5px 6px; text-align:center;">Efecto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:2.5px 6px;">Fondo Inicial Disponible en Caja</td>
+              <td class="amount" id="p_concil_fondo" style="padding:2.5px 6px;">$0.00</td>
+              <td style="text-align:center; padding:2.5px 6px; color:#64748b; font-size:7.5pt;">Base Inicial</td>
+            </tr>
+            <tr>
+              <td style="padding:2.5px 6px;">(+) Ingresos del Día en Efectivo (Registro de Ventas)</td>
+              <td class="amount" id="p_concil_ingresos" style="padding:2.5px 6px; font-weight:700; color:#16a34a;">$0.00</td>
+              <td style="text-align:center; padding:2.5px 6px; color:#16a34a; font-weight:700; font-size:7.5pt;">(+) Suma</td>
+            </tr>
+            <tr id="pdf_row_entregas_caja">
+              <td style="padding:2.5px 6px;">(-) Entregas de Efectivo / Retiros Realizados Hoy</td>
+              <td class="amount" id="p_res_retiros" style="padding:2.5px 6px; color:#dc2626;">$0.00</td>
+              <td style="text-align:center; padding:2.5px 6px; color:#dc2626; font-size:7.5pt;">(-) Resta</td>
+            </tr>
+            <tr style="background:#f8fafc; font-weight:800;">
+              <td style="padding:3px 6px;">(=) EFECTIVO ESPERADO EN CAJA</td>
+              <td class="amount" id="p_concil_esperado" style="padding:3px 6px; font-size:8.2pt;">$0.00</td>
+              <td style="text-align:center; padding:3px 6px; font-size:7.5pt;">Cálculo Oficial</td>
+            </tr>
+            <tr style="background:#eff6ff; font-weight:800;">
+              <td style="padding:3px 6px; color:#1e40af;">EFECTIVO FÍSICO CONTADO AL CIERRE</td>
+              <td class="amount" id="p_concil_contado" style="padding:3px 6px; color:#1e40af; font-size:8.5pt;">$0.00</td>
+              <td style="text-align:center; padding:3px 6px; color:#1e40af; font-size:7.5pt;">Físico en Caja</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="background:#fef2f2; font-weight:800;">
+              <td style="padding:3px 6px;">DIFERENCIA DE CAJA</td>
+              <td class="amount" id="p_concil_diferencia" style="padding:3px 6px; font-size:8.5pt;">$0.00</td>
+              <td style="text-align:center; padding:3px 6px;" id="p_dif_badge_cell">Exacto</td>
+            </tr>
+          </tfoot>
+        </table>
+        
+        <div id="p_wrap_explicacion_pdf" style="display:none; font-size:7.5pt; background:#fffbeb; border:1px solid #fde68a; padding:3px 6px; border-radius:3px; margin-top:2px;">
+          <strong>Explicación de Diferencia:</strong> <span id="p_explicacion">Ninguna.</span>
+        </div>
       </div>
 
-      <div class="pdf-section-title">3. CONTEO FÍSICO DEL EFECTIVO (CAJA PRINCIPAL)</div>
-      <div class="pdf-section-subtitle">Contar el dinero físicamente al finalizar la jornada.</div>
-      <table class="pdf-table" style="margin-bottom:0;">
-        <thead>
-          <tr>
-            <th style="width: 25%;">Denominación</th><th style="width: 10%; text-align:center;">Cantidad</th><th class="amount" style="width: 15%;">Importe</th>
-            <th style="width: 25%;">Denominación</th><th style="width: 10%; text-align:center;">Cantidad</th><th class="amount" style="width: 15%;">Importe</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Billetes de $1,000</td><td style="text-align:center;" id="p_b_1000_q">0</td><td class="amount" id="p_b_1000_tot">$0.00</td><td>Monedas de $10</td><td style="text-align:center;" id="p_m_10_q">0</td><td class="amount" id="p_m_10_tot">$0.00</td></tr>
-          <tr><td>Billetes de $500</td><td style="text-align:center;" id="p_b_500_q">0</td><td class="amount" id="p_b_500_tot">$0.00</td><td>Monedas de $5</td><td style="text-align:center;" id="p_m_5_q">0</td><td class="amount" id="p_m_5_tot">$0.00</td></tr>
-          <tr><td>Billetes de $200</td><td style="text-align:center;" id="p_b_200_q">0</td><td class="amount" id="p_b_200_tot">$0.00</td><td>Monedas de $2</td><td style="text-align:center;" id="p_m_2_q">0</td><td class="amount" id="p_m_2_tot">$0.00</td></tr>
-          <tr><td>Billetes de $100</td><td style="text-align:center;" id="p_b_100_q">0</td><td class="amount" id="p_b_100_tot">$0.00</td><td>Monedas de $1</td><td style="text-align:center;" id="p_m_1_q">0</td><td class="amount" id="p_m_1_tot">$0.00</td></tr>
-          <tr><td>Billetes de $50</td><td style="text-align:center;" id="p_b_50_q">0</td><td class="amount" id="p_b_50_tot">$0.00</td><td>Monedas de $0.50</td><td style="text-align:center;" id="p_m_050_q">0</td><td class="amount" id="p_m_050_tot">$0.00</td></tr>
-          <tr><td>Billetes de $20</td><td style="text-align:center;" id="p_b_20_q">0</td><td class="amount" id="p_b_20_tot">$0.00</td><td style="background:#fafafa;"></td><td style="background:#fafafa;"></td><td style="background:#fafafa;"></td></tr>
-        </tbody>
-        <tfoot>
-          <tr><td colspan="5"><strong>TOTAL DE EFECTIVO CONTADO</strong></td><td class="amount" id="p_conteo_tot">$0.00</td></tr>
-        </tfoot>
-      </table>
-    </div>
-
-    <!-- PÁGINA 2 -->
-    <div class="pdf-page" id="pdf-page-2">
-      <div class="pdf-section-title" style="margin-top:0;">4. CONCILIACIÓN DE CAJA</div>
-      <table class="pdf-table">
-        <thead><tr><th style="width: 75%;">Concepto</th><th class="amount" style="width: 25%;">Importe</th></tr></thead>
-        <tbody>
-          <tr><td>Fondo inicial de caja</td><td class="amount" id="p_concil_fondo">$0.00</td></tr>
-          <tr><td>Más: ingresos recibidos en efectivo</td><td class="amount" id="p_concil_ingresos">$0.00</td></tr>
-          <tr style="font-weight:700;"><td>Efectivo esperado en caja</td><td class="amount" id="p_concil_esperado">$0.00</td></tr>
-          <tr style="font-weight:700;"><td>Efectivo contado físicamente</td><td class="amount" id="p_concil_contado">$0.00</td></tr>
-        </tbody>
-        <tfoot>
-          <tr><td>Diferencia de caja</td><td class="amount" id="p_concil_diferencia">$0.00</td></tr>
-        </tfoot>
-      </table>
-
-      <div style="font-size: 8.8pt; font-weight:700; margin: 6px 0 2px;">Resultado del arqueo:</div>
-      <div class="pdf-checkboxes">
-        <span class="pdf-checkbox-item"><span class="pdf-box" id="p_box_cuadrada"></span> Caja cuadrada.</span>
-        <span class="pdf-checkbox-item"><span class="pdf-box" id="p_box_sobrante"></span> Sobrante de efectivo.</span>
-        <span class="pdf-checkbox-item"><span class="pdf-box" id="p_box_faltante"></span> Faltante de efectivo.</span>
-      </div>
-      <div class="pdf-explanation-line">
-        <strong>Explicación de diferencias:</strong>
-        <div id="p_explicacion" style="border-bottom:1px solid #333; min-height:28px; padding-top:2px;">Ninguna.</div>
+      <!-- 3. RESUMEN DE VENTAS DEL DÍA POR MÉTODO DE PAGO -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:8.5pt; font-weight:800; text-transform:uppercase; color:#0f172a; margin-bottom:3px;">
+          2. INGRESOS Y VENTAS REGISTRADAS DEL DÍA
+        </div>
+        <table class="pdf-table" style="margin-bottom:2px; font-size:7.8pt;">
+          <thead>
+            <tr style="background:#f1f5f9;">
+              <th style="width:25%; padding:2.5px 6px;">Efectivo</th>
+              <th style="width:25%; padding:2.5px 6px;">Transferencias</th>
+              <th style="width:25%; padding:2.5px 6px;">Tarjeta / Terminal</th>
+              <th class="amount" style="width:25%; padding:2.5px 6px;">Total Ingresos del Día</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="p_ing_tot_e" style="padding:2.5px 6px; font-weight:700; color:#16a34a;">$0.00</td>
+              <td id="p_ing_tot_t" style="padding:2.5px 6px;">$0.00</td>
+              <td id="p_ing_tot_j" style="padding:2.5px 6px;">$0.00</td>
+              <td class="amount" id="p_ing_tot_gran" style="padding:2.5px 6px; font-weight:800; font-size:8.2pt;">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display:flex; justify-content:space-between; font-size:7.2pt; color:#475569; padding:1px 4px;">
+          <span>Operaciones registradas: <strong id="p_operaciones">0</strong></span>
+          <span>Desglose: Servicios <strong id="p_srv_tot_pdf">$0.00</strong> &bull; Cursos <strong id="p_cur_tot_pdf">$0.00</strong> &bull; Productos <strong id="p_prd_tot_pdf">$0.00</strong></span>
+        </div>
       </div>
 
-      <div class="pdf-section-title">5. CONTROL DE TRANSFERENCIAS Y OTROS PAGOS</div>
-      <table class="pdf-table">
-        <thead>
-          <tr><th style="width: 40%;">Concepto</th><th class="amount" style="width: 20%;">Importe registrado</th><th class="amount" style="width: 20%;">Importe verificado</th><th class="amount" style="width: 20%;">Diferencia</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Transferencias bancarias</td><td class="amount" id="p_ctrl_transf_reg">$0.00</td><td class="amount" id="p_ctrl_transf_ver">$0.00</td><td class="amount" id="p_ctrl_transf_dif">$0.00</td></tr>
-          <tr><td>Pagos con tarjeta</td><td class="amount" id="p_ctrl_tarj_reg">$0.00</td><td class="amount" id="p_ctrl_tarj_ver">$0.00</td><td class="amount" id="p_ctrl_tarj_dif">$0.00</td></tr>
-          <tr><td>Otros medios de pago</td><td class="amount" id="p_ctrl_otros_reg">$0.00</td><td class="amount" id="p_ctrl_otros_ver">$0.00</td><td class="amount" id="p_ctrl_otros_dif">$0.00</td></tr>
-        </tbody>
-        <tfoot>
-          <tr><td>TOTAL</td><td class="amount" id="p_ctrl_tot_reg">$0.00</td><td class="amount" id="p_ctrl_tot_ver">$0.00</td><td class="amount" id="p_ctrl_tot_dif">$0.00</td></tr>
-        </tfoot>
-      </table>
+      <!-- 4. CONTROL DE TRANSFERENCIAS Y OTROS MEDIOS (COMPACTO) -->
+      <div id="pdf_sec_control_pagos" style="margin-bottom:8px;">
+        <div style="font-size:8.5pt; font-weight:800; text-transform:uppercase; color:#0f172a; margin-bottom:3px;">
+          3. VERIFICACIÓN DE PAGOS NO EFECTIVOS (BANCO / TERMINAL)
+        </div>
+        <table class="pdf-table" style="margin-bottom:2px; font-size:7.8pt;">
+          <thead>
+            <tr style="background:#f1f5f9;">
+              <th style="width:40%; padding:2.5px 6px;">Medio de Pago</th>
+              <th class="amount" style="width:20%; padding:2.5px 6px;">Registrado</th>
+              <th class="amount" style="width:20%; padding:2.5px 6px;">Verificado</th>
+              <th class="amount" style="width:20%; padding:2.5px 6px;">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="pdf_row_ctrl_transf">
+              <td style="padding:2.5px 6px;">Transferencias Bancarias</td>
+              <td class="amount" id="p_ctrl_transf_reg" style="padding:2.5px 6px;">$0.00</td>
+              <td class="amount" id="p_ctrl_transf_ver" style="padding:2.5px 6px;">$0.00</td>
+              <td class="amount" id="p_ctrl_transf_dif" style="padding:2.5px 6px;">$0.00</td>
+            </tr>
+            <tr id="pdf_row_ctrl_tarj">
+              <td style="padding:2.5px 6px;">Pagos con Tarjeta</td>
+              <td class="amount" id="p_ctrl_tarj_reg" style="padding:2.5px 6px;">$0.00</td>
+              <td class="amount" id="p_ctrl_tarj_ver" style="padding:2.5px 6px;">$0.00</td>
+              <td class="amount" id="p_ctrl_tarj_dif" style="padding:2.5px 6px;">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <div class="pdf-section-title">6. RESUMEN FINAL DEL DÍA</div>
-      <table class="pdf-table">
-        <thead><tr><th style="width: 75%;">Indicador</th><th class="amount" style="width: 25%;">Resultado</th></tr></thead>
-        <tbody>
-          <tr><td>Total de ingresos del día, todos los medios de pago</td><td class="amount" id="p_res_ingresos">$0.00</td></tr>
-          <tr><td>Total de efectivo contado</td><td class="amount" id="p_res_contado">$0.00</td></tr>
-          <tr><td>Total de transferencias verificadas</td><td class="amount" id="p_res_transf">$0.00</td></tr>
-          <tr><td>Total de pagos con tarjeta u otros medios verificados</td><td class="amount" id="p_res_tarjetas">$0.00</td></tr>
-          <tr><td>Efectivo entregado</td><td class="amount" id="p_res_retiros">$0.00</td></tr>
-          <tr><td>Diferencia de caja</td><td class="amount" id="p_res_diferencia">$0.00</td></tr>
-          <tr><td>Número de servicios cobrados</td><td class="amount" id="p_res_num_servicios">0</td></tr>
-          <tr><td>Número de pagos de cursos</td><td class="amount" id="p_res_num_cursos">0</td></tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- 5. DESTINO DEL DINERO Y VALIDACIÓN -->
+      <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; margin-bottom:6px; background:#f8fafc; font-size:7.8pt;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:3px;">
+          <div><strong>Destino del Efectivo:</strong> <span id="p_val_entregado_a">1.- Se queda en caja</span></div>
+          <div><strong>Importe Retirado / Entregado:</strong> <span id="p_val_importe_entregado" style="font-weight:700;">$0.00</span></div>
+        </div>
+        <div id="pdf_wrap_obs">
+          <strong>Observaciones de Cierre:</strong> <span id="p_val_observaciones">Ninguna.</span>
+        </div>
+      </div>
 
-    <!-- PÁGINA 3 -->
-    <div class="pdf-page" id="pdf-page-3">
-      <div style="font-size:9.5pt; font-weight:700; margin-bottom:4px;"><strong>Observaciones del día:</strong></div>
-      <div id="p_obs_dia" style="border: 1px solid #9ca3af; min-height: 80px; padding: 6px; font-size: 8.8pt; margin-bottom: 24px; border-radius: 3px;">Sin observaciones.</div>
-
-      <div class="pdf-section-title">7. ENTREGA Y VALIDACIÓN</div>
-      <div class="pdf-section-subtitle" style="margin-bottom: 16px; line-height: 1.4;">Declaro que los importes registrados corresponden al dinero recibido, los comprobantes disponibles y el conteo realizado al cierre de la jornada.</div>
-
-      <div style="border: 1px solid #d1d5db; padding: 14px; border-radius: 4px; margin-bottom: 18px;">
-        <div style="font-weight: 700; font-size: 9.5pt; margin-bottom: 8px;">Responsable de caja</div>
-        <div class="pdf-signature-field"><strong>Nombre:</strong> <span class="underlined" id="p_val_nombre" style="min-width: 320px;"></span></div>
-        <div class="pdf-signature-field" style="margin-top: 10px;">
-          <strong>Firma:</strong>
-          <div id="p_signature_container" style="min-height: 60px;">
-            <img id="p_val_firma_img" class="pdf-signature-img" style="display:none;" alt="Firma">
-            <span id="p_val_firma_blank" class="underlined" style="min-width: 320px; display:inline-block; height:35px;"></span>
+      <!-- 6. FIRMAS Y DECLARACIÓN -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #94a3b8; padding-top:4px; margin-top:4px;">
+        <div style="font-size:7pt; color:#64748b; max-width:60%; line-height:1.2;">
+          Declaro bajo protesta de decir verdad que los importes aquí asentados corresponden exactamente a las operaciones del día y al efectivo contado al cierre de caja.
+        </div>
+        <div style="text-align:center; min-width:170px;">
+          <div id="p_signature_container" style="min-height:34px; display:flex; align-items:center; justify-content:center;">
+            <img id="p_val_firma_img" class="pdf-signature-img" style="display:none; max-height:34px; max-width:150px;" alt="Firma">
+            <span id="p_val_firma_blank" class="underlined" style="min-width:140px; display:inline-block; height:18px; border-bottom:1px solid #000;"></span>
           </div>
+          <div style="font-size:7.5pt; font-weight:700; color:#0f172a; margin-top:2px;">
+            <span id="p_val_nombre">Responsable</span>
+          </div>
+          <div style="font-size:6.5pt; color:#64748b;">Firma del Responsable</div>
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
-        <div class="pdf-signature-field"><strong>Hora de cierre:</strong> <span class="underlined" id="p_val_hora_cierre" style="min-width: 140px;"></span></div>
-        <div class="pdf-signature-field"><strong>Hora de entrega de dinero:</strong> <span class="underlined" id="p_val_hora_entrega" style="min-width: 140px;"></span></div>
-        <div class="pdf-signature-field" style="grid-column: 1 / -1;"><strong>El efectivo:</strong> <span class="underlined" id="p_val_entregado_a" style="min-width: 300px;"></span></div>
-        <div class="pdf-signature-field"><strong>Importe entregado:</strong> <span class="underlined" id="p_val_importe_entregado" style="min-width: 140px; font-weight:bold;">$0.00</span></div>
+      <!-- FOOTER -->
+      <div style="margin-top:4px; text-align:center; font-size:6.5pt; color:#94a3b8; border-top:1px dashed #cbd5e1; padding-top:2px;">
+        Total Beauty Salón y Academia &bull; Formato Oficial de Control de Caja Principal (Pág. 1 de 1)
       </div>
 
-      <div style="font-size:9pt; font-weight:700; margin-bottom:4px;"><strong>Observaciones:</strong></div>
-      <div id="p_val_observaciones" style="border: 1px solid #9ca3af; min-height: 80px; padding: 6px; font-size: 8.8pt; border-radius: 3px;">Ninguna.</div>
-
-      <div style="margin-top: 40px; text-align: center; font-size: 7.5pt; color: #6b7280; border-top: 1px dashed #d1d5db; padding-top: 8px;">
-        Total Beauty Salón y Academia &bull; Formato Oficial de Control de Caja Principal
-      </div>
     </div>
   </div>
 
-  <!-- ========================================================================
-       PLANTILLA DE IMPRESIÓN OFICIAL: CAJA CHICA (1 PÁGINA)
-       ======================================================================== -->
   <div id="printable-report-chica" style="display:none;">
     <div class="pdf-page" style="page-break-after:avoid;">
       <div class="pdf-header">

@@ -564,7 +564,7 @@
     setDisplay('kpi-f-inicial', fCaja);
     setDisplay('concil_fondo_inicial', fCaja);
 
-    // Ingresos (Solo servicios, cursos y productos)
+    // Ingresos del día (calculados de ventas)
     let totEfec = 0, totTransf = 0, totTarj = 0;
     ['servicios', 'cursos', 'productos'].forEach(k => {
       const e = parseVal(`ing_${k}_efec`);
@@ -584,32 +584,26 @@
     setDisplay('ing_gran_total', granTotalIngresos);
     setDisplay('kpi-ingresos', granTotalIngresos);
 
-    // Conteo físico principal
-    const denoms = [
-      { id: 'billete_1000', subId: 'sub_1000', val: 1000 },
-      { id: 'billete_500',  subId: 'sub_500',  val: 500 },
-      { id: 'billete_200',  subId: 'sub_200',  val: 200 },
-      { id: 'billete_100',  subId: 'sub_100',  val: 100 },
-      { id: 'billete_50',   subId: 'sub_50',   val: 50 },
-      { id: 'billete_20',   subId: 'sub_20',   val: 20 },
-      { id: 'moneda_10',    subId: 'sub_10',   val: 10 },
-      { id: 'moneda_5',     subId: 'sub_5',    val: 5 },
-      { id: 'moneda_2',     subId: 'sub_2',    val: 2 },
-      { id: 'moneda_1',     subId: 'sub_1',    val: 1 },
-      { id: 'moneda_050',   subId: 'sub_050',  val: 0.50 }
-    ];
-
+    // Conteo físico principal (simplificado: cantidad que hay en caja)
     let totalContado = 0;
-    denoms.forEach(item => {
-      const q = parseInt(document.getElementById(item.id)?.value, 10) || 0;
-      const sub = q * item.val;
-      totalContado += sub;
-      const subEl = document.getElementById(item.subId);
-      if (subEl) subEl.textContent = formatCurrency(sub);
-    });
-
-    const conteoEl = document.getElementById('conteo_total_efectivo');
-    if (conteoEl) conteoEl.textContent = formatCurrency(totalContado);
+    const conteoInput = document.getElementById('conteo_total_efectivo');
+    if (conteoInput) {
+      if (conteoInput.tagName === 'INPUT') {
+        totalContado = parseFloat(conteoInput.value) || 0;
+        const hintEl = document.getElementById('hint-conteo-estado');
+        if (hintEl) {
+          if (!conteoInput.value && totalContado === 0) {
+            hintEl.textContent = 'Pendiente de captura';
+            hintEl.style.color = 'var(--primary)';
+          } else {
+            hintEl.textContent = `Capturado: ${formatCurrency(totalContado)}`;
+            hintEl.style.color = '#16a34a';
+          }
+        }
+      } else {
+        totalContado = parseFloat(conteoInput.textContent.replace(/[^0-9.-]/g, '')) || 0;
+      }
+    }
     setDisplay('kpi-efectivo-contado', totalContado);
 
     // Conciliación Caja Principal:
@@ -675,7 +669,7 @@
       if (wrapExpl) wrapExpl.style.display = 'block';
     }
 
-    // Control transferencias
+    // Control transferencias y pagos no en efectivo (Condicional a que existan ventas no-efectivo)
     const tReg = parseVal('ctrl_transf_reg');
     const tVer = parseVal('ctrl_transf_verif');
     setDisplay('ctrl_transf_dif', tVer - tReg);
@@ -693,6 +687,24 @@
     setDisplay('ctrl_total_reg', totReg);
     setDisplay('ctrl_total_verif', totVer);
     setDisplay('ctrl_total_dif', totVer - totReg);
+
+    // Condición solicitada: SOLO preguntar cuando en ventas del día se registre transferencia, tarjeta u otro
+    const secControlPagos = document.getElementById('sec-control-pagos-no-efectivo');
+    if (secControlPagos) {
+      if (totReg > 0.005) {
+        secControlPagos.style.display = 'block';
+        const rowTransf = document.getElementById('row_ctrl_transf');
+        if (rowTransf) rowTransf.style.display = tReg > 0.005 ? '' : 'none';
+
+        const rowTarj = document.getElementById('row_ctrl_tarj');
+        if (rowTarj) rowTarj.style.display = jReg > 0.005 ? '' : 'none';
+
+        const rowOtros = document.getElementById('row_ctrl_otros');
+        if (rowOtros) rowOtros.style.display = oReg > 0.005 ? '' : 'none';
+      } else {
+        secControlPagos.style.display = 'none';
+      }
+    }
 
     // 6. RESUMEN FINAL DEL DÍA
     setDisplay('resumen_total_ingresos', granTotalIngresos);
@@ -861,7 +873,7 @@
     recalculatePrincipal();
   }
 
-  // Poblar de forma defensiva el reporte oficial de Caja Principal
+  // Poblar reporte oficial de Caja Principal (1 Sola Hoja Fácil de Leer)
   function populatePrincipalPrintable(data) {
     if (!data) return '';
     const header = data.header || {};
@@ -886,9 +898,10 @@
     setEl('p_responsable', rawR || '________________');
     setEl('p_hora', rawH || '____');
 
-    // 1. Fondo Inicial
+    // 1. Fondo Inicial y Conciliación
     const fondo = parseFloat(data.fondoInicial !== undefined ? data.fondoInicial : concil.fondo) || 0;
     setEl('p_f_caja', formatCurrency(fondo));
+    setEl('p_concil_fondo', formatCurrency(fondo));
 
     // 2. Ingresos del Día
     const srv = ingresos.servicios || {};
@@ -898,21 +911,6 @@
     const srvE = parseFloat(srv.e) || 0, srvT = parseFloat(srv.t) || 0, srvJ = parseFloat(srv.j) || 0;
     const curE = parseFloat(cur.e) || 0, curT = parseFloat(cur.t) || 0, curJ = parseFloat(cur.j) || 0;
     const prdE = parseFloat(prd.e) || 0, prdT = parseFloat(prd.t) || 0, prdJ = parseFloat(prd.j) || 0;
-
-    setEl('p_ing_servicios_e', formatCurrency(srvE));
-    setEl('p_ing_servicios_t', formatCurrency(srvT));
-    setEl('p_ing_servicios_j', formatCurrency(srvJ));
-    setEl('p_ing_servicios_tot', formatCurrency(srvE + srvT + srvJ));
-
-    setEl('p_ing_cursos_e', formatCurrency(curE));
-    setEl('p_ing_cursos_t', formatCurrency(curT));
-    setEl('p_ing_cursos_j', formatCurrency(curJ));
-    setEl('p_ing_cursos_tot', formatCurrency(curE + curT + curJ));
-
-    setEl('p_ing_productos_e', formatCurrency(prdE));
-    setEl('p_ing_productos_t', formatCurrency(prdT));
-    setEl('p_ing_productos_j', formatCurrency(prdJ));
-    setEl('p_ing_productos_tot', formatCurrency(prdE + prdT + prdJ));
 
     const totEfec = ingresos.totales?.efectivo !== undefined ? parseFloat(ingresos.totales.efectivo) : (srvE + curE + prdE);
     const totTransf = ingresos.totales?.transferencia !== undefined ? parseFloat(ingresos.totales.transferencia) : (srvT + curT + prdT);
@@ -925,61 +923,57 @@
     setEl('p_ing_tot_gran', formatCurrency(granTot));
     setEl('p_operaciones', ingresos.operaciones || '0');
 
-    // 3. Conteo Físico
-    const denoms = [
-      { key: 'b1000', qId: 'p_b_1000_q', tId: 'p_b_1000_tot', val: 1000 },
-      { key: 'b500',  qId: 'p_b_500_q',  tId: 'p_b_500_tot',  val: 500 },
-      { key: 'b200',  qId: 'p_b_200_q',  tId: 'p_b_200_tot',  val: 200 },
-      { key: 'b100',  qId: 'p_b_100_q',  tId: 'p_b_100_tot',  val: 100 },
-      { key: 'b50',   qId: 'p_b_50_q',   tId: 'p_b_50_tot',   val: 50 },
-      { key: 'b20',   qId: 'p_b_20_q',   tId: 'p_b_20_tot',   val: 20 },
-      { key: 'm10',   qId: 'p_m_10_q',   tId: 'p_m_10_tot',   val: 10 },
-      { key: 'm5',    qId: 'p_m_5_q',    tId: 'p_m_5_tot',    val: 5 },
-      { key: 'm2',    qId: 'p_m_2_q',    tId: 'p_m_2_tot',    val: 2 },
-      { key: 'm1',    qId: 'p_m_1_q',    tId: 'p_m_1_tot',    val: 1 },
-      { key: 'm050',  qId: 'p_m_050_q',  tId: 'p_m_050_tot',  val: 0.50 }
-    ];
+    setEl('p_srv_tot_pdf', formatCurrency(srvE + srvT + srvJ));
+    setEl('p_cur_tot_pdf', formatCurrency(curE + curT + curJ));
+    setEl('p_prd_tot_pdf', formatCurrency(prdE + prdT + prdJ));
 
-    const desglose = conteo.desglose || {};
-    const hasDesglose = Boolean(conteo.desglose);
-    let conteoCalc = 0;
-
-    denoms.forEach(d => {
-      const q = hasDesglose ? (parseInt(desglose[d.key], 10) || 0) : 0;
-      const sub = q * d.val;
-      if (hasDesglose) conteoCalc += sub;
-      setEl(d.qId, hasDesglose ? (q > 0 ? q : '0') : '--');
-      setEl(d.tId, hasDesglose ? formatCurrency(sub) : '--');
-    });
-
-    const totContado = parseFloat(conteo.total !== undefined ? conteo.total : concil.contado) || (hasDesglose ? conteoCalc : 0);
-    setEl('p_conteo_tot', formatCurrency(totContado));
-
-    // 4. Conciliación
+    // Conteo y Conciliación
+    const totContado = parseFloat(conteo.total !== undefined ? conteo.total : concil.contado) || 0;
     const ingEfec = parseFloat(concil.ingresosEfec !== undefined ? concil.ingresosEfec : totEfec) || 0;
+    const totEntregado = parseFloat(res.totalEntregado !== undefined ? res.totalEntregado : (val.importeEntregado || concil.retiros || 0)) || 0;
     const esperado = parseFloat(concil.esperado !== undefined ? concil.esperado : (fondo + ingEfec)) || 0;
     const dif = parseFloat(concil.diferencia !== undefined ? concil.diferencia : (totContado - esperado)) || 0;
 
-    setEl('p_concil_fondo', formatCurrency(fondo));
     setEl('p_concil_ingresos', formatCurrency(ingEfec));
+    setEl('p_res_retiros', formatCurrency(totEntregado));
     setEl('p_concil_esperado', formatCurrency(esperado));
     setEl('p_concil_contado', formatCurrency(totContado));
     setEl('p_concil_diferencia', formatCurrency(dif));
 
     const resArqueo = concil.resultado || (Math.abs(dif) < 0.005 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
-    setEl('p_box_cuadrada', resArqueo === 'cuadrada' ? '✓' : '');
-    setEl('p_box_sobrante', resArqueo === 'sobrante' ? '✓' : '');
-    setEl('p_box_faltante', resArqueo === 'faltante' ? '✓' : '');
+    const badgeStatusPdf = document.getElementById('p_badge_status_pdf');
+    if (badgeStatusPdf) {
+      if (resArqueo === 'cuadrada') {
+        badgeStatusPdf.textContent = '✅ CAJA CUADRADA';
+        badgeStatusPdf.style.background = '#f0fdf4';
+        badgeStatusPdf.style.borderColor = '#16a34a';
+        badgeStatusPdf.style.color = '#15803d';
+      } else if (resArqueo === 'sobrante') {
+        badgeStatusPdf.textContent = `🟡 SOBRANTE: ${formatCurrency(dif)}`;
+        badgeStatusPdf.style.background = '#fffbeb';
+        badgeStatusPdf.style.borderColor = '#f59e0b';
+        badgeStatusPdf.style.color = '#b45309';
+      } else {
+        badgeStatusPdf.textContent = `🔴 FALTANTE: ${formatCurrency(Math.abs(dif))}`;
+        badgeStatusPdf.style.background = '#fef2f2';
+        badgeStatusPdf.style.borderColor = '#ef4444';
+        badgeStatusPdf.style.color = '#b91c1c';
+      }
+    }
 
-    setEl('p_explicacion', concil.explicacion?.trim() || (Math.abs(dif) < 0.005 ? 'Caja cuadrada sin diferencias.' : 'Sin explicación registrada.'));
+    setEl('p_dif_badge_cell', resArqueo === 'cuadrada' ? '✅ Exacto' : (resArqueo === 'sobrante' ? '🟡 Sobrante' : '🔴 Faltante'));
 
-    // 5. Control de Transferencias y Tarjetas
+    const wrapExpl = document.getElementById('p_wrap_explicacion_pdf');
+    if (wrapExpl) {
+      wrapExpl.style.display = (resArqueo !== 'cuadrada' && concil.explicacion?.trim()) ? 'block' : 'none';
+    }
+    setEl('p_explicacion', concil.explicacion?.trim() || 'Sin explicación registrada.');
+
+    // Control de Transferencias y Tarjetas
     const tReg = parseFloat(ctrl.transfReg !== undefined ? ctrl.transfReg : totTransf) || 0;
     const tVer = parseFloat(ctrl.transfVer !== undefined ? ctrl.transfVer : res.totalTransf || res.totalTransferencias || totTransf) || 0;
     const jReg = parseFloat(ctrl.tarjReg !== undefined ? ctrl.tarjReg : totTarj) || 0;
     const jVer = parseFloat(ctrl.tarjVer !== undefined ? ctrl.tarjVer : res.totalTarjetas || totTarj) || 0;
-    const oReg = parseFloat(ctrl.otrosReg) || 0;
-    const oVer = parseFloat(ctrl.otrosVer) || 0;
 
     setEl('p_ctrl_transf_reg', formatCurrency(tReg));
     setEl('p_ctrl_transf_ver', formatCurrency(tVer));
@@ -989,33 +983,13 @@
     setEl('p_ctrl_tarj_ver', formatCurrency(jVer));
     setEl('p_ctrl_tarj_dif', formatCurrency(jVer - jReg));
 
-    setEl('p_ctrl_otros_reg', formatCurrency(oReg));
-    setEl('p_ctrl_otros_ver', formatCurrency(oVer));
-    setEl('p_ctrl_otros_dif', formatCurrency(oVer - oReg));
+    const totRegCtrl = tReg + jReg;
+    const secCtrlPdf = document.getElementById('pdf_sec_control_pagos');
+    if (secCtrlPdf) {
+      secCtrlPdf.style.display = (totRegCtrl > 0.005) ? 'block' : 'none';
+    }
 
-    const totRegCtrl = tReg + jReg + oReg;
-    const totVerCtrl = tVer + jVer + oVer;
-    setEl('p_ctrl_tot_reg', formatCurrency(totRegCtrl));
-    setEl('p_ctrl_tot_ver', formatCurrency(totVerCtrl));
-    setEl('p_ctrl_tot_dif', formatCurrency(totVerCtrl - totRegCtrl));
-
-    // 6. Resumen Final
-    const totIngRes = parseFloat(res.totalIngresos || res.totalIngresosDia || granTot) || 0;
-    const totEfecRes = parseFloat(res.totalEfectivo || res.totalEfectivoContado || totContado) || 0;
-    const totEntregado = parseFloat(res.totalEntregado !== undefined ? res.totalEntregado : (val.importeEntregado || concil.retiros || 0)) || 0;
-    const detalleEntregas = res.detalleEntregas ? ` (${res.detalleEntregas})` : '';
-
-    setEl('p_res_ingresos', formatCurrency(totIngRes));
-    setEl('p_res_contado', formatCurrency(totEfecRes));
-    setEl('p_res_transf', formatCurrency(tVer));
-    setEl('p_res_tarjetas', formatCurrency(jVer + oVer));
-    setEl('p_res_retiros', `${formatCurrency(totEntregado)}${detalleEntregas}`);
-    setEl('p_res_diferencia', formatCurrency(dif));
-    setEl('p_res_num_servicios', res.numServicios || '0');
-    setEl('p_res_num_cursos', res.numCursos || '0');
-
-    // Observaciones y Entrega
-    setEl('p_obs_dia', res.obsDia?.trim() || 'Sin observaciones.');
+    // Observaciones y Destino
     const valResp = val.responsable || rawR || '';
     setEl('p_val_nombre', valResp);
 
@@ -1032,9 +1006,6 @@
       if (fBlank) fBlank.style.display = 'inline-block';
     }
 
-    setEl('p_val_hora_cierre', val.horaCierre || rawH || '____');
-    setEl('p_val_hora_entrega', val.horaEntrega || '____');
-
     let destTexto = '1.- Se queda en caja';
     const dest = val.destinoEfectivo || 'se_queda_en_caja';
     if (dest === 'se_guarda_en_sobre') destTexto = '2.- Se guarda en sobre';
@@ -1044,7 +1015,7 @@
     }
     setEl('p_val_entregado_a', destTexto);
     setEl('p_val_importe_entregado', formatCurrency(totEntregado));
-    setEl('p_val_observaciones', val.observaciones?.trim() || 'Ninguna.');
+    setEl('p_val_observaciones', val.observaciones?.trim() || res.obsDia?.trim() || 'Sin observaciones.');
 
     const cln = valResp.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
     return `Arqueo_Caja_Principal_${rawF || 'Fecha'}_${cln || 'Responsable'}.pdf`;
@@ -4721,10 +4692,36 @@
       }
     });
 
+    // Botón para verificar rápidamente pagos registrados
+    document.getElementById('btn-auto-verif-pagos')?.addEventListener('click', () => {
+      const tReg = parseVal('ctrl_transf_reg');
+      const jReg = parseVal('ctrl_tarj_reg');
+      const oReg = parseVal('ctrl_otros_reg');
+      const elT = document.getElementById('ctrl_transf_verif');
+      const elJ = document.getElementById('ctrl_tarj_verif');
+      const elO = document.getElementById('ctrl_otros_verif');
+      if (elT) elT.value = tReg.toFixed(2);
+      if (elJ) elJ.value = jReg.toFixed(2);
+      if (elO) elO.value = oReg.toFixed(2);
+      recalculatePrincipal();
+      showToast('Pagos no en efectivo marcados como verificados', 'success');
+    });
+
     // Control de destino de efectivo
     document.getElementById('val_destino_efectivo')?.addEventListener('change', (e) => {
-      const wrap = document.getElementById('wrap_efectivo_otro_lugar');
-      if (wrap) wrap.style.display = (e.target.value === 'se_resguarda_otro') ? 'block' : 'none';
+      const val = e.target.value;
+      const wrapLugar = document.getElementById('wrap_efectivo_otro_lugar');
+      const wrapImp = document.getElementById('wrap_importe_entregado');
+      if (wrapLugar) wrapLugar.style.display = (val === 'se_resguarda_otro') ? 'block' : 'none';
+      if (wrapImp) {
+        if (val === 'se_guarda_en_sobre' || val === 'se_resguarda_otro') {
+          wrapImp.style.display = 'block';
+        } else {
+          wrapImp.style.display = 'none';
+          const inp = document.getElementById('val_importe_entregado');
+          if (inp) inp.value = '0.00';
+        }
+      }
     });
 
     // Control de Caja: Entrega de Dinero con Fotografía

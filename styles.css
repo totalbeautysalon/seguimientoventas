@@ -1199,6 +1199,40 @@ body {
 .pdf-signature-field { margin-bottom: 8px; font-size: 9pt; }
 .pdf-signature-img { max-height: 55px; max-width: 200px; display: block; margin: 4px 0; }
 
+/* Arqueo Principal - Formato Oficial 1 Sola Hoja (Compacto y Fácil de Leer) */
+#printable-report .pdf-page,
+#viewer-clone-principal .pdf-page {
+  padding: 16px 22px !important;
+  font-size: 8pt !important;
+  line-height: 1.25 !important;
+  page-break-after: avoid !important;
+  page-break-inside: avoid !important;
+  box-sizing: border-box !important;
+}
+#printable-report .pdf-header,
+#viewer-clone-principal .pdf-header {
+  margin-bottom: 6px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 2px solid #0f172a !important;
+}
+#printable-report .pdf-table,
+#viewer-clone-principal .pdf-table {
+  font-size: 7.8pt !important;
+  margin-bottom: 3px !important;
+}
+#printable-report .pdf-table th,
+#printable-report .pdf-table td,
+#viewer-clone-principal .pdf-table th,
+#viewer-clone-principal .pdf-table td {
+  padding: 2.5px 6px !important;
+  border-color: #475569 !important;
+}
+#printable-report .pdf-signature-img,
+#viewer-clone-principal .pdf-signature-img {
+  max-height: 38px !important;
+  max-width: 160px !important;
+}
+
 /* ==========================================================================
    MÓDULO DE VENTAS DIARIAS, INTERESADAS 3-OPCIONES Y CAMPAÑA ACTIVA
    ========================================================================== */
