@@ -3470,11 +3470,12 @@
       else btn.classList.remove('active');
     });
 
-    ['servicios', 'estaciones', 'especialistas', 'metas', 'cajachica', 'usuarios'].forEach(k => {
+    ['servicios', 'estaciones', 'especialistas', 'metas', 'cajaprincipal', 'cajachica', 'usuarios'].forEach(k => {
       const el = document.getElementById(`config-subview-${k}`);
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
     if (tabKey === 'metas') renderCatMetasTable();
+    if (tabKey === 'cajaprincipal') loadControlCajaData();
     if (tabKey === 'cajachica') loadCajaChicaFundData();
     if (tabKey === 'usuarios') {
       renderUsuariosRolesView();
@@ -3486,8 +3487,9 @@
       estaciones: '2. Estaciones de Trabajo',
       especialistas: '3. Especialistas',
       metas: '4. Metas Quincenales',
-      cajachica: '5. Fondo Caja Chica',
-      usuarios: '6. Usuarios & Roles'
+      cajaprincipal: '5. Fondo Caja Principal',
+      cajachica: '6. Fondo Caja Chica',
+      usuarios: '7. Usuarios & Roles'
     };
     logAuditMovement({
       modulo: 'Configuración General',
@@ -3677,6 +3679,8 @@
     renderCatEstacionesTable();
     renderCatEspecialistasTable();
     renderCatMetasTable();
+    await loadControlCajaData();
+    await loadCajaChicaFundData();
   }
 
   let autosaveMetasDebounceTimer = null;
@@ -4037,7 +4041,25 @@
     if (lblDisp) lblDisp.textContent = formatCurrency(fondoDisponible);
     if (countBadge) countBadge.textContent = String(entregasHoy.length);
 
+    // Actualizar también en Configuración General si está abierto
+    renderConfigCajaPrincipalValues(fondoBase, totalEntregadoHoy, fondoDisponible);
+
     recalculatePrincipal();
+  }
+
+  function renderConfigCajaPrincipalValues(base, entregas, disp) {
+    const inp = document.getElementById('cfg_principal_fondo_base');
+    const lBase = document.getElementById('cfg_lbl_principal_base');
+    const lEntr = document.getElementById('cfg_lbl_principal_entregas');
+    const lDisp = document.getElementById('cfg_lbl_principal_disponible');
+
+    if (inp && (!inp.value || inp.dataset.loaded !== 'true')) {
+      inp.value = base > 0 ? base.toFixed(2) : '';
+      inp.dataset.loaded = 'true';
+    }
+    if (lBase) lBase.textContent = formatCurrency(base);
+    if (lEntr) lEntr.textContent = entregas > 0 ? `-${formatCurrency(entregas)}` : '$0.00';
+    if (lDisp) lDisp.textContent = formatCurrency(disp);
   }
 
   function openAuthConfirmModal(isChica = false) {
@@ -4671,6 +4693,28 @@
         if (meta) meta.textContent = 'Comprobante / Ticket adjunto';
         if (modal) modal.style.display = 'flex';
       }
+    });
+
+    // Guardar Fondo Inicial de Caja Principal en Configuración General
+    document.getElementById('form-config-cajaprincipal')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = parseFloat(document.getElementById('cfg_principal_fondo_base')?.value) || 0;
+      if (val < 0) {
+        showToast('El fondo inicial no puede ser negativo', 'warning');
+        return;
+      }
+      showToast('Guardando fondo inicial de Caja Principal en Firebase...', 'info');
+      await TB_FIREBASE.saveFondoBaseCaja(val);
+      controlCajaData.fondoBase = val;
+      logAuditMovement({
+        modulo: 'Configuración General',
+        accion: 'CONFIG_CAJA_PRINCIPAL_FONDO',
+        descripcion: `Actualización de Fondo Inicial de Caja Principal: ${val.toFixed(2)}`,
+        payload: { fondoBase: val }
+      });
+      showToast('✅ Fondo Inicial de Caja Principal guardado en Firebase', 'success');
+      renderControlCajaFondo();
+      await loadControlCajaData();
     });
 
     // Guardar Fondo de Caja Chica en Configuración General

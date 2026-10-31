@@ -282,6 +282,9 @@
               <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-ver-entregas-hoy" style="font-weight:600; padding:8px 14px; font-size:0.85rem; border-radius:8px;">
                 📋 Ver Entregas Hoy (<span id="count-entregas-hoy">0</span>)
               </button>
+              <button type="button" class="btn btn-secondary btn-sm btn-goto-config" data-config-tab="cajaprincipal" title="Configurar Fondo Inicial de Caja Principal" style="font-weight:600; padding:8px 12px; font-size:0.85rem; border-radius:8px;">
+                ⚙️ Configurar Fondo
+              </button>
             </div>
           </div>
 
@@ -2318,13 +2321,17 @@
                 <span class="ribbon-icon">🎯</span>
                 <span class="ribbon-text">4. Metas Quincenales</span>
               </button>
+              <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="cajaprincipal">
+                <span class="ribbon-icon">💵</span>
+                <span class="ribbon-text">5. Fondo Caja Principal</span>
+              </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="cajachica">
                 <span class="ribbon-icon">🪙</span>
-                <span class="ribbon-text">5. Fondo Caja Chica</span>
+                <span class="ribbon-text">6. Fondo Caja Chica</span>
               </button>
               <button type="button" class="cfg-nav-btn config-nav-pill" data-cfgtab="usuarios">
                 <span class="ribbon-icon">👥</span>
-                <span class="ribbon-text">6. Usuarios & Roles</span>
+                <span class="ribbon-text">7. Usuarios & Roles</span>
               </button>
             </div>
           </div>
@@ -2661,7 +2668,75 @@
           </div>
         </div>
 
-        <!-- SUBPESTAÑA 5: FONDO DE CAJA CHICA -->
+        <!-- SUBPESTAÑA 5: FONDO INICIAL DE CAJA PRINCIPAL -->
+        <div class="config-subview" id="config-subview-cajaprincipal" style="display:none;">
+          <div class="cfg-card" style="max-width:850px;">
+            <div class="cfg-card-header">
+              <div class="cfg-header-left">
+                <div class="cfg-icon-box" style="background:linear-gradient(135deg, #dcfce7, #bbf7d0); color:#15803d;">💵</div>
+                <div>
+                  <h3 class="cfg-title">Configuración del Fondo Inicial de Caja Principal</h3>
+                  <p class="cfg-subtitle">
+                    Efectivo base asignado para cambio y apertura diaria de la Caja Principal del Salón. Este saldo alimenta la conciliación y el arqueo diario.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form id="form-config-cajaprincipal" autocomplete="off">
+              <!-- Tarjetas informativas de balance actual -->
+              <div class="ventas-kpi-grid" style="margin-bottom:20px;">
+                <div class="ventas-kpi-card kpi-efectivo">
+                  <div class="ventas-kpi-icon">💵</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Fondo Base Configurado</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_principal_base">$0.00</span>
+                    <small style="font-size:0.72rem; color:var(--muted); font-weight:600;">Asignación fija en Firebase</small>
+                  </div>
+                </div>
+
+                <div class="ventas-kpi-card" style="border-left:4px solid #ef4444;">
+                  <div class="ventas-kpi-icon" style="background:#fee2e2; color:#b91c1c;">💸</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Entregado Hoy</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_principal_entregas" style="color:#b91c1c;">$0.00</span>
+                    <small style="font-size:0.72rem; color:#b91c1c; font-weight:700;">Entregas de dinero registradas</small>
+                  </div>
+                </div>
+
+                <div class="ventas-kpi-card kpi-cobrado">
+                  <div class="ventas-kpi-icon">💰</div>
+                  <div class="ventas-kpi-content">
+                    <span class="ventas-kpi-label">Fondo Disponible Arqueo</span>
+                    <span class="ventas-kpi-val" id="cfg_lbl_principal_disponible" style="color:#15803d;">$0.00</span>
+                    <small style="font-size:0.72rem; color:#15803d; font-weight:700;">Efectivo inicial disponible</small>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:20px;">
+                <label for="cfg_principal_fondo_base" style="font-weight:700; font-size:0.88rem; color:var(--dark); display:block; margin-bottom:8px;">
+                  Modificar Fondo Inicial Asignado para Caja Principal ($): <span class="required">*</span>
+                </label>
+                <div class="currency-input-wrap" style="max-width:320px;">
+                  <span class="currency-prefix">$</span>
+                  <input type="number" step="0.01" min="0" class="input-currency styled-input" id="cfg_principal_fondo_base" placeholder="1000.00" required style="font-size:1.2rem; font-weight:800; color:#0f172a;">
+                </div>
+                <small style="display:block; margin-top:6px; font-size:0.76rem; color:#64748b;">
+                  * Este importe se aplicará como saldo base para cambio y apertura en el Arqueo Diario de Caja Principal.
+                </small>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="submit" class="btn btn-primary" id="btn-save-cfg-principal" style="padding:10px 24px; font-weight:700;">
+                  <span>💾</span> Guardar Fondo Caja Principal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- SUBPESTAÑA 6: FONDO DE CAJA CHICA -->
         <div class="config-subview" id="config-subview-cajachica" style="display:none;">
           <div class="cfg-card" style="max-width:850px;">
             <div class="cfg-card-header">
