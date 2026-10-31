@@ -131,6 +131,9 @@
       return;
     }
     currentModule = modKey;
+    try {
+      localStorage.setItem('tb_active_module', modKey);
+    } catch (e) {}
 
     document.querySelectorAll('.menu-item-link').forEach(link => {
       if (link.dataset.module === modKey) link.classList.add('active');
@@ -187,6 +190,176 @@
     }
     if (modKey === 'auditoria') {
       renderAuditoriaView();
+    }
+  }
+
+  // =========================================================================
+  // PORTAL / MENÚ LAUNCHER PRINCIPAL DE MÓDULOS (TOTAL BEAUTY)
+  // =========================================================================
+  const TB_MODULE_PORTAL_ITEMS = [
+    {
+      key: 'ventas',
+      icon: '💰',
+      title: 'Registro Diario de Ventas',
+      desc: 'Asistente dinámico paso a paso: clienta, servicio, estación, cobro mixto y confirmación.',
+      badge: 'Operación Diaria',
+      badgeClass: 'badge-ventas'
+    },
+    {
+      key: 'arqueo-principal',
+      icon: '💵',
+      title: 'Arqueo Caja Principal',
+      desc: 'Fondo inicial, registro de cobros, conteo físico simplificado, entregas y validación de cierre.',
+      badge: 'Caja & Cierre',
+      badgeClass: 'badge-caja'
+    },
+    {
+      key: 'arqueo-chica',
+      icon: '🪙',
+      title: 'Arqueo Caja Chica',
+      desc: 'Fondo fijo, reposición de caja chica, gastos menores y comprobantes fiscales.',
+      badge: 'Caja Menor',
+      badgeClass: 'badge-chica'
+    },
+    {
+      key: 'historial',
+      icon: '📑',
+      title: 'Reportes Diarios Arqueo',
+      desc: 'Histórico de arqueos cerrados, consultas por fecha, firmas digitales y reportes en PDF.',
+      badge: 'Historial',
+      badgeClass: 'badge-historial'
+    },
+    {
+      key: 'balancescore',
+      icon: '💈',
+      title: 'BalanceScore Estaciones',
+      desc: 'Medición de metas de ingresos quincenales, productividad y calidad por estación.',
+      badge: 'Rendimiento',
+      badgeClass: 'badge-score'
+    },
+    {
+      key: 'ingresos',
+      icon: '📊',
+      title: 'Reporte Diario Ingresos',
+      desc: 'Análisis global de facturación diaria, cortes por método de pago y comparativas.',
+      badge: 'Finanzas',
+      badgeClass: 'badge-ingresos'
+    },
+    {
+      key: 'interesadas',
+      icon: '🎯',
+      title: 'Interesadas y Cierres',
+      desc: 'Embudo de prospectos, llamadas de seguimiento, academias y matriculación.',
+      badge: 'Comercial',
+      badgeClass: 'badge-leads'
+    },
+    {
+      key: 'campana',
+      icon: '🌟',
+      title: 'Campaña y Eventos',
+      desc: 'Cronograma de talleres, masterclasses, fechas clave y eventos especiales.',
+      badge: 'Eventos',
+      badgeClass: 'badge-campana'
+    },
+    {
+      key: 'configuracion',
+      icon: '⚙️',
+      title: 'Configuración General',
+      desc: 'Catálogos de servicios, productos, estaciones, especialistas, metas, roles y seguridad.',
+      badge: 'Administración',
+      badgeClass: 'badge-admin'
+    },
+    {
+      key: 'auditoria',
+      icon: '🛡️',
+      title: 'Registro de Auditoría',
+      desc: 'Bitácora integral de movimientos, trazabilidad por usuario y reversión con Llave Maestra.',
+      badge: 'Seguridad',
+      badgeClass: 'badge-audit'
+    }
+  ];
+
+  function openModuleLauncher() {
+    const launcherOverlay = document.getElementById('modal-modulo-launcher');
+    const launcherGrid = document.getElementById('launcher-modules-grid');
+    const greetingEl = document.getElementById('launcher-user-greeting');
+    if (!launcherOverlay || !launcherGrid) return;
+
+    const curUser = TB_FIREBASE.getCurrentUser();
+    if (greetingEl) {
+      greetingEl.textContent = curUser?.email ? `Usuario activo: ${curUser.email}` : 'Portal Oficial de Operaciones';
+    }
+
+    const allowed = getAllowedModulesForCurrentUser();
+    const visibleItems = TB_MODULE_PORTAL_ITEMS.filter(item => allowed.includes(item.key));
+
+    launcherGrid.innerHTML = visibleItems.map(item => `
+      <div class="launcher-card" data-module="${item.key}" role="button" tabindex="0">
+        <div class="launcher-card-top">
+          <div class="launcher-card-icon">${item.icon}</div>
+          <span class="launcher-card-badge ${item.badgeClass}">${item.badge}</span>
+        </div>
+        <div class="launcher-card-content">
+          <h4 class="launcher-card-title">${item.title}</h4>
+          <p class="launcher-card-desc">${item.desc}</p>
+        </div>
+        <div class="launcher-card-action">
+          <span>Ingresar</span>
+          <span class="launcher-arrow">→</span>
+        </div>
+      </div>
+    `).join('');
+
+    launcherGrid.querySelectorAll('.launcher-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const modKey = card.dataset.module;
+        closeModuleLauncher();
+        if (modKey) switchModule(modKey);
+      });
+    });
+
+    launcherOverlay.style.display = 'flex';
+    document.body.classList.add('launcher-open');
+  }
+
+  function closeModuleLauncher() {
+    const launcherOverlay = document.getElementById('modal-modulo-launcher');
+    if (launcherOverlay) {
+      launcherOverlay.style.display = 'none';
+    }
+    document.body.classList.remove('launcher-open');
+    if (!currentModule) {
+      const allowed = getAllowedModulesForCurrentUser();
+      switchModule(allowed[0] || 'ventas');
+    }
+  }
+
+  function refreshActiveModuleData() {
+    if (!currentModule) return;
+    if (currentModule === 'configuracion') {
+      loadAndRenderConfiguracion();
+    } else if (currentModule === 'balancescore') {
+      renderBalanceScoreStations();
+    } else if (currentModule === 'ventas') {
+      const vf = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      renderVentas(vf);
+    } else if (currentModule === 'auditoria') {
+      renderAuditoriaView();
+    } else if (currentModule === 'arqueo-principal') {
+      const curFecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+      syncVentasToCajaPrincipal(curFecha, false);
+      loadControlCajaData();
+    } else if (currentModule === 'arqueo-chica') {
+      loadCajaChicaFundData();
+    } else if (currentModule === 'historial') {
+      loadHistorial();
+    } else if (currentModule === 'ingresos') {
+      renderIngresosReport();
+    } else if (currentModule === 'interesadas') {
+      loadInteresadasView();
+    } else if (currentModule === 'campana') {
+      renderCampanaActiva();
+      renderEventosTimeline();
     }
   }
 
@@ -7298,7 +7471,7 @@
       if (authErrorBox) authErrorBox.style.display = 'none';
     }
 
-    async function onLoginSuccess(user) {
+    async function onLoginSuccess(user, isFreshLogin = false) {
       const email = (user.email || '').toLowerCase().trim();
 
       // 1. CARGA INMEDIATA Y SINCRÓNICA DE ROLES Y PERMISOS DESDE MEMORIA / LOCALSTORAGE
@@ -7324,14 +7497,16 @@
       // 4. OCULTAR EL MODAL DE LOGIN SOLO DESPUÉS DE QUE LOS PERMISOS YA FUERON APLICADOS AL DOM
       if (authOverlay) authOverlay.classList.add('hidden');
 
-      showToast(`Bienvenido(a) ${user.email}`, 'success');
-      logAuditMovement({
-        modulo: 'Autenticación',
-        accion: 'INICIO_SESION',
-        descripcion: `Inicio de sesión exitoso con Firebase Authentication: ${user.email}`,
-        payload: { email: user.email },
-        reversible: false
-      });
+      if (isFreshLogin) {
+        showToast(`Bienvenido(a) ${user.email}`, 'success');
+        logAuditMovement({
+          modulo: 'Autenticación',
+          accion: 'INICIO_SESION',
+          descripcion: `Inicio de sesión exitoso con Firebase Authentication: ${user.email}`,
+          payload: { email: user.email },
+          reversible: false
+        });
+      }
 
       // Responsables obligatorios no editables fijados con el correo de inicio de sesión
       const respEl = document.getElementById('header_responsable');
@@ -7360,18 +7535,28 @@
         console.warn('syncAndApplyUserPermissions error:', e);
       }
 
-      if (currentModule === 'configuracion') loadAndRenderConfiguracion();
-      else if (currentModule === 'balancescore') renderBalanceScoreStations();
-      else if (currentModule === 'ventas') {
-        const vf = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
-        renderVentas(vf);
+      // 7. GESTIÓN DE MÓDULO ACTIVO Y LANZADOR DE INICIO:
+      const allowed = getAllowedModulesForCurrentUser();
+      const savedMod = localStorage.getItem('tb_active_module');
+
+      if (isFreshLogin) {
+        // Al iniciar sesión desde el formulario: mostrar el menú interactivo para seleccionar opción
+        openModuleLauncher();
+      } else {
+        // Al recargar la página (F5 o refresh): NO salirse de donde estaba, mantener el módulo activo y actualizar datos
+        let targetMod = savedMod;
+        if (!targetMod || !hasModulePermission(targetMod)) {
+          targetMod = allowed[0] || 'ventas';
+        }
+        switchModule(targetMod);
       }
-      else if (currentModule === 'auditoria') {
-        renderAuditoriaView();
-      }
+
+      // Actualizar datos del módulo activo de manera inmediata
+      refreshActiveModuleData();
     }
 
     function onLogoutSuccess() {
+      closeModuleLauncher();
       isConfigUnlocked = false;
       sessionStorage.removeItem('tb_cfg_unlocked');
 
@@ -7467,7 +7652,7 @@
       if (authSubmitBtn) authSubmitBtn.disabled = false;
 
       if (res.success) {
-        onLoginSuccess(res.user);
+        onLoginSuccess(res.user, true); // true = inicio de sesión nuevo (muestra menú de selección)
       } else {
         showError(res.error);
       }
@@ -7493,25 +7678,66 @@
           applyUserPermissions(savedUser.email);
         }
       }
+      const initialSavedMod = localStorage.getItem('tb_active_module');
+      if (initialSavedMod) {
+        document.querySelectorAll('.module-view').forEach(v => v.classList.remove('active-view'));
+        const initialTarget = document.getElementById(`view-${initialSavedMod}`);
+        if (initialTarget) initialTarget.classList.add('active-view');
+        document.querySelectorAll('.menu-item-link').forEach(link => {
+          if (link.dataset.module === initialSavedMod) link.classList.add('active');
+          else link.classList.remove('active');
+        });
+        const info = moduleTitles[initialSavedMod];
+        if (info) {
+          const tEl = document.getElementById('topbar-module-title');
+          const dEl = document.getElementById('topbar-module-desc');
+          if (tEl) tEl.textContent = info.title;
+          if (dEl) dEl.textContent = info.desc;
+        }
+      }
     } catch (e) {}
 
-    // Verificar si hay sesión previa activa y validar límite estricto de 1 hora
+    // Verificar si hay sesión previa activa (al recargar la página no salir de donde estaba)
     TB_FIREBASE.checkSession().then(res => {
       if (res && res.active && res.user) {
-        onLoginSuccess(res.user);
+        onLoginSuccess(res.user, false); // false = recarga de página (permanece en su módulo activo)
       } else {
         onLogoutSuccess();
         if (res && res.expired) {
-          showError(res.message || '⚠️ Por seguridad, la sesión caduca automáticamente después de 1 hora. Por favor inicie sesión nuevamente.');
+          showError(res.message || '🌙 La jornada laboral ha concluido (9:00 PM). La sesión se ha cerrado automáticamente por seguridad. Por favor inicie sesión nuevamente.');
         }
       }
     });
 
-    // Escuchar expiración automática tras 1 hora en tiempo real
+    // Escuchar expiración automática tras las 9:00 PM en tiempo real
     window.addEventListener('tb_session_expired', (e) => {
       onLogoutSuccess();
-      showError(e.detail?.message || '⚠️ Su sesión ha expirado tras 1 hora de acceso continuo. Por favor inicie sesión nuevamente.');
-      showToast('Sesión expirada (límite de 1 hora)', 'warning');
+      showError(e.detail?.message || '🌙 La jornada laboral ha concluido (9:00 PM). La sesión se ha cerrado automáticamente por seguridad.');
+      showToast('🌙 Sesión cerrada por fin de jornada (9:00 PM)', 'warning');
+    });
+
+    // Botones para abrir y cerrar el Menú de Selección de Módulos
+    document.getElementById('btn-open-module-launcher')?.addEventListener('click', () => {
+      openModuleLauncher();
+    });
+
+    document.getElementById('sidebar-launcher-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (window.innerWidth <= 768) {
+        document.getElementById('app-sidebar')?.classList.remove('open');
+        document.getElementById('sidebar-backdrop')?.classList.remove('active');
+      }
+      openModuleLauncher();
+    });
+
+    document.getElementById('btn-close-launcher')?.addEventListener('click', () => {
+      closeModuleLauncher();
+    });
+
+    document.getElementById('modal-modulo-launcher')?.addEventListener('click', (e) => {
+      if (e.target.id === 'modal-modulo-launcher') {
+        closeModuleLauncher();
+      }
     });
   }
 

@@ -12,9 +12,34 @@
 
 const TB_FIREBASE = (function () {
 
-  // Límite estricto de sesión: 1 hora obligatoria (3,600,000 ms)
+  // Cierre automático de jornada: La sesión se mantiene activa todo el día y se cierra sola después de las 9:00 PM (21:00 hrs)
+  const WORKDAY_CLOSING_HOUR = 21; // 9:00 PM
 
-  const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+  function isSessionExpired9PM(loginTimestamp) {
+    if (!loginTimestamp) return true;
+    const now = new Date();
+    const loginDate = new Date(loginTimestamp);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const loginDayStart = new Date(loginDate.getFullYear(), loginDate.getMonth(), loginDate.getDate()).getTime();
+    if (loginDayStart < todayStart) return true;
+    if (loginDate.getHours() < WORKDAY_CLOSING_HOUR) {
+      if (now.getHours() >= WORKDAY_CLOSING_HOUR) return true;
+    } else {
+      if (loginDayStart < todayStart) return true;
+    }
+    return false;
+  }
+
+  function calculateSessionExpiresAt(loginTimestamp) {
+    const d = new Date(loginTimestamp || Date.now());
+    let expireDate;
+    if (d.getHours() < WORKDAY_CLOSING_HOUR) {
+      expireDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), WORKDAY_CLOSING_HOUR, 0, 0, 0);
+    } else {
+      expireDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    }
+    return expireDate.getTime();
+  }
 
   'use strict';
 
@@ -242,7 +267,7 @@ const TB_FIREBASE = (function () {
 
             loginTimestamp: now,
 
-            sessionExpiresAt: now + SESSION_TIMEOUT_MS,
+            sessionExpiresAt: calculateSessionExpiresAt(now),
 
             expiresAt: Date.now() + ((parseInt(data.expiresIn, 10) || 3600) * 1000)
 
@@ -388,24 +413,15 @@ const TB_FIREBASE = (function () {
 
 
 
-      // OBLIGATORIO: Si transcurrió 1 hora o más (3,600,000 ms), forzar cierre de sesión
-
-      if (!loginTime || elapsed >= SESSION_TIMEOUT_MS) {
-
-        console.warn(`Sesión expirada tras ${Math.round(elapsed / 60000)} minutos (límite: 1 hora).`);
-
+      // Cierre automático: Si la jornada concluyó (después de las 9:00 PM), forzar cierre de sesión
+      if (!loginTime || isSessionExpired9PM(loginTime)) {
+        console.warn('Sesión expirada por cierre de jornada laboral (después de las 9:00 PM).');
         logout();
-
         return {
-
           active: false,
-
           expired: true,
-
-          message: '⚠️ Por seguridad, la sesión caduca automáticamente después de 1 hora. Por favor inicie sesión nuevamente.'
-
+          message: '🌙 La jornada laboral ha concluido (9:00 PM). La sesión se ha cerrado automáticamente por seguridad. Por favor inicie sesión nuevamente.'
         };
-
       }
 
 
@@ -440,7 +456,7 @@ const TB_FIREBASE = (function () {
 
         notifyStatus(true, `Conectado a Firebase (${user.email})`);
 
-        return { active: true, user, remainingMs: SESSION_TIMEOUT_MS - elapsed };
+        return { active: true, user, remainingMs: Math.max(0, calculateSessionExpiresAt(loginTime) - Date.now()) };
 
       }
 
@@ -484,29 +500,26 @@ const TB_FIREBASE = (function () {
 
 
 
-  // Monitoreo activo: si la página permanece abierta, expirar automáticamente a los 60 min
-
-  setInterval(() => {
-
+  // Monitoreo activo: si la jornada concluye después de las 9:00 PM, expirar automáticamente la sesión
+  // Y mantener el token de Firebase renovado en background durante todo el día laboral
+  setInterval(async () => {
     if (currentUser) {
-
       const loginTime = currentUser.loginTimestamp || parseInt(localStorage.getItem('tb_session_login_time') || '0', 10);
-
-      if (loginTime && (Date.now() - loginTime >= SESSION_TIMEOUT_MS)) {
-
+      if (loginTime && isSessionExpired9PM(loginTime)) {
+        console.warn('Cierre automático de sesión: La jornada ha concluido (después de las 9:00 PM).');
         logout();
-
         window.dispatchEvent(new CustomEvent('tb_session_expired', {
-
-          detail: { message: '⚠️ Su sesión ha expirado tras 1 hora de acceso continuo. Por favor inicie sesión nuevamente.' }
-
+          detail: { message: '🌙 La jornada laboral ha concluido (9:00 PM). La sesión se ha cerrado automáticamente por seguridad. Por favor inicie sesión nuevamente.' }
         }));
-
+      } else if (currentUser.refreshToken && Date.now() > (currentUser.expiresAt - 300000)) {
+        try {
+          await refreshAuthToken(currentUser.refreshToken);
+        } catch (e) {
+          console.warn('Error renovando token Firebase en background:', e);
+        }
       }
-
     }
-
-  }, 10000);
+  }, 15000);
 
 
 
@@ -2118,7 +2131,9 @@ const TB_FIREBASE = (function () {
     saveCajaChicaConfig,
     getCajaChicaConfig,
     downloadFirebaseUsers,
-    registerNewFirebaseUser
+    registerNewFirebaseUser,
+    isSessionExpired9PM,
+    calculateSessionExpiresAt
 
   };
 

@@ -4062,3 +4062,401 @@ body {
     align-items: flex-start;
   }
 }
+
+
+/* ==========================================================================
+   PORTAL / MODAL LAUNCHER: MENÚ PRINCIPAL DE MÓDULOS
+   ========================================================================== */
+.modal-launcher-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeInLauncher 0.25s ease-out;
+}
+
+@keyframes fadeInLauncher {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-launcher-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  width: 100%;
+  max-width: 840px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-launcher-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fdf2f8;
+}
+
+.launcher-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.launcher-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(157, 23, 77, 0.2);
+}
+
+.launcher-brand-name {
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: var(--primary, #9d174d);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.launcher-greeting {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.btn-close-launcher {
+  background: transparent;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-close-launcher:hover {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.launcher-welcome-banner {
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%);
+  border-bottom: 1px dashed #fbcfe8;
+}
+
+.launcher-welcome-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9d174d;
+  background: #fce7f3;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.launcher-welcome-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.launcher-welcome-subtitle {
+  font-size: 0.84rem;
+  color: #475569;
+  margin: 0;
+}
+
+.launcher-grid-wrapper {
+  padding: 20px 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  background: #f8fafc;
+}
+
+.launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.launcher-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  position: relative;
+  text-decoration: none;
+}
+
+.launcher-card:hover,
+.launcher-card:focus {
+  transform: translateY(-2px);
+  border-color: #f43f5e;
+  box-shadow: 0 8px 20px rgba(244, 63, 94, 0.12);
+  background: #fffdfd;
+}
+
+.launcher-card:active {
+  transform: scale(0.98);
+}
+
+.launcher-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.launcher-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.launcher-card-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.launcher-card-badge.badge-ventas { background: #dcfce7; color: #166534; }
+.launcher-card-badge.badge-caja { background: #fef3c7; color: #92400e; }
+.launcher-card-badge.badge-chica { background: #ffedd5; color: #9a3412; }
+.launcher-card-badge.badge-historial { background: #e0e7ff; color: #3730a3; }
+.launcher-card-badge.badge-score { background: #fce7f3; color: #9d174d; }
+.launcher-card-badge.badge-ingresos { background: #ecfdf5; color: #047857; }
+.launcher-card-badge.badge-leads { background: #e0f2fe; color: #0369a1; }
+.launcher-card-badge.badge-campana { background: #fef9c3; color: #854d0e; }
+.launcher-card-badge.badge-admin { background: #ede9fe; color: #6d28d9; }
+.launcher-card-badge.badge-audit { background: #f1f5f9; color: #334155; }
+
+.launcher-card-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.launcher-card-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
+  margin: 0 0 10px 0;
+}
+
+.launcher-card-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary, #9d174d);
+  padding-top: 6px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+.launcher-arrow {
+  transition: transform 0.2s ease;
+}
+
+.launcher-card:hover .launcher-arrow {
+  transform: translateX(4px);
+}
+
+.launcher-footer {
+  padding: 12px 24px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.launcher-footer-note {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.launcher-footer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* Botón Launcher en Topbar */
+.btn-topbar-launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #9d174d 0%, #be185d 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(157, 23, 77, 0.25);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-topbar-launcher:hover {
+  background: linear-gradient(135deg, #831843 0%, #9d174d 100%);
+  box-shadow: 0 4px 10px rgba(157, 23, 77, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-topbar-launcher:active {
+  transform: translateY(0);
+}
+
+/* Enlace Launcher en Sidebar Menu */
+.sidebar-launcher-li {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.menu-item-launcher-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  font-weight: 700 !important;
+}
+
+.menu-item-launcher-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ==========================================================================
+   OPTIMIZACIONES MÓVILES PROFUNDAS ADICIONALES
+   ========================================================================== */
+@media (max-width: 640px) {
+  .modal-launcher-overlay {
+    padding: 8px;
+  }
+  .modal-launcher-card {
+    max-height: 94vh;
+    border-radius: 14px;
+  }
+  .modal-launcher-header {
+    padding: 12px 14px;
+  }
+  .launcher-brand-name {
+    font-size: 1.1rem;
+  }
+  .launcher-greeting {
+    font-size: 0.74rem;
+  }
+  .launcher-welcome-banner {
+    padding: 12px 14px;
+  }
+  .launcher-welcome-title {
+    font-size: 1rem;
+  }
+  .launcher-welcome-subtitle {
+    font-size: 0.76rem;
+  }
+  .launcher-grid-wrapper {
+    padding: 12px 10px;
+  }
+  .launcher-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .launcher-card {
+    padding: 12px 14px;
+  }
+  .launcher-card-title {
+    font-size: 0.92rem;
+  }
+  .launcher-card-desc {
+    font-size: 0.74rem;
+    margin-bottom: 6px;
+  }
+  .launcher-footer {
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .launcher-footer-note {
+    font-size: 0.75rem;
+    justify-content: center;
+  }
+  .launcher-footer button {
+    width: 100%;
+  }
+
+  /* Ajustes en Topbar para teléfonos */
+  .main-topbar {
+    padding: 6px 10px;
+  }
+  .topbar-right {
+    gap: 6px;
+  }
+  .btn-topbar-launcher {
+    padding: 5px 9px;
+    font-size: 0.76rem;
+  }
+  .user-profile-badge {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+  .user-profile-badge .user-email {
+    max-width: 90px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-profile-badge .user-email {
+    display: none;
+  }
+  .user-profile-badge {
+    padding: 4px 6px;
+  }
+}

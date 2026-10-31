@@ -68,6 +68,47 @@
     </div>
   </div>
 
+  <!-- ====================================================================
+       PORTAL / MODAL LAUNCHER: SELECCIÓN DE MÓDULOS DE TOTAL BEAUTY
+       Se muestra al iniciar sesión o al pulsar el botón "Menú de Módulos"
+       ==================================================================== -->
+  <div class="modal-launcher-overlay" id="modal-modulo-launcher" style="display:none;">
+    <div class="modal-launcher-card">
+      <div class="modal-launcher-header">
+        <div class="launcher-brand">
+          <img src="assets/logoheader.png" alt="Logo" class="launcher-logo" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+          <div class="launcher-brand-info">
+            <h2 class="launcher-brand-name">TOTAL BEAUTY</h2>
+            <p id="launcher-user-greeting" class="launcher-greeting">Portal Oficial de Operaciones</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-launcher" id="btn-close-launcher" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="launcher-welcome-banner">
+        <span class="launcher-welcome-badge">✨ Centro de Navegación Rápida</span>
+        <h3 class="launcher-welcome-title">¿A qué módulo deseas ingresar?</h3>
+        <p class="launcher-welcome-subtitle">Selecciona una opción para comenzar tu jornada. Solo se muestran los módulos autorizados para tu rol.</p>
+      </div>
+
+      <div class="launcher-grid-wrapper">
+        <div class="launcher-grid" id="launcher-modules-grid">
+          <!-- Tarjetas generadas dinámicamente según permisos -->
+        </div>
+      </div>
+
+      <div class="launcher-footer">
+        <div class="launcher-footer-note">
+          <span class="launcher-footer-dot"></span>
+          <span>Jornada activa &bull; Cierre automático a las <strong>9:00 PM</strong></span>
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm btn-logout" id="btn-logout-launcher">
+          <span>🚪</span> Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="layout-wrapper" id="app-layout-wrapper">
 
     <!-- ====================================================================
@@ -83,6 +124,12 @@
       </div>
 
       <ul class="sidebar-menu">
+        <li class="sidebar-launcher-li">
+          <a class="menu-item-link menu-item-launcher-btn" id="sidebar-launcher-link" href="#">
+            <span class="menu-icon">🏠</span>
+            <span style="font-weight:700;">Menú Principal</span>
+          </a>
+        </li>
         <li class="sidebar-menu-category">Control de Caja</li>
         <li>
           <a class="menu-item-link active" data-module="arqueo-principal">
@@ -194,6 +241,12 @@
           </div>
         </div>
         <div class="topbar-right">
+          <!-- Botón de apertura rápida del Menú de Módulos -->
+          <button type="button" class="btn-topbar-launcher" id="btn-open-module-launcher" title="Abrir Menú de Módulos">
+            <span class="launcher-btn-icon">🏠</span>
+            <span class="launcher-btn-text">Módulos</span>
+          </button>
+
           <!-- Insignia de usuario autenticado -->
           <div class="user-profile-badge" id="topbar-user-badge" style="display:none;">
             <span>👤</span>
