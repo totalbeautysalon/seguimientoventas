@@ -4341,6 +4341,84 @@
   let fotoEntregaBase64 = null;
   let pendingAuthIsChica = false;
 
+  // Clave Privada de Gerencia para operaciones de alta seguridad (eliminaciones)
+  const GERENCIA_PRIVATE_KEY = '04012021';
+
+  function solicitarClaveGerencia(motivo = 'autorizar esta operación') {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('modal-auth-gerencia');
+      const input = document.getElementById('input-pin-gerencia');
+      const btnConfirm = document.getElementById('btn-confirm-auth-gerencia');
+      const btnCancel = document.getElementById('btn-cancel-auth-gerencia');
+      const errorMsg = document.getElementById('msg-pin-gerencia-error');
+
+      if (!modal || !input || !btnConfirm || !btnCancel) {
+        const pin = prompt('🔒 AUTORIZACIÓN GERENCIAL REQUERIDA\n\nIngrese la Clave Privada de Gerencia:');
+        if (pin === GERENCIA_PRIVATE_KEY) {
+          resolve(true);
+        } else {
+          if (pin !== null) {
+            showToast('Clave de gerencia incorrecta', 'error');
+            logAuditMovement({
+              modulo: 'Seguridad',
+              accion: 'CLAVE_GERENCIA_INCORRECTA',
+              descripcion: `Intento denegado de clave privada de gerencia para: ${motivo}`,
+              reversible: false
+            });
+          }
+          resolve(false);
+        }
+        return;
+      }
+
+      input.value = '';
+      if (errorMsg) errorMsg.style.display = 'none';
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 80);
+
+      const cleanup = () => {
+        modal.style.display = 'none';
+        btnConfirm.onclick = null;
+        btnCancel.onclick = null;
+        input.onkeydown = null;
+      };
+
+      const handleConfirm = () => {
+        const entered = (input.value || '').trim();
+        if (entered === GERENCIA_PRIVATE_KEY) {
+          cleanup();
+          resolve(true);
+        } else {
+          if (errorMsg) errorMsg.style.display = 'block';
+          input.value = '';
+          input.focus();
+          showToast('Clave de gerencia incorrecta', 'error');
+          logAuditMovement({
+            modulo: 'Seguridad',
+            accion: 'CLAVE_GERENCIA_INCORRECTA',
+            descripcion: `Intento denegado de clave privada de gerencia para: ${motivo}`,
+            reversible: false
+          });
+        }
+      };
+
+      btnConfirm.onclick = handleConfirm;
+      btnCancel.onclick = () => {
+        cleanup();
+        resolve(false);
+      };
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleConfirm();
+        } else if (e.key === 'Escape') {
+          cleanup();
+          resolve(false);
+        }
+      };
+    });
+  }
+
   async function logAuditMovement({ modulo, accion, descripcion, payload, reversible = true, meta = {} }) {
     try {
       const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Usuario';
@@ -5246,6 +5324,13 @@
             await loadControlCajaData();
             document.getElementById('btn-ver-entregas-hoy')?.click();
             showToast('Entrega eliminada', 'info');
+            logAuditMovement({
+              modulo: 'Caja Principal',
+              accion: 'ELIMINAR_ENTREGA_DINERO',
+              descripcion: `Eliminación de entrega de dinero: ID ${id}`,
+              payload: { id },
+              reversible: false
+            });
           });
         }
       }
@@ -5626,6 +5711,17 @@
       // Si entramos al paso 4, refrescar resumen
       if (targetStep === 4) {
         updateVentaSummary();
+      }
+
+      // Registrar avance en auditoría si no es el paso 1 inicial
+      if (targetStep > 1) {
+        logAuditMovement({
+          modulo: 'Ventas',
+          accion: 'NAVEGACION_ASISTENTE',
+          descripcion: `Avance en formulario de venta al Paso ${targetStep} de 4 (${stepTitles[targetStep] || ''})`,
+          payload: { targetStep },
+          reversible: false
+        });
       }
 
       // En pantallas móviles, scroll suave al inicio de la tarjeta del asistente
@@ -6075,18 +6171,39 @@
 
     document.getElementById('ventas_filtro_fecha')?.addEventListener('change', (e) => {
       renderVentas(e.target.value);
+      logAuditMovement({
+        modulo: 'Ventas',
+        accion: 'FILTRO_FECHA_VENTAS',
+        descripcion: `Consulta de ventas de la fecha: ${e.target.value}`,
+        payload: { fecha: e.target.value },
+        reversible: false
+      });
     });
 
     document.getElementById('btn-ventas-hoy')?.addEventListener('click', () => {
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('ventas_filtro_fecha').value = today;
       renderVentas(today);
+      logAuditMovement({
+        modulo: 'Ventas',
+        accion: 'FILTRO_FECHA_VENTAS',
+        descripcion: `Consulta rápida de ventas de HOY (${today})`,
+        payload: { fecha: today },
+        reversible: false
+      });
     });
 
     document.getElementById('btn-refresh-ventas')?.addEventListener('click', () => {
       const fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
       renderVentas(fecha);
       showToast('Ventas recargadas desde Firebase', 'info');
+      logAuditMovement({
+        modulo: 'Ventas',
+        accion: 'RECARGAR_VENTAS',
+        descripcion: `Sincronización manual de ventas de la fecha: ${fecha}`,
+        payload: { fecha },
+        reversible: false
+      });
     });
 
     // Selectores interactivos de Método de Pago en Formulario
@@ -6165,51 +6282,88 @@
     // Switcher de Vista: Tabla vs Tarjetas
     document.getElementById('btn-view-tabla')?.addEventListener('click', () => {
       setVentasViewMode('tabla');
+      logAuditMovement({
+        modulo: 'Ventas',
+        accion: 'CAMBIO_VISTA_VENTAS',
+        descripcion: 'Cambio de vista en listado de ventas a Tabla Detallada',
+        payload: { vista: 'tabla' },
+        reversible: false
+      });
     });
 
     document.getElementById('btn-view-tarjetas')?.addEventListener('click', () => {
       setVentasViewMode('tarjetas');
+      logAuditMovement({
+        modulo: 'Ventas',
+        accion: 'CAMBIO_VISTA_VENTAS',
+        descripcion: 'Cambio de vista en listado de ventas a Tarjetas Visuales',
+        payload: { vista: 'tarjetas' },
+        reversible: false
+      });
     });
 
-    // Filtro por término de búsqueda en lista
+    // Filtro por término de búsqueda en lista con registro de auditoría
+    let searchDebounceTimer = null;
     document.getElementById('ventas-search-input')?.addEventListener('input', (e) => {
       currentVentasSearchTerm = e.target.value;
       renderVentasFilteredList();
+      clearTimeout(searchDebounceTimer);
+      if (currentVentasSearchTerm.trim().length >= 2) {
+        searchDebounceTimer = setTimeout(() => {
+          logAuditMovement({
+            modulo: 'Ventas',
+            accion: 'BUSQUEDA_VENTAS',
+            descripcion: `Búsqueda en listado de ventas: "${currentVentasSearchTerm.trim()}"`,
+            payload: { term: currentVentasSearchTerm.trim() },
+            reversible: false
+          });
+        }, 1200);
+      }
     });
 
-    // Filtros por chips de método en lista
+    // Filtros por chips de método en lista con registro de auditoría
     document.querySelectorAll('.ventas-filter-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         document.querySelectorAll('.ventas-filter-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         currentVentasMetodoFilter = chip.dataset.metodoFilter || 'todos';
         renderVentasFilteredList();
+        logAuditMovement({
+          modulo: 'Ventas',
+          accion: 'FILTRO_METODO_VENTAS',
+          descripcion: `Filtro aplicado en ventas por método: ${currentVentasMetodoFilter}`,
+          payload: { metodo: currentVentasMetodoFilter },
+          reversible: false
+        });
       });
     });
 
-    // Eliminación de ventas (tanto desde tabla como desde tarjetas visuales)
+    // Eliminación de ventas: Requiere Clave Privada de Gerencia
     document.addEventListener('click', async (e) => {
       const btnDel = e.target.closest('.btn-del-venta');
       if (btnDel) {
         const id = btnDel.dataset.id;
         const fecha = btnDel.dataset.fecha;
-        if (confirm('¿Está seguro de eliminar esta venta?')) {
-          const allVentasDia = await TB_FIREBASE.getVentasByFecha(fecha);
-          const ventaBackup = Array.isArray(allVentasDia) ? allVentasDia.find(v => v.id === id) : allVentasDia?.[id];
-          await TB_FIREBASE.deleteVenta(fecha, id);
-          renderVentas(fecha);
-          if (fecha === document.getElementById('header_fecha')?.value) {
-            syncVentasToCajaPrincipal(fecha, false);
-          }
-          showToast('Venta eliminada', 'info');
+        
+        // Solicitar Clave Privada de Gerencia de forma confidencial
+        const autorizado = await solicitarClaveGerencia('eliminar este registro de venta');
+        if (!autorizado) return;
 
-          logAuditMovement({
-            modulo: 'Ventas',
-            accion: 'BAJA_VENTA',
-            descripcion: `Eliminación de venta: ${ventaBackup?.servicio || id} por $${parseFloat(ventaBackup?.totalCobrado || 0).toFixed(2)} (Fecha: ${fecha})`,
-            payload: { fecha, id, venta: ventaBackup }
-          });
+        const allVentasDia = await TB_FIREBASE.getVentasByFecha(fecha);
+        const ventaBackup = Array.isArray(allVentasDia) ? allVentasDia.find(v => v.id === id) : allVentasDia?.[id];
+        await TB_FIREBASE.deleteVenta(fecha, id);
+        renderVentas(fecha);
+        if (fecha === document.getElementById('header_fecha')?.value) {
+          syncVentasToCajaPrincipal(fecha, false);
         }
+        showToast('✅ Venta eliminada con autorización gerencial', 'success');
+
+        logAuditMovement({
+          modulo: 'Ventas',
+          accion: 'BAJA_VENTA_AUTORIZADA',
+          descripcion: `Eliminación de venta autorizada con clave gerencial: ${ventaBackup?.servicio || id} por $${parseFloat(ventaBackup?.totalCobrado || 0).toFixed(2)} (${ventaBackup?.clienta || 'Cliente'}) - Fecha: ${fecha}`,
+          payload: { fecha, id, venta: ventaBackup }
+        });
       }
     });
 
