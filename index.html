@@ -300,28 +300,28 @@
               <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
                 <div class="form-group">
                   <label for="header_fecha">Fecha del Arqueo <span class="required">*</span></label>
-                  <input type="date" id="header_fecha" class="input-date" required readonly style="background:#141414; cursor:not-allowed; color:#ffffff; border:1px solid #333333; pointer-events:none;">
+                  <input type="date" id="header_fecha" class="input-date" required readonly style="background:#f8fafc; cursor:not-allowed; color:#000000; border:1.5px solid #cbd5e1; pointer-events:none;">
                 </div>
                 <div class="form-group">
                   <label for="header_responsable">Responsable de Caja (Nombre): <span class="required">*</span></label>
-                  <input type="text" id="header_responsable" class="input-text" placeholder="Correo del usuario activo" required readonly style="background:#141414; cursor:not-allowed; font-weight:600; color:#ffffff; border:1px solid #333333;">
+                  <input type="text" id="header_responsable" class="input-text" placeholder="Correo del usuario activo" required readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600; color:#000000; border:1.5px solid #cbd5e1;">
                 </div>
                 <div class="form-group">
                   <label for="header_hora">Hora de Registro <span class="required">*</span></label>
-                  <input type="time" id="header_hora" class="input-time" required readonly style="background:#141414; cursor:not-allowed; color:#ffffff; border:1px solid #333333; pointer-events:none;">
+                  <input type="time" id="header_hora" class="input-time" required readonly style="background:#f8fafc; cursor:not-allowed; color:#000000; border:1.5px solid #cbd5e1; pointer-events:none;">
                 </div>
               </div>
             </div>
           </div>
 
           <!-- BARRA RÁPIDA DE FONDO Y ENTREGAS DE DINERO -->
-          <div class="caja-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#0c0c0c; padding:14px 18px; border-radius:12px; border:1px solid #262626;">
+          <div class="caja-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#ffffff; padding:14px 18px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <span style="font-size:0.88rem; font-weight:700; color:#ffffff;">
-                🪙 Fondo en Caja: <strong id="lbl-fondo-disponible" style="color:#22c55e; font-size:1.05rem;">$0.00</strong>
+              <span style="font-size:0.88rem; font-weight:700; color:#000000;">
+                🪙 Fondo en Caja: <strong id="lbl-fondo-disponible" style="color:#15803d; font-size:1.05rem;">$0.00</strong>
               </span>
-              <span style="font-size:0.75rem; color:#94a3b8;">
-                (Base: <span id="lbl-fondo-base">$0.00</span> &bull; Entregado Hoy: <span id="lbl-total-entregado" style="color:#ef4444; font-weight:700;">$0.00</span>)
+              <span style="font-size:0.75rem; color:#64748b;">
+                (Base: <span id="lbl-fondo-base">$0.00</span> &bull; Entregado Hoy: <span id="lbl-total-entregado" style="color:#b91c1c; font-weight:700;">$0.00</span>)
               </span>
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -350,14 +350,14 @@
             </div>
             <div class="section-body" style="padding: 24px 20px;">
               <div style="max-width: 440px; margin: 0 auto; text-align: center;">
-                <label for="conteo_total_efectivo" style="font-size: 1rem; font-weight: 800; color: #ffffff; margin-bottom: 8px; display: block;">
+                <label for="conteo_total_efectivo" style="font-size: 1rem; font-weight: 800; color: #000000; margin-bottom: 8px; display: block;">
                   ¿Cuánto dinero en efectivo hay físicamente en la caja? <span class="required">*</span>
                 </label>
-                <div class="currency-input-wrap" style="background:#141414; border: 2px solid var(--primary); border-radius: 12px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25); display: flex; align-items: center;">
+                <div class="currency-input-wrap" style="background:#ffffff; border: 2.5px solid var(--primary); border-radius: 12px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(212, 175, 55, 0.18); display: flex; align-items: center;">
                   <span class="currency-prefix" style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-right: 6px;">$</span>
-                  <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="conteo_total_efectivo" placeholder="0.00" value="" style="font-size: 1.8rem; font-weight: 800; color: #ffffff; text-align: right; width: 100%; border: none; outline: none; background: transparent;">
+                  <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="conteo_total_efectivo" placeholder="0.00" value="" style="font-size: 1.8rem; font-weight: 800; color: #000000; text-align: right; width: 100%; border: none; outline: none; background: transparent;">
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 0.8rem; color: #94a3b8;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 0.8rem; color: #64748b;">
                   <span>Sume billetes y monedas al cierre</span>
                   <span id="hint-conteo-estado" style="font-weight: 700; color: var(--primary);">Pendiente de captura</span>
                 </div>
@@ -390,27 +390,27 @@
                     <tr>
                       <td>Fondo disponible inicial de caja</td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_fondo_inicial" value="0.00" readonly></div></td>
-                      <td><span style="font-weight:700; color:#d4af37;">Base de apertura</span></td>
+                      <td><span style="font-weight:700; color:#334155;">Base de apertura</span></td>
                     </tr>
                     <tr>
                       <td>(+) Ventas del día registradas en efectivo</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly style="font-weight:700; color:#22c55e;"></div></td>
-                      <td><span style="font-weight:700; color:#22c55e;">(+) Registro Diario de Ventas</span></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly style="font-weight:700; color:#15803d;"></div></td>
+                      <td><span style="font-weight:700; color:#15803d;">(+) Registro Diario de Ventas</span></td>
                     </tr>
-                    <tr style="background-color:#141414; font-weight:800; color:#ffffff;">
+                    <tr style="background-color:#f8fafc; font-weight:800; color:#000000;">
                       <td><strong>(=) Efectivo esperado en caja al cierre</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800; font-size:1rem; color:#fef08a;"></div></td>
-                      <td><strong style="color:#d4af37;">(=) Fondo + Ventas Efectivo</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800; font-size:1rem; color:#000000;"></div></td>
+                      <td><strong style="color:#000000;">(=) Fondo + Ventas Efectivo</strong></td>
                     </tr>
-                    <tr style="background-color:#0d1b2a;">
-                      <td style="color:#93c5fd; font-weight:700;">Efectivo físico en caja (Capturado)</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly style="color:#93c5fd; font-size:1.05rem;"></div></td>
-                      <td><strong style="color:#93c5fd;">(Total Contado)</strong></td>
+                    <tr style="background-color:#eff6ff;">
+                      <td style="color:#1e40af; font-weight:700;">Efectivo físico en caja (Capturado)</td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly style="color:#1e40af; font-size:1.05rem; font-weight:800;"></div></td>
+                      <td><strong style="color:#1e40af;">(Total Contado)</strong></td>
                     </tr>
-                    <tr style="background-color:#1c1114;">
-                      <td><strong style="font-size:1rem; color:#ffffff;">Diferencia de caja</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_diferencia_caja" value="0.00" readonly style="font-size:1.15rem; font-weight:800;"></div></td>
-                      <td><span id="concil_diferencia_label" style="font-weight:700;">Sin diferencia</span></td>
+                    <tr style="background-color:#fef2f2;">
+                      <td><strong style="font-size:1rem; color:#b91c1c;">Diferencia de caja</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_diferencia_caja" value="0.00" readonly style="font-size:1.15rem; font-weight:800; color:#b91c1c;"></div></td>
+                      <td><span id="concil_diferencia_label" style="font-weight:700; color:#b91c1c;">Sin diferencia</span></td>
                     </tr>
                   </tbody>
                 </table>
@@ -693,23 +693,23 @@
               </div>
             </div>
             <div class="section-body">
-              <div style="background:#0c0c0c; border:1px solid #262626; border-radius:12px; padding:18px 22px; max-width:720px; box-shadow:0 4px 16px rgba(0,0,0,0.6);">
+              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 22px; max-width:720px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:18px; align-items:center;">
                   <div>
-                    <span style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; font-weight:700; display:block; margin-bottom:4px;">Fondo Base Asignado</span>
-                    <span id="lbl-chica-base" style="font-size:1.25rem; font-weight:800; color:#ffffff;">$0.00</span>
-                    <span style="font-size:0.75rem; color:#d4af37; display:block;">(De Configuración)</span>
+                    <span style="font-size:0.75rem; text-transform:uppercase; color:#64748b; font-weight:700; display:block; margin-bottom:4px;">Fondo Base Asignado</span>
+                    <span id="lbl-chica-base" style="font-size:1.25rem; font-weight:800; color:#000000;">$0.00</span>
+                    <span style="font-size:0.75rem; color:#b45309; display:block;">(De Configuración)</span>
                   </div>
                   <div>
-                    <span style="font-size:0.75rem; text-transform:uppercase; color:#ef4444; font-weight:700; display:block; margin-bottom:4px;">Salidas del Mes Registradas</span>
-                    <span id="lbl-chica-descuentos" style="font-size:1.25rem; font-weight:800; color:#ef4444;">-$0.00</span>
-                    <span style="font-size:0.75rem; color:#94a3b8; display:block;">(Descontadas en BD)</span>
+                    <span style="font-size:0.75rem; text-transform:uppercase; color:#b91c1c; font-weight:700; display:block; margin-bottom:4px;">Salidas del Mes Registradas</span>
+                    <span id="lbl-chica-descuentos" style="font-size:1.25rem; font-weight:800; color:#b91c1c;">-$0.00</span>
+                    <span style="font-size:0.75rem; color:#64748b; display:block;">(Descontadas en BD)</span>
                   </div>
                   <div>
                     <label for="chica_fondo_inicial" style="font-size:0.78rem; text-transform:uppercase; color:var(--primary); font-weight:800; display:block; margin-bottom:4px;">Fondo Inicial Disponible</label>
                     <div class="currency-input-wrap">
                       <span class="currency-prefix">$</span>
-                      <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger" id="chica_fondo_inicial" value="0.00" readonly style="background:#141414; font-weight:800; font-size:1.15rem; color:#fef08a; border:1px solid #333333;">
+                      <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger" id="chica_fondo_inicial" value="0.00" readonly style="background:#f8fafc; font-weight:800; font-size:1.15rem; color:#000000; border:1.5px solid #cbd5e1;">
                     </div>
                   </div>
                 </div>
@@ -899,7 +899,7 @@
                 
                 <div class="form-group" style="max-width:440px; margin:0 auto 20px auto;">
                   <label for="chica_val_nombre" style="font-weight:700; color:#ffffff;">Responsable de Caja Chica: <span class="required">*</span></label>
-                  <input type="text" class="input-text" id="chica_val_nombre" placeholder="Correo del responsable" required readonly style="background:#141414; cursor:not-allowed; font-weight:600; color:#ffffff; border:1px solid #333333;">
+                  <input type="text" class="input-text" id="chica_val_nombre" placeholder="Correo del responsable" required readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600; color:#000000; border:1.5px solid #cbd5e1;">
                 </div>
 
                 <!-- FIRMA DIGITAL DEL RESPONSABLE (CUADRITO NEGRO INTERACTIVO) -->
@@ -961,7 +961,7 @@
           </div>
         </div>
 
-        <div id="historial-empty-state" style="text-align:center; padding:50px 20px; background:#0c0c0c; border-radius:var(--radius-lg); border:1px solid #262626; color:#ffffff; display:none;">
+        <div id="historial-empty-state" style="text-align:center; padding:50px 20px; background:#ffffff; border-radius:var(--radius-lg); border:1px solid #e2e8f0; color:#000000; box-shadow:0 2px 10px rgba(0,0,0,0.05); display:none;">
           <span style="font-size:3rem;">📂</span>
           <h3 style="margin-top:10px; color:#ffffff;">No hay arqueos registrados para esta fecha</h3>
           <p style="color:#a1a1aa; font-size:0.9rem; margin-top:4px;">Los arqueos guardados en Firebase aparecerán listados aquí.</p>
@@ -3725,11 +3725,11 @@
        MODAL LIGHTBOX PARA VER FOTOGRAFÍA EN GRANDE
        ======================================================================== -->
   <div class="modal-backdrop-custom" id="modal-ver-foto" style="display:none; z-index:99999;">
-    <div style="background:#0c0c0c; border:1.5px solid #d4af37; border-radius:12px; padding:16px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.85);">
+    <div style="background:#ffffff; border:1.5px solid #d4af37; border-radius:12px; padding:16px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
       <button type="button" id="btn-close-ver-foto" style="position:absolute; top:8px; right:12px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#d4af37;">✕</button>
-      <h4 id="ver-foto-titulo" style="margin:0 0 10px 0; font-size:1rem; color:#ffffff; font-weight:700;">Comprobante de Entrega</h4>
-      <img id="img-ver-foto-full" src="" alt="Comprobante" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:6px; border:1px solid #333333;">
-      <div id="ver-foto-meta" style="margin-top:8px; font-size:0.8rem; color:#d4af37;"></div>
+      <h4 id="ver-foto-titulo" style="margin:0 0 10px 0; font-size:1rem; color:#000000; font-weight:700;">Comprobante de Entrega</h4>
+      <img id="img-ver-foto-full" src="" alt="Comprobante" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0;">
+      <div id="ver-foto-meta" style="margin-top:8px; font-size:0.8rem; color:#b45309; font-weight:600;"></div>
     </div>
   </div>
 
@@ -3737,13 +3737,13 @@
        MODAL DE VISUALIZACIÓN Y DESCARGA DE PDF DE REPORTES DIARIOS DE ARQUEO
        ======================================================================== -->
   <div class="modal-backdrop-custom" id="modal-view-pdf-report" style="display:none; z-index:99999;">
-    <div style="background:#0c0c0c; border:1.5px solid #d4af37; border-radius:12px; width:95vw; max-width:920px; height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.85); overflow:hidden;">
-      <div style="padding:14px 20px; background:#0f172a; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
+    <div style="background:#ffffff; border:1.5px solid #d4af37; border-radius:12px; width:95vw; max-width:920px; height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden;">
+      <div style="padding:14px 20px; background:#000000; color:#d4af37; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #d4af37;">
         <div>
-          <h3 id="pdf-modal-title" style="margin:0; font-size:1.05rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+          <h3 id="pdf-modal-title" style="margin:0; font-size:1.05rem; font-weight:800; display:flex; align-items:center; gap:8px; color:#d4af37;">
             <span>📄</span> Reporte Oficial de Arqueo
           </h3>
-          <span id="pdf-modal-subtitle" style="font-size:0.8rem; color:#94a3b8;">Visualización completa y descarga de PDF oficial</span>
+          <span id="pdf-modal-subtitle" style="font-size:0.8rem; color:#fef08a;">Visualización completa y descarga de PDF oficial</span>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
           <button type="button" class="btn btn-firebase btn-sm" id="btn-download-modal-pdf" style="font-weight:700; padding:6px 14px; font-size:0.85rem;">
@@ -3752,7 +3752,7 @@
           <button type="button" class="btn btn-secondary btn-sm" id="btn-print-modal-pdf" style="font-weight:700; padding:6px 14px; font-size:0.85rem;">
             <span>🖨️</span> Imprimir
           </button>
-          <button type="button" id="btn-close-pdf-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8; padding:0 6px; line-height:1;" title="Cerrar vista previa">✕</button>
+          <button type="button" id="btn-close-pdf-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#d4af37; padding:0 6px; line-height:1;" title="Cerrar vista previa">✕</button>
         </div>
       </div>
       <div id="pdf-modal-body" style="flex:1; overflow-y:auto; background:#f1f5f9; padding:24px 16px; display:flex; justify-content:center;">
@@ -3781,25 +3781,25 @@
         <button type="button" id="btn-close-lead-modal" style="background:none; border:none; color:#cbd5e1; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
       </div>
 
-      <div class="master-modal-body" style="overflow-y:auto; padding:20px; flex:1; background:#0a0a0a;">
+      <div class="master-modal-body" style="overflow-y:auto; padding:20px; flex:1; background:#ffffff; color:#000000;">
         
         <!-- Ficha de Información del Prospecto -->
-        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:14px 16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
             <div>
-              <span style="font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">Interés Registrado:</span>
-              <div style="font-size:1rem; font-weight:800; color:#ffffff;" id="mlead-servicio">--</div>
-              <span style="font-size:0.75rem; color:#94a3b8;">Canal de Captación: <strong id="mlead-canal" style="color:#d4af37;">--</strong></span>
+              <span style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase;">Interés Registrado:</span>
+              <div style="font-size:1rem; font-weight:800; color:#000000;" id="mlead-servicio">--</div>
+              <span style="font-size:0.75rem; color:#64748b;">Canal de Captación: <strong id="mlead-canal" style="color:#b45309;">--</strong></span>
             </div>
             <div>
-              <span style="font-size:0.72rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:2px; text-transform:uppercase;">Tipificación Actual:</span>
+              <span style="font-size:0.72rem; font-weight:700; color:#64748b; display:block; margin-bottom:2px; text-transform:uppercase;">Tipificación Actual:</span>
               <span id="mlead-tipif-actual" class="status-badge status-pendiente" style="font-size:0.85rem; padding:4px 12px; font-weight:800;">
                 Interesada
               </span>
             </div>
           </div>
 
-          <div style="display:flex; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px dashed #262626;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px dashed #cbd5e1;">
             <a href="#" target="_blank" id="mlead-btn-wa" class="btn-whatsapp btn-sm" style="text-decoration:none;">
               <span>💬</span> Enviar WhatsApp
             </a>
@@ -3810,18 +3810,18 @@
         </div>
 
         <!-- Historial de Contactos (Timeline) -->
-        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
-          <div style="font-size:0.88rem; font-weight:800; color:#ffffff; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size:0.88rem; font-weight:800; color:#000000; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
             <span>📋</span> Historial Cronológico de Contactos Realizados
           </div>
           <div id="mlead-timeline-container">
-            <div style="text-align:center; padding:14px; color:#94a3b8; font-size:0.85rem;">Cargando historial...</div>
+            <div style="text-align:center; padding:14px; color:#64748b; font-size:0.85rem;">Cargando historial...</div>
           </div>
         </div>
 
         <!-- Formulario para Registrar Nueva Tipificación -->
-        <div style="background:#111111; border:1px solid #262626; border-radius:10px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
-          <div style="font-size:0.9rem; font-weight:800; color:#d4af37; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size:0.9rem; font-weight:800; color:#000000; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
             <span>➕</span> Registrar Nuevo Contacto y Actualizar Tipificación
           </div>
           
@@ -3881,15 +3881,15 @@
           <p style="margin:2px 0 0 0; font-size:0.8rem; color:#d4af37;">Acción restringida de alta seguridad</p>
         </div>
       </div>
-      <div class="master-modal-body" style="padding:22px; background:#0c0c0c; color:#ffffff;">
-        <p id="txt-auth-gerencia-desc" style="font-size:0.9rem; color:#f1f5f9; margin-bottom:14px; line-height:1.45;">
+      <div class="master-modal-body" style="padding:22px; background:#ffffff; color:#000000;">
+        <p id="txt-auth-gerencia-desc" style="font-size:0.9rem; color:#000000; margin-bottom:14px; line-height:1.45;">
           Para autorizar esta operación, ingrese la <strong>Clave Privada de Gerencia</strong>:
         </p>
         <div class="form-group" style="margin-bottom:16px;">
-          <label for="input-pin-gerencia" style="font-weight:700; font-size:0.85rem; color:#d4af37; margin-bottom:6px; display:block;">
+          <label for="input-pin-gerencia" style="font-weight:700; font-size:0.85rem; color:#000000; margin-bottom:6px; display:block;">
             🔑 Clave Privada de Gerencia
           </label>
-          <input type="password" id="input-pin-gerencia" class="styled-input input-text" placeholder="Ingrese clave de autorización" autocomplete="off" style="letter-spacing:4px; font-size:1.15rem; text-align:center; font-weight:700; width:100%; background:#181818; color:#ffffff; border:1.5px solid #d4af37;">
+          <input type="password" id="input-pin-gerencia" class="styled-input input-text" placeholder="Ingrese clave de autorización" autocomplete="off" style="letter-spacing:4px; font-size:1.15rem; text-align:center; font-weight:700; width:100%; background:#ffffff; color:#000000; border:1.5px solid #d4af37;">
           <div id="msg-pin-gerencia-error" style="display:none; color:#ef4444; font-size:0.82rem; font-weight:700; margin-top:8px; text-align:center;">
             ❌ Clave incorrecta. Autorización denegada.
           </div>
