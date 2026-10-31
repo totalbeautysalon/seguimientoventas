@@ -1074,12 +1074,17 @@
                       <span class="pill-icon">📱</span>
                       <span class="pill-name">Transferencia</span>
                     </button>
+                    <button type="button" class="btn-metodo-pill btn-pill-mixto" data-metodo="Mixto">
+                      <span class="pill-icon">🔀</span>
+                      <span class="pill-name">Varios Medios</span>
+                    </button>
                   </div>
                   <!-- Select original sincronizado para compatibilidad 100% -->
                   <select id="venta_metodo_pago" class="input-text" style="display:none;" required>
                     <option value="Efectivo" selected>💵 Efectivo</option>
                     <option value="Tarjeta">💳 Tarjeta / Terminal</option>
                     <option value="Transferencia">📱 Transferencia Bancaria</option>
+                    <option value="Mixto">🔀 Varios Medios de Pago (Mixto)</option>
                   </select>
                 </div>
 
@@ -1106,6 +1111,75 @@
                     <option value="Anticipo">🟡 Anticipo</option>
                     <option value="Saldo pendiente">🔴 Saldo pendiente</option>
                   </select>
+                </div>
+
+                <!-- Desglose de Varios Medios de Pago (Condicional para Pago Mixto / Múltiple) -->
+                <div id="wrap-desglose-pagos-mixtos" class="desglose-pagos-card" style="display:none; grid-column:1 / -1;">
+                  <div class="desglose-pagos-header">
+                    <div>
+                      <h5 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                        <span>🔀</span> Desglose de Varios Medios de Pago
+                      </h5>
+                      <p style="margin:2px 0 0 0; font-size:0.78rem; color:#64748b;">
+                        Ingrese la cantidad que la clienta pagó con cada medio. La suma debe igualar el Total Cobrado.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="desglose-inputs-grid">
+                    <!-- Efectivo -->
+                    <div class="desglose-input-col">
+                      <label for="pago_monto_efectivo" class="desglose-label">
+                        <span>💵</span> Efectivo
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency input-desglose-pago" id="pago_monto_efectivo" placeholder="0.00">
+                      </div>
+                    </div>
+
+                    <!-- Tarjeta -->
+                    <div class="desglose-input-col">
+                      <label for="pago_monto_tarjeta" class="desglose-label">
+                        <span>💳</span> Tarjeta / Terminal
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency input-desglose-pago" id="pago_monto_tarjeta" placeholder="0.00">
+                      </div>
+                    </div>
+
+                    <!-- Transferencia -->
+                    <div class="desglose-input-col">
+                      <label for="pago_monto_transf" class="desglose-label">
+                        <span>📱</span> Transferencia
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency input-desglose-pago" id="pago_monto_transf" placeholder="0.00">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Barra de Conciliación en Vivo -->
+                  <div class="desglose-balance-bar" id="desglose-balance-bar">
+                    <div class="desglose-balance-info">
+                      <span>Total: <strong id="lbl-desglose-total" style="color:#0f172a;">$0.00</strong></span>
+                      <span>Suma ingresada: <strong id="lbl-desglose-suma" style="color:#16a34a;">$0.00</strong></span>
+                      <span id="lbl-desglose-diferencia-wrap" style="display:none;">Diferencia: <strong id="lbl-desglose-dif" style="color:#dc2626;">$0.00</strong></span>
+                    </div>
+                    <div id="desglose-status-badge" class="desglose-status-badge badge-incompleto">
+                      ⚠️ Ingrese los montos
+                    </div>
+                  </div>
+
+                  <!-- Botones rápidos para asignar restante -->
+                  <div class="desglose-quick-assign" id="desglose-quick-assign" style="display:none;">
+                    <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Asignar restante a:</span>
+                    <button type="button" class="btn-quick-fill" data-fill="efectivo">💵 Efectivo</button>
+                    <button type="button" class="btn-quick-fill" data-fill="tarjeta">💳 Tarjeta</button>
+                    <button type="button" class="btn-quick-fill" data-fill="transferencia">📱 Transferencia</button>
+                  </div>
                 </div>
               </div>
 
@@ -1195,6 +1269,7 @@
                     </div>
                     <div class="summary-badges-col">
                       <span class="summary-badge-pill" id="resumen-val-metodo">💵 Efectivo</span>
+                      <div id="resumen-desglose-chips" style="display:none; gap:4px; flex-wrap:wrap; justify-content:flex-end;"></div>
                       <span class="summary-badge-pill" id="resumen-val-status">✅ Pagado completo</span>
                     </div>
                   </div>

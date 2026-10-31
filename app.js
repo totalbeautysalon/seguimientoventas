@@ -282,11 +282,17 @@
     currentVentasList.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
       totCobrado += imp;
-      const mp = (v.metodoPago || '').toLowerCase();
-      if (mp.includes('efec')) totEfec += imp;
-      else if (mp.includes('tarj')) totTarj += imp;
-      else if (mp.includes('transf')) totTransf += imp;
-      else totEfec += imp;
+      if (v.desglosePago) {
+        totEfec += parseFloat(v.desglosePago.efectivo) || 0;
+        totTarj += parseFloat(v.desglosePago.tarjeta) || 0;
+        totTransf += parseFloat(v.desglosePago.transferencia) || 0;
+      } else {
+        const mp = (v.metodoPago || '').toLowerCase();
+        if (mp.includes('efec')) totEfec += imp;
+        else if (mp.includes('tarj')) totTarj += imp;
+        else if (mp.includes('transf')) totTransf += imp;
+        else totEfec += imp;
+      }
     });
 
     setDisplay('kpi-ventas-total', totCobrado);
@@ -348,9 +354,16 @@
       // Filtro por método de pago
       if (metodoFilter !== 'todos') {
         const mp = (v.metodoPago || '').toLowerCase();
-        if (metodoFilter === 'efectivo' && !mp.includes('efec')) return false;
-        if (metodoFilter === 'tarjeta' && !mp.includes('tarj')) return false;
-        if (metodoFilter === 'transferencia' && !mp.includes('transf')) return false;
+        const d = v.desglosePago;
+        if (metodoFilter === 'efectivo') {
+          if (!mp.includes('efec') && (!d || !(parseFloat(d.efectivo) > 0))) return false;
+        }
+        if (metodoFilter === 'tarjeta') {
+          if (!mp.includes('tarj') && (!d || !(parseFloat(d.tarjeta) > 0))) return false;
+        }
+        if (metodoFilter === 'transferencia') {
+          if (!mp.includes('transf') && (!d || !(parseFloat(d.transferencia) > 0))) return false;
+        }
       }
       // Filtro por término de búsqueda
       if (search) {
@@ -402,8 +415,22 @@
         // Método badge
         let metodoBadge = `<span class="badge-metodo-pago metodo-efectivo">💵 Efectivo</span>`;
         const mpLower = (v.metodoPago || '').toLowerCase();
-        if (mpLower.includes('tarj')) metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
-        if (mpLower.includes('transf')) metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+        if (v.desglosePago && (v.metodoPago === 'Mixto' || (v.desglosePago.efectivo > 0 && (v.desglosePago.tarjeta > 0 || v.desglosePago.transferencia > 0)) || (v.desglosePago.tarjeta > 0 && v.desglosePago.transferencia > 0))) {
+          const parts = [];
+          if (v.desglosePago.efectivo > 0) parts.push(`💵 ${formatCurrency(v.desglosePago.efectivo)}`);
+          if (v.desglosePago.tarjeta > 0) parts.push(`💳 ${formatCurrency(v.desglosePago.tarjeta)}`);
+          if (v.desglosePago.transferencia > 0) parts.push(`📱 ${formatCurrency(v.desglosePago.transferencia)}`);
+          metodoBadge = `
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span class="badge-metodo-pago metodo-mixto" title="${parts.join(' + ')}">🔀 Mixto</span>
+              <span style="font-size:0.72rem; color:var(--slate); font-weight:700;">${parts.join(' + ')}</span>
+            </div>
+          `;
+        } else if (mpLower.includes('tarj')) {
+          metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
+        } else if (mpLower.includes('transf')) {
+          metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+        }
 
         const avatar = getClientAvatar(v.clienta);
         const phone = formatPhoneLink(v.telefono);
@@ -455,8 +482,22 @@
 
         let metodoBadge = `<span class="badge-metodo-pago metodo-efectivo">💵 Efectivo</span>`;
         const mpLower = (v.metodoPago || '').toLowerCase();
-        if (mpLower.includes('tarj')) metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
-        if (mpLower.includes('transf')) metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+        if (v.desglosePago && (v.metodoPago === 'Mixto' || (v.desglosePago.efectivo > 0 && (v.desglosePago.tarjeta > 0 || v.desglosePago.transferencia > 0)) || (v.desglosePago.tarjeta > 0 && v.desglosePago.transferencia > 0))) {
+          const parts = [];
+          if (v.desglosePago.efectivo > 0) parts.push(`💵 ${formatCurrency(v.desglosePago.efectivo)}`);
+          if (v.desglosePago.tarjeta > 0) parts.push(`💳 ${formatCurrency(v.desglosePago.tarjeta)}`);
+          if (v.desglosePago.transferencia > 0) parts.push(`📱 ${formatCurrency(v.desglosePago.transferencia)}`);
+          metodoBadge = `
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span class="badge-metodo-pago metodo-mixto" title="${parts.join(' + ')}">🔀 Mixto</span>
+              <span style="font-size:0.72rem; color:var(--slate); font-weight:700;">${parts.join(' + ')}</span>
+            </div>
+          `;
+        } else if (mpLower.includes('tarj')) {
+          metodoBadge = `<span class="badge-metodo-pago metodo-tarjeta">💳 Tarjeta</span>`;
+        } else if (mpLower.includes('transf')) {
+          metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
+        }
 
         const avatar = getClientAvatar(v.clienta);
         const phone = formatPhoneLink(v.telefono);
@@ -516,17 +557,24 @@
     ventas.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
       const mp = (v.metodoPago || '').toLowerCase();
-      const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
 
       const est = (v.estacion || '').toLowerCase();
       const serv = (v.servicio || '').toLowerCase();
 
+      let targetCat = 'servicios';
       if (est.includes('academia') || serv.includes('curso') || serv.includes('taller')) {
-        matrix.cursos[col] += imp;
+        targetCat = 'cursos';
       } else if (est.includes('retail') || serv.includes('producto') || serv.includes('shampoo')) {
-        matrix.productos[col] += imp;
+        targetCat = 'productos';
+      }
+
+      if (v.desglosePago) {
+        matrix[targetCat].e += parseFloat(v.desglosePago.efectivo) || 0;
+        matrix[targetCat].j += parseFloat(v.desglosePago.tarjeta) || 0;
+        matrix[targetCat].t += parseFloat(v.desglosePago.transferencia) || 0;
       } else {
-        matrix.servicios[col] += imp;
+        const col = mp.includes('transf') ? 't' : (mp.includes('tarj') ? 'j' : 'e');
+        matrix[targetCat][col] += imp;
       }
     });
 
@@ -2055,10 +2103,16 @@
 
       ventasSt.forEach(v => {
         const val = parseFloat(v.totalCobrado) || 0;
-        const mp = (v.metodoPago || '').toLowerCase();
-        if (mp.includes('tarj')) mTarj += val;
-        else if (mp.includes('transf')) mTransf += val;
-        else mEfec += val;
+        if (v.desglosePago) {
+          mEfec += parseFloat(v.desglosePago.efectivo) || 0;
+          mTarj += parseFloat(v.desglosePago.tarjeta) || 0;
+          mTransf += parseFloat(v.desglosePago.transferencia) || 0;
+        } else {
+          const mp = (v.metodoPago || '').toLowerCase();
+          if (mp.includes('tarj')) mTarj += val;
+          else if (mp.includes('transf')) mTransf += val;
+          else mEfec += val;
+        }
 
         const sKey = (v.servicio || '').trim();
         if (sKey) servCounts[sKey] = (servCounts[sKey] || 0) + 1;
@@ -2321,15 +2375,24 @@
       const imp = parseFloat(v.totalCobrado) || 0;
       const mp = (v.metodoPago || '').toLowerCase();
       
-      if (mp.includes('tarj')) {
-        totTarj += imp;
-        countTarj++;
-      } else if (mp.includes('transf')) {
-        totTransf += imp;
-        countTransf++;
+      if (v.desglosePago) {
+        const e = parseFloat(v.desglosePago.efectivo) || 0;
+        const j = parseFloat(v.desglosePago.tarjeta) || 0;
+        const t = parseFloat(v.desglosePago.transferencia) || 0;
+        totEfec += e; if (e > 0) countEfec++;
+        totTarj += j; if (j > 0) countTarj++;
+        totTransf += t; if (t > 0) countTransf++;
       } else {
-        totEfec += imp;
-        countEfec++;
+        if (mp.includes('tarj')) {
+          totTarj += imp;
+          countTarj++;
+        } else if (mp.includes('transf')) {
+          totTransf += imp;
+          countTransf++;
+        } else {
+          totEfec += imp;
+          countEfec++;
+        }
       }
 
       if (v._unidad === 'academia') {
@@ -2692,9 +2755,18 @@
     ventas.forEach(v => {
       const imp = parseFloat(v.totalCobrado) || 0;
       const mp = (v.metodoPago || '').toLowerCase();
-      if (mp.includes('tarj')) { totTarj += imp; countTarj++; }
-      else if (mp.includes('transf')) { totTransf += imp; countTransf++; }
-      else { totEfec += imp; countEfec++; }
+      if (v.desglosePago) {
+        const e = parseFloat(v.desglosePago.efectivo) || 0;
+        const j = parseFloat(v.desglosePago.tarjeta) || 0;
+        const t = parseFloat(v.desglosePago.transferencia) || 0;
+        totEfec += e; if (e > 0) countEfec++;
+        totTarj += j; if (j > 0) countTarj++;
+        totTransf += t; if (t > 0) countTransf++;
+      } else {
+        if (mp.includes('tarj')) { totTarj += imp; countTarj++; }
+        else if (mp.includes('transf')) { totTransf += imp; countTransf++; }
+        else { totEfec += imp; countEfec++; }
+      }
 
       if (v._unidad === 'academia') { totAcad += imp; countAcad++; }
       else if (v._unidad === 'retail') { totRetail += imp; countRetail++; }
@@ -5032,11 +5104,28 @@
       if (elTot) elTot.textContent = formatCurrency(totVal);
 
       const elMet = document.getElementById('resumen-val-metodo');
-      if (elMet) {
-        let icon = '💵';
-        if (metodoVal.toLowerCase().includes('tarj')) icon = '💳';
-        else if (metodoVal.toLowerCase().includes('transf')) icon = '📱';
-        elMet.textContent = `${icon} ${metodoVal}`;
+      const elChips = document.getElementById('resumen-desglose-chips');
+      if (metodoVal === 'Mixto') {
+        const efec = parseFloat(document.getElementById('pago_monto_efectivo')?.value) || 0;
+        const tarj = parseFloat(document.getElementById('pago_monto_tarjeta')?.value) || 0;
+        const transf = parseFloat(document.getElementById('pago_monto_transf')?.value) || 0;
+        if (elMet) elMet.textContent = '🔀 Varios Medios';
+        if (elChips) {
+          let chips = '';
+          if (efec > 0) chips += `<span class="chip-pago chip-efectivo">💵 ${formatCurrency(efec)}</span> `;
+          if (tarj > 0) chips += `<span class="chip-pago chip-tarjeta">💳 ${formatCurrency(tarj)}</span> `;
+          if (transf > 0) chips += `<span class="chip-pago chip-transf">📱 ${formatCurrency(transf)}</span> `;
+          elChips.innerHTML = chips;
+          elChips.style.display = 'flex';
+        }
+      } else {
+        if (elChips) elChips.style.display = 'none';
+        if (elMet) {
+          let icon = '💵';
+          if (metodoVal.toLowerCase().includes('tarj')) icon = '💳';
+          else if (metodoVal.toLowerCase().includes('transf')) icon = '📱';
+          elMet.textContent = `${icon} ${metodoVal}`;
+        }
       }
 
       const elStat = document.getElementById('resumen-val-status');
@@ -5051,6 +5140,69 @@
       if (elNotas) {
         elNotas.textContent = notasVal ? notasVal : '(Sin notas adicionales)';
         elNotas.style.fontStyle = notasVal ? 'normal' : 'italic';
+      }
+    }
+
+    function recalcDesglosePagos() {
+      const efec = parseFloat(document.getElementById('pago_monto_efectivo')?.value) || 0;
+      const tarj = parseFloat(document.getElementById('pago_monto_tarjeta')?.value) || 0;
+      const transf = parseFloat(document.getElementById('pago_monto_transf')?.value) || 0;
+      const suma = efec + tarj + transf;
+      let total = parseFloat(document.getElementById('venta_total')?.value) || 0;
+
+      // Si total está vacío o en 0 pero se ingresaron montos en el desglose, sincronizar total
+      if (total <= 0 && suma > 0) {
+        document.getElementById('venta_total').value = suma.toFixed(2);
+        total = suma;
+      }
+
+      const dif = total - suma;
+
+      const elTotal = document.getElementById('lbl-desglose-total');
+      if (elTotal) elTotal.textContent = formatCurrency(total);
+
+      const elSuma = document.getElementById('lbl-desglose-suma');
+      if (elSuma) elSuma.textContent = formatCurrency(suma);
+
+      const elDif = document.getElementById('lbl-desglose-dif');
+      const elDifWrap = document.getElementById('lbl-desglose-diferencia-wrap');
+      const statusBadge = document.getElementById('desglose-status-badge');
+      const quickAssign = document.getElementById('desglose-quick-assign');
+
+      if (Math.abs(dif) < 0.005 && suma > 0) {
+        if (elDifWrap) elDifWrap.style.display = 'none';
+        if (statusBadge) {
+          statusBadge.className = 'desglose-status-badge badge-cuadrado';
+          statusBadge.textContent = '✅ Montos cuadrados perfectamente';
+        }
+        if (quickAssign) quickAssign.style.display = 'none';
+      } else if (dif > 0.005) {
+        if (elDifWrap) {
+          elDifWrap.style.display = 'inline';
+          if (elDif) elDif.textContent = `Faltan ${formatCurrency(dif)}`;
+        }
+        if (statusBadge) {
+          statusBadge.className = 'desglose-status-badge badge-incompleto';
+          statusBadge.textContent = `⚠️ Faltan ${formatCurrency(dif)} por asignar`;
+        }
+        if (quickAssign) quickAssign.style.display = 'flex';
+      } else if (dif < -0.005) {
+        if (elDifWrap) {
+          elDifWrap.style.display = 'inline';
+          if (elDif) elDif.textContent = `Exceso de ${formatCurrency(Math.abs(dif))}`;
+        }
+        if (statusBadge) {
+          statusBadge.className = 'desglose-status-badge badge-exceso';
+          statusBadge.textContent = `⚠️ Excede el total por ${formatCurrency(Math.abs(dif))}`;
+        }
+        if (quickAssign) quickAssign.style.display = 'none';
+      } else {
+        if (elDifWrap) elDifWrap.style.display = 'none';
+        if (statusBadge) {
+          statusBadge.className = 'desglose-status-badge badge-incompleto';
+          statusBadge.textContent = '⚠️ Ingrese los montos';
+        }
+        if (quickAssign) quickAssign.style.display = 'none';
       }
     }
 
@@ -5096,6 +5248,21 @@
         if (!metodo) {
           showToast('Por favor seleccione el método de pago', 'warning');
           return false;
+        }
+        if (metodo === 'Mixto') {
+          const efec = parseFloat(document.getElementById('pago_monto_efectivo')?.value) || 0;
+          const tarj = parseFloat(document.getElementById('pago_monto_tarjeta')?.value) || 0;
+          const transf = parseFloat(document.getElementById('pago_monto_transf')?.value) || 0;
+          const suma = efec + tarj + transf;
+          if (suma <= 0) {
+            showToast('Por favor ingrese los montos para cada medio de pago utilizado', 'warning');
+            document.getElementById('pago_monto_efectivo')?.focus();
+            return false;
+          }
+          if (Math.abs(suma - tot) > 0.01) {
+            showToast(`La suma de los medios de pago (${formatCurrency(suma)}) no coincide con el Total Cobrado (${formatCurrency(tot)})`, 'warning');
+            return false;
+          }
         }
         const status = document.getElementById('venta_status_pago')?.value;
         if (!status) {
@@ -5248,6 +5415,31 @@
         return;
       }
 
+      let desglosePago = null;
+      let montoEfectivo = 0;
+      let montoTarjeta = 0;
+      let montoTransferencia = 0;
+
+      if (metodoPago === 'Mixto') {
+        montoEfectivo = parseFloat(document.getElementById('pago_monto_efectivo')?.value) || 0;
+        montoTarjeta = parseFloat(document.getElementById('pago_monto_tarjeta')?.value) || 0;
+        montoTransferencia = parseFloat(document.getElementById('pago_monto_transf')?.value) || 0;
+        desglosePago = {
+          efectivo: montoEfectivo,
+          tarjeta: montoTarjeta,
+          transferencia: montoTransferencia
+        };
+      } else if (metodoPago === 'Tarjeta') {
+        montoTarjeta = totalCobrado;
+        desglosePago = { efectivo: 0, tarjeta: totalCobrado, transferencia: 0 };
+      } else if (metodoPago === 'Transferencia') {
+        montoTransferencia = totalCobrado;
+        desglosePago = { efectivo: 0, tarjeta: 0, transferencia: totalCobrado };
+      } else {
+        montoEfectivo = totalCobrado;
+        desglosePago = { efectivo: totalCobrado, tarjeta: 0, transferencia: 0 };
+      }
+
       const venta = {
         fecha,
         telefono,
@@ -5256,6 +5448,10 @@
         estacion,
         especialista,
         metodoPago,
+        desglosePago,
+        montoEfectivo,
+        montoTarjeta,
+        montoTransferencia,
         totalCobrado,
         statusPago,
         notas,
@@ -5280,6 +5476,10 @@
       document.getElementById('venta_especialista').value = '';
       document.getElementById('venta_total').value = '';
       document.getElementById('venta_notas').value = '';
+      if (document.getElementById('pago_monto_efectivo')) document.getElementById('pago_monto_efectivo').value = '';
+      if (document.getElementById('pago_monto_tarjeta')) document.getElementById('pago_monto_tarjeta').value = '';
+      if (document.getElementById('pago_monto_transf')) document.getElementById('pago_monto_transf').value = '';
+      if (document.getElementById('wrap-desglose-pagos-mixtos')) document.getElementById('wrap-desglose-pagos-mixtos').style.display = 'none';
       document.querySelectorAll('.btn-metodo-pill').forEach(b => b.classList.toggle('active', b.dataset.metodo === 'Efectivo'));
       document.querySelectorAll('.btn-status-pill').forEach(b => b.classList.toggle('active', b.dataset.status === 'Pagado completo'));
       if (document.getElementById('venta_metodo_pago')) document.getElementById('venta_metodo_pago').value = 'Efectivo';
@@ -5595,6 +5795,43 @@
           sel.value = metodo;
           sel.dispatchEvent(new Event('change'));
         }
+        const wrapDesglose = document.getElementById('wrap-desglose-pagos-mixtos');
+        if (wrapDesglose) {
+          if (metodo === 'Mixto') {
+            wrapDesglose.style.display = 'block';
+            recalcDesglosePagos();
+          } else {
+            wrapDesglose.style.display = 'none';
+          }
+        }
+      });
+    });
+
+    // Eventos para el cálculo en vivo del desglose de pagos mixtos
+    ['pago_monto_efectivo', 'pago_monto_tarjeta', 'pago_monto_transf', 'venta_total'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', recalcDesglosePagos);
+    });
+
+    // Botones rápidos para asignar restante en el pago mixto
+    document.querySelectorAll('.btn-quick-fill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fillTarget = btn.dataset.fill;
+        const total = parseFloat(document.getElementById('venta_total')?.value) || 0;
+        let e = parseFloat(document.getElementById('pago_monto_efectivo')?.value) || 0;
+        let j = parseFloat(document.getElementById('pago_monto_tarjeta')?.value) || 0;
+        let t = parseFloat(document.getElementById('pago_monto_transf')?.value) || 0;
+
+        if (fillTarget === 'efectivo') {
+          const rem = Math.max(0, total - (j + t));
+          document.getElementById('pago_monto_efectivo').value = rem.toFixed(2);
+        } else if (fillTarget === 'tarjeta') {
+          const rem = Math.max(0, total - (e + t));
+          document.getElementById('pago_monto_tarjeta').value = rem.toFixed(2);
+        } else if (fillTarget === 'transferencia') {
+          const rem = Math.max(0, total - (e + j));
+          document.getElementById('pago_monto_transf').value = rem.toFixed(2);
+        }
+        recalcDesglosePagos();
       });
     });
 
