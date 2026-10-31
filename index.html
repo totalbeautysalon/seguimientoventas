@@ -117,10 +117,6 @@
     <aside class="app-sidebar" id="app-sidebar">
       <div class="sidebar-header">
         <img src="assets/logoheader.png" alt="Logo" class="sidebar-logo" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
-        <div class="sidebar-title">
-          <h2>TOTAL BEAUTY</h2>
-          <p>Salón &bull; Academia</p>
-        </div>
       </div>
 
       <ul class="sidebar-menu">
@@ -304,28 +300,28 @@
               <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
                 <div class="form-group">
                   <label for="header_fecha">Fecha del Arqueo <span class="required">*</span></label>
-                  <input type="date" id="header_fecha" class="input-date" required readonly style="background:#f1f5f9; cursor:not-allowed; pointer-events:none;">
+                  <input type="date" id="header_fecha" class="input-date" required readonly style="background:#141414; cursor:not-allowed; color:#ffffff; border:1px solid #333333; pointer-events:none;">
                 </div>
                 <div class="form-group">
                   <label for="header_responsable">Responsable de Caja (Nombre): <span class="required">*</span></label>
-                  <input type="text" id="header_responsable" class="input-text" placeholder="Correo del usuario activo" required readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:600; color:#1e293b;">
+                  <input type="text" id="header_responsable" class="input-text" placeholder="Correo del usuario activo" required readonly style="background:#141414; cursor:not-allowed; font-weight:600; color:#ffffff; border:1px solid #333333;">
                 </div>
                 <div class="form-group">
                   <label for="header_hora">Hora de Registro <span class="required">*</span></label>
-                  <input type="time" id="header_hora" class="input-time" required readonly style="background:#f1f5f9; cursor:not-allowed; pointer-events:none;">
+                  <input type="time" id="header_hora" class="input-time" required readonly style="background:#141414; cursor:not-allowed; color:#ffffff; border:1px solid #333333; pointer-events:none;">
                 </div>
               </div>
             </div>
           </div>
 
           <!-- BARRA RÁPIDA DE FONDO Y ENTREGAS DE DINERO -->
-          <div class="caja-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#f8fafc; padding:14px 18px; border-radius:12px; border:1px solid #e2e8f0;">
+          <div class="caja-actions-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#0c0c0c; padding:14px 18px; border-radius:12px; border:1px solid #262626;">
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <span style="font-size:0.88rem; font-weight:700; color:var(--dark);">
-                🪙 Fondo en Caja: <strong id="lbl-fondo-disponible" style="color:#16a34a; font-size:1.05rem;">$0.00</strong>
+              <span style="font-size:0.88rem; font-weight:700; color:#ffffff;">
+                🪙 Fondo en Caja: <strong id="lbl-fondo-disponible" style="color:#22c55e; font-size:1.05rem;">$0.00</strong>
               </span>
-              <span style="font-size:0.75rem; color:var(--muted);">
-                (Base: <span id="lbl-fondo-base">$0.00</span> &bull; Entregado Hoy: <span id="lbl-total-entregado" style="color:#dc2626; font-weight:700;">$0.00</span>)
+              <span style="font-size:0.75rem; color:#94a3b8;">
+                (Base: <span id="lbl-fondo-base">$0.00</span> &bull; Entregado Hoy: <span id="lbl-total-entregado" style="color:#ef4444; font-weight:700;">$0.00</span>)
               </span>
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -354,14 +350,14 @@
             </div>
             <div class="section-body" style="padding: 24px 20px;">
               <div style="max-width: 440px; margin: 0 auto; text-align: center;">
-                <label for="conteo_total_efectivo" style="font-size: 1rem; font-weight: 800; color: var(--dark); margin-bottom: 8px; display: block;">
+                <label for="conteo_total_efectivo" style="font-size: 1rem; font-weight: 800; color: #ffffff; margin-bottom: 8px; display: block;">
                   ¿Cuánto dinero en efectivo hay físicamente en la caja? <span class="required">*</span>
                 </label>
-                <div class="currency-input-wrap" style="background:#fff; border: 2px solid var(--primary); border-radius: 12px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(157, 23, 77, 0.12); display: flex; align-items: center;">
+                <div class="currency-input-wrap" style="background:#141414; border: 2px solid var(--primary); border-radius: 12px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25); display: flex; align-items: center;">
                   <span class="currency-prefix" style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-right: 6px;">$</span>
-                  <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="conteo_total_efectivo" placeholder="0.00" value="" style="font-size: 1.8rem; font-weight: 800; color: #0f172a; text-align: right; width: 100%; border: none; outline: none; background: transparent;">
+                  <input type="number" step="0.01" min="0" class="input-currency calc-trigger" id="conteo_total_efectivo" placeholder="0.00" value="" style="font-size: 1.8rem; font-weight: 800; color: #ffffff; text-align: right; width: 100%; border: none; outline: none; background: transparent;">
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 0.8rem; color: var(--muted);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px; font-size: 0.8rem; color: #94a3b8;">
                   <span>Sume billetes y monedas al cierre</span>
                   <span id="hint-conteo-estado" style="font-weight: 700; color: var(--primary);">Pendiente de captura</span>
                 </div>
@@ -394,25 +390,25 @@
                     <tr>
                       <td>Fondo disponible inicial de caja</td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_fondo_inicial" value="0.00" readonly></div></td>
-                      <td><span style="font-weight:700; color:var(--slate);">Base de apertura</span></td>
+                      <td><span style="font-weight:700; color:#d4af37;">Base de apertura</span></td>
                     </tr>
                     <tr>
                       <td>(+) Ventas del día registradas en efectivo</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly style="font-weight:700; color:#16a34a;"></div></td>
-                      <td><span style="font-weight:700; color:var(--success);">(+) Registro Diario de Ventas</span></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_ingresos_efectivo" value="0.00" readonly style="font-weight:700; color:#22c55e;"></div></td>
+                      <td><span style="font-weight:700; color:#22c55e;">(+) Registro Diario de Ventas</span></td>
                     </tr>
-                    <tr style="background-color:#f8fafc; font-weight:800;">
+                    <tr style="background-color:#141414; font-weight:800; color:#ffffff;">
                       <td><strong>(=) Efectivo esperado en caja al cierre</strong></td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800; font-size:1rem;"></div></td>
-                      <td><strong>(=) Fondo + Ventas Efectivo</strong></td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_efectivo_esperado" value="0.00" readonly style="font-weight:800; font-size:1rem; color:#fef08a;"></div></td>
+                      <td><strong style="color:#d4af37;">(=) Fondo + Ventas Efectivo</strong></td>
                     </tr>
-                    <tr style="background-color:#eff6ff;">
-                      <td style="color:#1e40af; font-weight:700;">Efectivo físico en caja (Capturado)</td>
-                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly style="color:#1e40af; font-size:1.05rem;"></div></td>
-                      <td><strong style="color:#1e40af;">(Total Contado)</strong></td>
+                    <tr style="background-color:#0d1b2a;">
+                      <td style="color:#93c5fd; font-weight:700;">Efectivo físico en caja (Capturado)</td>
+                      <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated highlight" id="concil_efectivo_contado" value="0.00" readonly style="color:#93c5fd; font-size:1.05rem;"></div></td>
+                      <td><strong style="color:#93c5fd;">(Total Contado)</strong></td>
                     </tr>
-                    <tr style="background-color:#fef2f2;">
-                      <td><strong style="font-size:1rem;">Diferencia de caja</strong></td>
+                    <tr style="background-color:#1c1114;">
+                      <td><strong style="font-size:1rem; color:#ffffff;">Diferencia de caja</strong></td>
                       <td><div class="currency-input-wrap"><span class="currency-prefix">$</span><input type="text" class="input-currency input-calculated" id="concil_diferencia_caja" value="0.00" readonly style="font-size:1.15rem; font-weight:800;"></div></td>
                       <td><span id="concil_diferencia_label" style="font-weight:700;">Sin diferencia</span></td>
                     </tr>
@@ -1173,10 +1169,10 @@
                 <div id="wrap-desglose-pagos-mixtos" class="desglose-pagos-card" style="display:none; grid-column:1 / -1;">
                   <div class="desglose-pagos-header">
                     <div>
-                      <h5 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                      <h5 style="margin:0; font-size:0.92rem; font-weight:800; color:#ffffff; display:flex; align-items:center; gap:6px;">
                         <span>🔀</span> Desglose de Varios Medios de Pago
                       </h5>
-                      <p style="margin:2px 0 0 0; font-size:0.78rem; color:#64748b;">
+                      <p style="margin:2px 0 0 0; font-size:0.78rem; color:#d4af37;">
                         Ingrese la cantidad que la clienta pagó con cada medio. La suma debe igualar el Total Cobrado.
                       </p>
                     </div>
@@ -1220,9 +1216,9 @@
                   <!-- Barra de Conciliación en Vivo -->
                   <div class="desglose-balance-bar" id="desglose-balance-bar">
                     <div class="desglose-balance-info">
-                      <span>Total: <strong id="lbl-desglose-total" style="color:#0f172a;">$0.00</strong></span>
-                      <span>Suma ingresada: <strong id="lbl-desglose-suma" style="color:#16a34a;">$0.00</strong></span>
-                      <span id="lbl-desglose-diferencia-wrap" style="display:none;">Diferencia: <strong id="lbl-desglose-dif" style="color:#dc2626;">$0.00</strong></span>
+                      <span>Total: <strong id="lbl-desglose-total" style="color:#ffffff;">$0.00</strong></span>
+                      <span>Suma ingresada: <strong id="lbl-desglose-suma" style="color:#22c55e;">$0.00</strong></span>
+                      <span id="lbl-desglose-diferencia-wrap" style="display:none;">Diferencia: <strong id="lbl-desglose-dif" style="color:#ef4444;">$0.00</strong></span>
                     </div>
                     <div id="desglose-status-badge" class="desglose-status-badge badge-incompleto">
                       ⚠️ Ingrese los montos
@@ -1231,7 +1227,7 @@
 
                   <!-- Botones rápidos para asignar restante -->
                   <div class="desglose-quick-assign" id="desglose-quick-assign" style="display:none;">
-                    <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Asignar restante a:</span>
+                    <span style="font-size:0.75rem; color:#cbd5e1; font-weight:700;">Asignar restante a:</span>
                     <button type="button" class="btn-quick-fill" data-fill="efectivo">💵 Efectivo</button>
                     <button type="button" class="btn-quick-fill" data-fill="tarjeta">💳 Tarjeta</button>
                     <button type="button" class="btn-quick-fill" data-fill="transferencia">📱 Transferencia</button>
@@ -3863,23 +3859,23 @@
           <p style="margin:2px 0 0 0; font-size:0.8rem; color:#d4af37;">Acción restringida de alta seguridad</p>
         </div>
       </div>
-      <div class="master-modal-body" style="padding:22px; background:#ffffff;">
-        <p style="font-size:0.9rem; color:#334155; margin-bottom:14px; line-height:1.45;">
-          Para eliminar este registro del sistema, ingrese la <strong>Clave Privada de Gerencia</strong>:
+      <div class="master-modal-body" style="padding:22px; background:#0c0c0c; color:#ffffff;">
+        <p id="txt-auth-gerencia-desc" style="font-size:0.9rem; color:#f1f5f9; margin-bottom:14px; line-height:1.45;">
+          Para autorizar esta operación, ingrese la <strong>Clave Privada de Gerencia</strong>:
         </p>
         <div class="form-group" style="margin-bottom:16px;">
-          <label for="input-pin-gerencia" style="font-weight:700; font-size:0.85rem; color:#0f172a; margin-bottom:6px; display:block;">
+          <label for="input-pin-gerencia" style="font-weight:700; font-size:0.85rem; color:#d4af37; margin-bottom:6px; display:block;">
             🔑 Clave Privada de Gerencia
           </label>
-          <input type="password" id="input-pin-gerencia" class="styled-input input-text" placeholder="Ingrese clave de autorización" autocomplete="off" style="letter-spacing:4px; font-size:1.15rem; text-align:center; font-weight:700; width:100%; border:1.5px solid #cbd5e1;">
-          <div id="msg-pin-gerencia-error" style="display:none; color:#dc2626; font-size:0.82rem; font-weight:700; margin-top:8px; text-align:center;">
+          <input type="password" id="input-pin-gerencia" class="styled-input input-text" placeholder="Ingrese clave de autorización" autocomplete="off" style="letter-spacing:4px; font-size:1.15rem; text-align:center; font-weight:700; width:100%; background:#181818; color:#ffffff; border:1.5px solid #d4af37;">
+          <div id="msg-pin-gerencia-error" style="display:none; color:#ef4444; font-size:0.82rem; font-weight:700; margin-top:8px; text-align:center;">
             ❌ Clave incorrecta. Autorización denegada.
           </div>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
           <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-auth-gerencia" style="padding:8px 16px;">Cancelar</button>
-          <button type="button" class="btn btn-primary btn-sm" id="btn-confirm-auth-gerencia" style="background:linear-gradient(135deg, #d4af37, #b8860b); color:#0b0f17; font-weight:800; border:1px solid #e5c158; padding:8px 18px;">
-            🔓 Autorizar y Eliminar
+          <button type="button" class="btn btn-primary btn-sm" id="btn-confirm-auth-gerencia" style="background:linear-gradient(135deg, #d4af37, #b8860b); color:#000000; font-weight:800; border:1px solid #e5c158; padding:8px 18px;">
+            🔓 Autorizar y Continuar
           </button>
         </div>
       </div>

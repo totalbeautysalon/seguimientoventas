@@ -5,35 +5,35 @@
 
 :root {
   --primary: #d4af37;          /* Classic Metallic Gold */
-  --primary-hover: #b8860b;    /* Dark Goldenrod */
-  --primary-light: #fffdf5;    /* Warm Gold Cream */
-  --primary-border: #e5c158;   /* Light Gold Accent */
+  --primary-hover: #fef08a;    /* Light Goldenrod */
+  --primary-light: #161202;    /* Dark Gold Tint */
+  --primary-border: #d4af37;   /* Gold Accent */
   --gold: #d4af37;
   --gold-dark: #b8860b;
   --gold-light: #fef9c3;
   --gold-gradient: linear-gradient(135deg, #d4af37 0%, #aa771c 100%);
-  --dark: #0b0f17;             /* Deep Luxury Obsidian */
-  --dark-surface: #111827;     /* Midnight Black Surface */
-  --slate: #1e293b;            /* Charcoal Slate */
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --bg-main: #f8fafc;
-  --bg-card: #ffffff;
-  --sidebar-bg: #080c14;       /* Deep Obsidian Sidebar */
+  --dark: #ffffff;             /* Crisp bright white text */
+  --dark-surface: #0a0a0a;     /* Pure Dark Obsidian Surface */
+  --slate: #e2e8f0;            /* Bright Silver/Slate */
+  --muted: #a1a1aa;            /* Clear legible muted text */
+  --border: #262626;           /* Clean dark border */
+  --bg-main: #000000;          /* COMPLETELY PURE BLACK BACKGROUND */
+  --bg-card: #0a0a0a;          /* Deep Black Card Background */
+  --sidebar-bg: #000000;       /* Pure Black Sidebar */
   --sidebar-active: #d4af37;
-  --success: #15803d;
-  --success-bg: #dcfce7;
-  --warning: #b45309;
-  --warning-bg: #fef3c7;
-  --danger: #b91c1c;
-  --danger-bg: #fee2e2;
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.15);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.15);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12);
-  --shadow-gold: 0 4px 16px rgba(212, 175, 55, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.8);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.8);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.9);
+  --shadow-gold: 0 4px 16px rgba(212, 175, 55, 0.35);
 }
 
 * {
@@ -44,8 +44,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-main);
-  color: var(--dark);
+  background-color: #000000 !important;
+  color: #ffffff !important;
   line-height: 1.5;
   font-size: 14px;
   min-height: 100vh;
@@ -61,48 +61,47 @@ body {
 
 /* Sidebar */
 .app-sidebar {
-  width: 270px;
-  background-color: var(--sidebar-bg);
+  width: 290px;
+  background-color: #000000;
   color: #f8fafc;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  bottom: 0;
+  left: -320px;
   height: 100vh;
-  z-index: 60;
-  transition: all 0.25s ease;
-  border-right: 1px solid #1e293b;
+  z-index: 10050;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-right: 1px solid #1f1f1f;
+  box-shadow: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-sidebar.open {
+  left: 0 !important;
+  box-shadow: 10px 0 35px rgba(0, 0, 0, 0.95) !important;
 }
 
 .sidebar-header {
-  padding: 18px 16px;
+  padding: 22px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid #1e293b;
+  justify-content: center;
+  border-bottom: 1px solid #1f1f1f;
+  background-color: #000000;
 }
 
 .sidebar-logo {
-  height: 42px;
+  height: 52px;
+  max-width: 190px;
   width: auto;
   object-fit: contain;
 }
 
-.sidebar-title h2 {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.sidebar-title p {
-  font-size: 0.7rem;
-  color: #d4af37;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.sidebar-title {
+  display: none !important;
 }
 
 .sidebar-menu {
@@ -111,17 +110,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE/Edge */
-}
-.sidebar-menu::-webkit-scrollbar {
-  display: none !important;
-  width: 0px !important;
-  height: 0px !important;
-  background: transparent !important;
+  flex: none;
+  overflow: visible;
 }
 
 .sidebar-menu-category {
@@ -177,9 +167,12 @@ body {
 }
 
 .sidebar-footer {
-  padding: 14px;
-  border-top: 1px solid #1e293b;
-  background-color: #0b1120;
+  padding: 18px 14px;
+  border-top: 1px solid #1f1f1f;
+  background-color: #050505;
+  margin-top: 16px;
+  flex-shrink: 0;
+  position: static;
 }
 
 .firebase-badge {
@@ -210,13 +203,18 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin-left: 0 !important;
   overflow-y: auto;
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
 
 /* Topbar Principal Fija */
 .main-topbar {
-  background-color: #0b0f17;
-  border-bottom: 2px solid #d4af37;
+  background-color: #000000 !important;
+  border-bottom: 2px solid #d4af37 !important;
   padding: 10px 24px;
   display: flex;
   align-items: center;
@@ -225,7 +223,7 @@ body {
   top: 0;
   z-index: 1000;
   gap: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
 }
 
 .topbar-left {
@@ -235,14 +233,25 @@ body {
 }
 
 .btn-toggle-sidebar {
-  display: none;
-  background: #182234;
-  border: 1px solid #d4af37;
-  color: #d4af37;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 1.1rem;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #141414 !important;
+  border: 1px solid #d4af37 !important;
+  color: #d4af37 !important;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 1.25rem !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0;
+}
+.btn-toggle-sidebar:hover {
+  background: #222222 !important;
+  color: #fef08a !important;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4) !important;
 }
 
 .topbar-title h1 {
@@ -957,9 +966,6 @@ body {
 
 @media (max-width: 768px) {
   .cash-counter-grid { grid-template-columns: 1fr; }
-  .app-sidebar { position: fixed; left: -280px; }
-  .app-sidebar.open { left: 0; }
-  .btn-toggle-sidebar { display: block; }
 }
 
 .denomination-column {
@@ -3344,9 +3350,9 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(3px);
-  z-index: 55;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 10040 !important;
   transition: opacity 0.3s ease;
 }
 .sidebar-backdrop.active {
@@ -3427,24 +3433,26 @@ body {
     height: 38px;
     font-size: 1.3rem;
     border-radius: 8px;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    background: #141414 !important;
+    border: 1px solid #d4af37 !important;
+    color: #d4af37 !important;
     cursor: pointer;
   }
   .app-sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: -290px;
-    width: 280px;
-    height: 100vh;
-    z-index: 60;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: none;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -320px !important;
+    width: 290px !important;
+    height: 100vh !important;
+    z-index: 10050 !important;
+    background: #000000 !important;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none !important;
   }
   .app-sidebar.open {
-    left: 0;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+    left: 0 !important;
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.95) !important;
   }
 
   /* Grids responsivos a 2 columnas o 1 columna */
@@ -4680,6 +4688,419 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+/* ==========================================================================
+   TEMA MAESTRO: FONDO COMPLETAMENTE NEGRO Y ALTO CONTRASTE DORADO / BLANCO
+   ========================================================================== */
+html,
+body,
+.layout-wrapper,
+.app-main,
+.module-view {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Sidebar Oculto por defecto en Computadora y Móvil (Se despliega con Hamburguesa) */
+.btn-toggle-sidebar {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #141414 !important;
+  border: 1px solid #d4af37 !important;
+  color: #d4af37 !important;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 1.25rem !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0;
+}
+.btn-toggle-sidebar:hover {
+  background: #222222 !important;
+  color: #fef08a !important;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4) !important;
+}
+
+.app-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: -320px !important;
+  width: 290px !important;
+  height: 100vh !important;
+  z-index: 10050 !important;
+  background: #000000 !important;
+  border-right: 1px solid #1f1f1f !important;
+  box-shadow: none !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.app-sidebar.open {
+  left: 0 !important;
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.95) !important;
+}
+
+.sidebar-header {
+  padding: 22px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-bottom: 1px solid #1f1f1f !important;
+  background-color: #000000 !important;
+}
+
+.sidebar-logo {
+  height: 52px !important;
+  max-width: 190px !important;
+  width: auto !important;
+  object-fit: contain !important;
+}
+
+.sidebar-title {
+  display: none !important;
+}
+
+.sidebar-menu {
+  flex: none !important;
+  overflow: visible !important;
+}
+
+/* Footer del Sidebar NO fijo: se desplaza al final de las opciones */
+.sidebar-footer {
+  position: static !important;
+  margin-top: 16px !important;
+  flex-shrink: 0 !important;
+  border-top: 1px solid #1f1f1f !important;
+  background-color: #050505 !important;
+  padding: 18px 14px !important;
+}
+
+.sidebar-scroll-hint {
+  display: none !important;
+}
+
+.sidebar-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 10040 !important;
+}
+
+.app-main {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  background-color: #000000 !important;
+}
+
+/* Tarjetas, Paneles y Contenedores */
+.card,
+.bs-main-panel,
+.ventas-wizard-card,
+.form-card,
+.section-card,
+.table-card,
+.kpi-card,
+.stat-card,
+.denom-group-card,
+.balance-box,
+.lead-card,
+.campana-card,
+.caja-actions-bar,
+.desglose-pagos-card,
+.wizard-summary-card,
+.auth-card,
+.master-modal-card,
+.modal-launcher-card,
+.modal-card {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+  border: 1px solid #262626 !important;
+  border-top: 2px solid #d4af37 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Títulos y Encabezados */
+h1, h2, h3, h4, h5, h6,
+.section-title,
+.card-title,
+.wizard-pane-title,
+.topbar-title h1,
+.launcher-welcome-title,
+.launcher-card-title,
+.kpi-label,
+.field-label {
+  color: #ffffff !important;
+}
+
+/* Subtítulos y Descriptores Dorados */
+.section-subtitle,
+.card-subtitle,
+.wizard-pane-desc,
+.topbar-title p,
+.launcher-greeting,
+.launcher-welcome-subtitle {
+  color: #d4af37 !important;
+}
+
+/* Etiquetas de formulario */
+label,
+.form-group label,
+.desglose-label,
+.summary-label {
+  color: #f1f5f9 !important;
+  font-weight: 700 !important;
+}
+
+/* Textos secundarios y explicaciones */
+.text-muted,
+.section-body p,
+.form-text,
+.summary-item .summary-label {
+  color: #a1a1aa !important;
+}
+
+/* Controles de Formulario e Inputs */
+input,
+select,
+textarea,
+.input-text,
+.input-date,
+.input-time,
+.input-select,
+.textarea-custom,
+.input-currency,
+.input-desglose-pago,
+.styled-input,
+.styled-select,
+.ventas-search-input {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  border: 1px solid #333333 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #71717a !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.input-text:focus,
+.input-date:focus,
+.input-time:focus,
+.input-select:focus,
+.textarea-custom:focus,
+.input-currency:focus,
+.input-desglose-pago:focus,
+.styled-input:focus,
+.styled-select:focus,
+.ventas-search-input:focus {
+  border-color: #d4af37 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35) !important;
+}
+
+input:disabled,
+input[readonly],
+.input-calculated {
+  background-color: #181818 !important;
+  color: #cbd5e1 !important;
+  border-color: #2b2b2b !important;
+}
+
+.input-calculated.highlight {
+  background-color: #1a1600 !important;
+  color: #fef08a !important;
+  border-color: #d4af37 !important;
+}
+
+/* Tablas con Alto Contraste */
+.table-responsive {
+  background: transparent !important;
+}
+
+.tb-table {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.tb-table th {
+  background-color: #000000 !important;
+  color: #d4af37 !important;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #d4af37 !important;
+}
+
+.tb-table td {
+  background-color: #0c0c0c !important;
+  color: #f8fafc !important;
+  border-bottom: 1px solid #1f1f1f !important;
+}
+
+.tb-table tbody tr:hover td {
+  background-color: #161616 !important;
+  color: #fef08a !important;
+}
+
+.tb-table tfoot td {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-top: 2px solid #d4af37 !important;
+  font-weight: 800 !important;
+}
+
+/* Modales y Ventanas Emergentes */
+.modal-backdrop-custom,
+.modal-launcher-overlay {
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+.master-modal-card,
+.modal-launcher-card,
+.auth-card {
+  background: #0a0a0a !important;
+  border: 1.5px solid #d4af37 !important;
+  color: #ffffff !important;
+}
+
+.master-modal-header,
+.modal-launcher-header,
+.auth-header {
+  background: #000000 !important;
+  border-bottom: 1px solid #222222 !important;
+  color: #ffffff !important;
+}
+
+.master-modal-body,
+.launcher-grid-wrapper {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+.launcher-card {
+  background: #111111 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #ffffff !important;
+}
+
+.launcher-card:hover {
+  background: #181818 !important;
+  border-color: #d4af37 !important;
+}
+
+.launcher-card-desc {
+  color: #a1a1aa !important;
+}
+
+.launcher-footer {
+  background: #000000 !important;
+  border-top: 1px solid #222222 !important;
+}
+
+#modal-ver-foto > div,
+#modal-view-pdf-report > div {
+  background: #0a0a0a !important;
+  border: 1.5px solid #d4af37 !important;
+  color: #ffffff !important;
+}
+
+/* Botones Primarios Dorados */
+.btn-primary,
+.btn-topbar-launcher,
+.btn-wizard-next,
+.btn-firebase,
+.stepper-step.active .step-circle {
+  background: linear-gradient(135deg, #d4af37 0%, #aa771c 100%) !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  border: 1px solid #e5c158 !important;
+}
+
+.btn-secondary {
+  background: #181818 !important;
+  color: #cbd5e1 !important;
+  border: 1px solid #333333 !important;
+}
+
+.btn-secondary:hover {
+  background: #252525 !important;
+  color: #fef08a !important;
+  border-color: #d4af37 !important;
+}
+
+/* Pills de Selección y Filtros */
+.btn-metodo-pill.active,
+.btn-status-pill.active,
+.ventas-filter-chip.active {
+  background: linear-gradient(135deg, #d4af37 0%, #aa771c 100%) !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  border: 1px solid #e5c158 !important;
+}
+
+.btn-metodo-pill,
+.btn-status-pill,
+.ventas-filter-chip {
+  background: #121212 !important;
+  color: #cbd5e1 !important;
+  border: 1px solid #2b2b2b !important;
+}
+
+.btn-metodo-pill:hover,
+.btn-status-pill:hover,
+.ventas-filter-chip:hover {
+  background: #1e1e1e !important;
+  color: #fef08a !important;
+  border-color: #d4af37 !important;
+}
+
+/* Tarjetas Visuales de Ventas */
+.venta-visual-card {
+  background: #0c0c0c !important;
+  border: 1px solid #262626 !important;
+  border-left: 4px solid #d4af37 !important;
+  color: #ffffff !important;
+}
+
+.venta-visual-card .vcard-clienta {
+  color: #ffffff !important;
+}
+
+.venta-visual-card .vcard-servicio {
+  color: #fef08a !important;
+}
+
+.venta-visual-card .vcard-meta {
+  color: #94a3b8 !important;
+}
+
+.venta-visual-card .vcard-total {
+  color: #22c55e !important;
+}
+
+/* Protección de Impresión en Papel (Blanco y Negro Limpio para PDF) */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 }
 

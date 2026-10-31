@@ -214,6 +214,7 @@
     document.getElementById('topbar-module-desc').textContent = modDesc;
 
     document.getElementById('app-sidebar')?.classList.remove('open');
+    document.getElementById('sidebar-backdrop')?.classList.remove('active');
 
     // Registrar auditoría de acceso a la sección
     if (lastLoggedModule !== modKey) {
@@ -4351,6 +4352,14 @@
       const btnConfirm = document.getElementById('btn-confirm-auth-gerencia');
       const btnCancel = document.getElementById('btn-cancel-auth-gerencia');
       const errorMsg = document.getElementById('msg-pin-gerencia-error');
+      const descEl = document.getElementById('txt-auth-gerencia-desc');
+
+      if (descEl) {
+        descEl.innerHTML = `Para <strong>${motivo}</strong>, ingrese la <strong>Clave Privada de Gerencia</strong>:`;
+      }
+      if (btnConfirm) {
+        btnConfirm.innerHTML = '🔓 Autorizar Operación';
+      }
 
       if (!modal || !input || !btnConfirm || !btnCancel) {
         const pin = prompt('🔒 AUTORIZACIÓN GERENCIAL REQUERIDA\n\nIngrese la Clave Privada de Gerencia:');
@@ -4835,10 +4844,8 @@
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const mod = link.dataset.module;
-        if (window.innerWidth <= 768) {
-          document.getElementById('app-sidebar')?.classList.remove('open');
-          document.getElementById('sidebar-backdrop')?.classList.remove('active');
-        }
+        document.getElementById('app-sidebar')?.classList.remove('open');
+        document.getElementById('sidebar-backdrop')?.classList.remove('active');
         if (mod) switchModule(mod);
       });
     });
@@ -5170,8 +5177,11 @@
       }
     });
 
-    // Control de Caja: Entrega de Dinero con Fotografía
-    document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', () => {
+    // Control de Caja: Entrega de Dinero con Fotografía (Protegido por Clave Privada de Gerencia)
+    document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', async () => {
+      const autorizado = await solicitarClaveGerencia('realizar entrega de dinero');
+      if (!autorizado) return;
+
       const modal = document.getElementById('modal-entrega-dinero');
       const form = document.getElementById('form-entrega-dinero');
       const prevWrap = document.getElementById('ent_preview_wrap');
@@ -5305,8 +5315,8 @@
       document.getElementById('modal-lista-entregas').style.display = 'none';
     });
 
-    // Clic en thumbnail para lightbox de foto
-    document.addEventListener('click', (e) => {
+    // Clic en thumbnail para lightbox de foto y eliminación de entrega protegida
+    document.addEventListener('click', async (e) => {
       if (e.target.matches('.btn-thumb-foto')) {
         const id = e.target.dataset.id;
         const entrega = controlCajaData.entregas?.[id];
@@ -5319,6 +5329,9 @@
       }
       if (e.target.matches('.btn-del-entrega')) {
         const id = e.target.dataset.id;
+        const autorizado = await solicitarClaveGerencia('eliminar entrega de dinero');
+        if (!autorizado) return;
+
         if (confirm('¿Está seguro de eliminar este registro de entrega de dinero? El importe volverá al fondo disponible de caja.')) {
           TB_FIREBASE.deleteEntregaDinero(id).then(async () => {
             await loadControlCajaData();
@@ -7934,10 +7947,8 @@
 
     document.getElementById('sidebar-launcher-link')?.addEventListener('click', (e) => {
       e.preventDefault();
-      if (window.innerWidth <= 768) {
-        document.getElementById('app-sidebar')?.classList.remove('open');
-        document.getElementById('sidebar-backdrop')?.classList.remove('active');
-      }
+      document.getElementById('app-sidebar')?.classList.remove('open');
+      document.getElementById('sidebar-backdrop')?.classList.remove('active');
       openModuleLauncher();
     });
 
