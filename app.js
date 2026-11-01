@@ -3986,6 +3986,9 @@
       const el = document.getElementById(`config-subview-${k}`);
       if (el) el.style.display = (k === tabKey) ? 'block' : 'none';
     });
+    if (tabKey === 'servicios') renderCatServiciosTable();
+    if (tabKey === 'estaciones') renderCatEstacionesTable();
+    if (tabKey === 'especialistas') renderCatEspecialistasTable();
     if (tabKey === 'metas') renderCatMetasTable();
     if (tabKey === 'cajaprincipal') loadControlCajaData();
     if (tabKey === 'cajachica') loadCajaChicaFundData();
@@ -4170,7 +4173,8 @@
   function populateConfigStationDropdowns() {
     const s1 = document.getElementById('cfg_serv_estacion');
     const s2 = document.getElementById('cfg_esp_estacion');
-    [s1, s2].forEach(sel => {
+    const sEdit = document.getElementById('edit_serv_estacion');
+    [s1, s2, sEdit].forEach(sel => {
       if (!sel) return;
       const cur = sel.value;
       if (catEstaciones.length === 0) {
@@ -4321,29 +4325,48 @@
     const tbody = document.getElementById('tbody-cat-servicios');
     const badge = document.getElementById('badge-total-servicios');
     const pillCount = document.getElementById('pill-count-servicios');
-    const searchVal = (document.getElementById('cfg_serv_search')?.value || '').trim().toLowerCase();
+    const searchInput = document.getElementById('cfg_serv_search');
+    const searchVal = (searchInput?.value || '').trim();
+    const btnClear = document.getElementById('btn-clear-serv-search');
 
-    if (badge) badge.textContent = `${catServicios.length} Registros`;
-    if (pillCount) pillCount.textContent = `${catServicios.length}`;
-    if (!tbody) return;
+    if (btnClear) {
+      btnClear.style.display = searchVal ? 'inline-block' : 'none';
+    }
+
+    const norm = str => (str || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanSearch = norm(searchVal);
 
     let filtered = catServicios || [];
-    if (searchVal) {
+    if (cleanSearch) {
       filtered = filtered.filter(s => {
-        const nom = (s.nombre || '').toLowerCase();
-        const est = (s.estacion || '').toLowerCase();
-        const tipo = (s.tipo || '').toLowerCase();
-        return nom.includes(searchVal) || est.includes(searchVal) || tipo.includes(searchVal);
+        const nom = norm(s.nombre);
+        const est = norm(s.estacion);
+        const tipo = norm(s.tipo);
+        const precio = (s.precio !== undefined ? s.precio : '').toString();
+        return nom.includes(cleanSearch) || est.includes(cleanSearch) || tipo.includes(cleanSearch) || precio.includes(cleanSearch);
       });
     }
+
+    if (badge) {
+      if (cleanSearch) {
+        badge.textContent = `${filtered.length} de ${catServicios.length} Registros`;
+      } else {
+        badge.textContent = `${catServicios.length} Registros`;
+      }
+    }
+    if (pillCount) pillCount.textContent = `${catServicios.length}`;
+    if (!tbody) return;
 
     tbody.innerHTML = '';
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" class="table-empty-notice" style="padding:32px 16px;">
+          <td colspan="5" class="table-empty-notice" style="padding:32px 16px; text-align:center;">
             <span style="font-size:2rem; display:block; margin-bottom:6px;">✨</span>
-            ${searchVal ? 'No se encontraron servicios que coincidan con la búsqueda.' : 'No hay servicios ni productos configurados en la base de datos.'}
+            <div style="font-size:0.95rem; font-weight:600; color:var(--dark); margin-bottom:8px;">
+              ${searchVal ? `No se encontraron servicios que coincidan con "${escapeHtml(searchVal)}"` : 'No hay servicios ni productos configurados en la base de datos.'}
+            </div>
+            ${searchVal ? '<button type="button" class="btn btn-sm btn-secondary" id="btn-reset-serv-search" style="margin-top:6px; font-weight:600; cursor:pointer;">🔄 Limpiar búsqueda y mostrar todos</button>' : ''}
           </td>
         </tr>
       `;
@@ -4373,8 +4396,13 @@
         <td class="text-right" style="font-weight:800; color:#15803d; font-size:0.95rem;">
           ${formatCurrency(parseFloat(s.precio || 0))}
         </td>
-        <td class="text-center">
-          <button type="button" class="btn-cat-del btn-del-cfg-serv" data-id="${s.id}" title="Eliminar servicio">✕</button>
+        <td class="text-center" style="white-space:nowrap;">
+          <button type="button" class="btn-cat-action btn-cat-action-edit btn-edit-cfg-serv" data-id="${s.id}" title="Editar servicio/producto">
+            ✏️ Editar
+          </button>
+          <button type="button" class="btn-cat-action btn-cat-action-del btn-del-cfg-serv" data-id="${s.id}" title="Eliminar servicio/producto">
+            🗑️ Eliminar
+          </button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -4909,6 +4937,20 @@
         if (payload.item) {
           if (!catServicios.some(s => s.id === payload.item.id)) {
             catServicios.push(payload.item);
+          }
+          await TB_FIREBASE.saveCatalogo('servicios', catServicios);
+          renderCatServiciosTable();
+          populateSalesDropdowns();
+        }
+        break;
+
+      case 'EDICION_SERVICIO':
+        if (payload.antes && payload.antes.id) {
+          const idx = catServicios.findIndex(s => s.id === payload.antes.id);
+          if (idx !== -1) {
+            catServicios[idx] = { ...payload.antes };
+          } else {
+            catServicios.push(payload.antes);
           }
           await TB_FIREBASE.saveCatalogo('servicios', catServicios);
           renderCatServiciosTable();
@@ -6453,22 +6495,173 @@
       });
     });
 
+    // -----------------------------------------------------------------------
+    // BÚSQUEDA Y ACCIONES DEL CATÁLOGO DE SERVICIOS
+    // -----------------------------------------------------------------------
+    const servSearchInput = document.getElementById('cfg_serv_search');
+    const btnClearServSearch = document.getElementById('btn-clear-serv-search');
+    const modalEditServ = document.getElementById('modal-editar-servicio');
+
+    if (servSearchInput) {
+      servSearchInput.addEventListener('input', () => {
+        renderCatServiciosTable();
+      });
+    }
+
+    if (btnClearServSearch) {
+      btnClearServSearch.addEventListener('click', () => {
+        if (servSearchInput) {
+          servSearchInput.value = '';
+          btnClearServSearch.style.display = 'none';
+          servSearchInput.focus();
+          renderCatServiciosTable();
+        }
+      });
+    }
+
+    // Botón dentro de la tabla vacía para limpiar búsqueda
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-reset-serv-search')) {
+        if (servSearchInput) {
+          servSearchInput.value = '';
+          if (btnClearServSearch) btnClearServSearch.style.display = 'none';
+          servSearchInput.focus();
+          renderCatServiciosTable();
+        }
+      }
+    });
+
+    // Abrir modal de edición de servicio/producto
+    document.addEventListener('click', (e) => {
+      const btnEdit = e.target.closest('.btn-edit-cfg-serv');
+      if (btnEdit) {
+        const id = btnEdit.dataset.id;
+        const item = catServicios.find(s => s.id === id);
+        if (!item) {
+          showToast('No se encontró el servicio seleccionado', 'error');
+          return;
+        }
+
+        const inputId = document.getElementById('edit_serv_id');
+        const inputNom = document.getElementById('edit_serv_nombre');
+        const selTipo = document.getElementById('edit_serv_tipo');
+        const selEst = document.getElementById('edit_serv_estacion');
+        const inputPrecio = document.getElementById('edit_serv_precio');
+
+        if (inputId) inputId.value = item.id;
+        if (inputNom) inputNom.value = item.nombre || '';
+        if (selTipo) selTipo.value = item.tipo || 'Servicio';
+        if (inputPrecio) inputPrecio.value = item.precio !== undefined ? item.precio : 0;
+
+        if (selEst) {
+          selEst.innerHTML = '';
+          if (catEstaciones && catEstaciones.length > 0) {
+            catEstaciones.forEach(est => {
+              const opt = document.createElement('option');
+              opt.value = est.nombre;
+              opt.textContent = `${est.icono || '💈'} ${est.nombre}`;
+              selEst.appendChild(opt);
+            });
+          }
+          if (!catEstaciones.some(est => est.nombre === 'General')) {
+            const optGen = document.createElement('option');
+            optGen.value = 'General';
+            optGen.textContent = '🏢 General';
+            selEst.appendChild(optGen);
+          }
+          if (item.estacion && !catEstaciones.some(est => est.nombre === item.estacion) && item.estacion !== 'General') {
+            const optCustom = document.createElement('option');
+            optCustom.value = item.estacion;
+            optCustom.textContent = `📍 ${item.estacion}`;
+            selEst.appendChild(optCustom);
+          }
+          selEst.value = item.estacion || (catEstaciones[0]?.nombre || 'General');
+        }
+
+        if (modalEditServ) modalEditServ.style.display = 'flex';
+      }
+    });
+
+    // Cerrar modal de edición
+    document.getElementById('btn-close-edit-serv-modal')?.addEventListener('click', () => {
+      if (modalEditServ) modalEditServ.style.display = 'none';
+    });
+    document.getElementById('btn-cancel-edit-serv')?.addEventListener('click', () => {
+      if (modalEditServ) modalEditServ.style.display = 'none';
+    });
+    modalEditServ?.addEventListener('click', (e) => {
+      if (e.target === modalEditServ) {
+        modalEditServ.style.display = 'none';
+      }
+    });
+
+    // Guardar formulario de edición de servicio
+    document.getElementById('form-editar-servicio')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit_serv_id')?.value;
+      const nombre = document.getElementById('edit_serv_nombre')?.value.trim();
+      const tipo = document.getElementById('edit_serv_tipo')?.value;
+      const estacion = document.getElementById('edit_serv_estacion')?.value;
+      const precio = parseFloat(document.getElementById('edit_serv_precio')?.value);
+
+      if (!id || !nombre || !tipo || !estacion || isNaN(precio) || precio < 0) {
+        showToast('Complete todos los campos obligatorios (*)', 'warning');
+        return;
+      }
+
+      const idx = catServicios.findIndex(s => s.id === id);
+      if (idx === -1) {
+        showToast('No se encontró el servicio a editar', 'error');
+        return;
+      }
+
+      const itemAntes = { ...catServicios[idx] };
+      catServicios[idx] = {
+        ...catServicios[idx],
+        nombre,
+        tipo,
+        estacion,
+        precio
+      };
+      const itemDespues = { ...catServicios[idx] };
+
+      try {
+        await TB_FIREBASE.saveCatalogo('servicios', catServicios);
+        renderCatServiciosTable();
+        populateSalesDropdowns();
+        if (modalEditServ) modalEditServ.style.display = 'none';
+        showToast(`✅ Servicio/Producto "${nombre}" actualizado correctamente`, 'success');
+
+        logAuditMovement({
+          modulo: 'Configuración General',
+          accion: 'EDICION_SERVICIO',
+          descripcion: `Edición de ${tipo}: "${nombre}" (${estacion}) - Precio: $${precio.toFixed(2)} (Antes: "${itemAntes.nombre}", $${(itemAntes.precio || 0).toFixed(2)})`,
+          payload: { antes: itemAntes, despues: itemDespues }
+        });
+      } catch (err) {
+        console.error('Error al guardar edición de servicio:', err);
+        showToast('Error al actualizar servicio en Firebase', 'error');
+      }
+    });
+
     // Eliminar ítems de catálogo
     document.addEventListener('click', async (e) => {
-      if (e.target.matches('.btn-del-cfg-serv')) {
-        const id = e.target.dataset.id;
-        if (confirm('¿Está seguro de eliminar este servicio del catálogo?')) {
-          const itemTarget = catServicios.find(s => s.id === id);
+      const btnDelServ = e.target.closest('.btn-del-cfg-serv');
+      if (btnDelServ) {
+        const id = btnDelServ.dataset.id;
+        const itemTarget = catServicios.find(s => s.id === id);
+        const nomSrv = itemTarget?.nombre || id;
+        if (confirm(`¿Está seguro de eliminar el servicio/producto "${nomSrv}" del catálogo?`)) {
           catServicios = catServicios.filter(s => s.id !== id);
           await TB_FIREBASE.saveCatalogo('servicios', catServicios);
           renderCatServiciosTable();
           populateSalesDropdowns();
-          showToast('Servicio eliminado', 'info');
+          showToast(`Servicio "${nomSrv}" eliminado`, 'info');
 
           logAuditMovement({
             modulo: 'Configuración General',
             accion: 'BAJA_SERVICIO',
-            descripcion: `Eliminación de servicio: "${itemTarget?.nombre || id}" (${itemTarget?.estacion || 'General'})`,
+            descripcion: `Eliminación de servicio: "${nomSrv}" (${itemTarget?.estacion || 'General'})`,
             payload: { item: itemTarget }
           });
         }

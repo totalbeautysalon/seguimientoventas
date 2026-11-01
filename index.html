@@ -2529,7 +2529,10 @@
               </div>
 
               <div class="cfg-table-tools">
-                <input type="text" id="cfg_serv_search" class="input-text styled-input" placeholder="🔍 Buscar servicio..." style="max-width:200px; font-size:0.8rem; padding:4px 10px;">
+                <div style="position:relative; display:inline-flex; align-items:center;">
+                  <input type="text" id="cfg_serv_search" class="input-text styled-input" placeholder="🔍 Buscar servicio..." autocomplete="off" style="max-width:210px; font-size:0.8rem; padding:5px 28px 5px 10px;">
+                  <button type="button" id="btn-clear-serv-search" style="position:absolute; right:6px; background:none; border:none; color:var(--muted); font-size:0.9rem; cursor:pointer; display:none; padding:2px; line-height:1;" title="Limpiar búsqueda">✕</button>
+                </div>
                 <span class="kpi-status-badge badge-cuadrada" id="badge-total-servicios" style="font-size:0.8rem; padding:4px 10px;">0 Registros</span>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="btn-vaciar-servicios" title="Eliminar todos los servicios" style="font-size:0.75rem; padding:4px 8px;">
                   🗑️ Vaciar
@@ -2545,7 +2548,7 @@
                     <th>Tipo</th>
                     <th>Estación Asignada</th>
                     <th class="text-right">Precio Base</th>
-                    <th class="text-center" style="width:70px;">Acción</th>
+                    <th class="text-center" style="width:170px;">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-cat-servicios">
@@ -3995,6 +3998,76 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+
+  <!-- ========================================================================
+       MODAL DE EDICIÓN DE SERVICIO / PRODUCTO
+       ======================================================================== -->
+  <div class="modal-backdrop-custom" id="modal-editar-servicio" style="display:none; z-index:99999;">
+    <div class="master-modal-card" style="max-width:500px; width:92%; border: 1.5px solid #d4af37; box-shadow: 0 12px 36px rgba(0,0,0,0.55); border-radius:14px; overflow:hidden;">
+      <div class="master-modal-header" style="background: linear-gradient(135deg, #0b0f17 0%, #1e293b 100%); border-bottom: 2px solid #d4af37; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="master-modal-icon" style="background: rgba(212, 175, 55, 0.2); color: #d4af37; font-size: 1.3rem;">✏️</div>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#fff;">
+              Editar Servicio o Producto
+            </h3>
+            <p style="margin:2px 0 0 0; font-size:0.8rem; color:#d4af37;">Actualice los datos en el catálogo general</p>
+          </div>
+        </div>
+        <button type="button" id="btn-close-edit-serv-modal" style="background:none; border:none; color:#ffffff; font-size:1.3rem; cursor:pointer; line-height:1;" title="Cerrar">✕</button>
+      </div>
+      <form id="form-editar-servicio" class="master-modal-body" style="padding:22px; background:#ffffff; color:#000000;">
+        <input type="hidden" id="edit_serv_id">
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label for="edit_serv_nombre" style="font-weight:700; font-size:0.85rem; color:#000000; margin-bottom:5px; display:block;">
+            Nombre del Servicio o Producto <span style="color:#ef4444;">*</span>
+          </label>
+          <input type="text" id="edit_serv_nombre" class="styled-input input-text" required autocomplete="off" style="width:100%; background:#ffffff; color:#000000; border:1px solid #cbd5e1; font-weight:600; padding:8px 12px;">
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="edit_serv_tipo" style="font-weight:700; font-size:0.85rem; color:#000000; margin-bottom:5px; display:block;">
+              Tipo / Categoría <span style="color:#ef4444;">*</span>
+            </label>
+            <select id="edit_serv_tipo" class="styled-input select-text" required style="width:100%; background:#ffffff; color:#000000; border:1px solid #cbd5e1; font-weight:600; padding:8px 10px;">
+              <option value="Servicio">💇‍♀️ Servicio (Salón)</option>
+              <option value="Producto">🛍️ Producto (Retail)</option>
+              <option value="Curso">🎓 Curso (Academia)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="edit_serv_estacion" style="font-weight:700; font-size:0.85rem; color:#000000; margin-bottom:5px; display:block;">
+              Estación Asignada <span style="color:#ef4444;">*</span>
+            </label>
+            <select id="edit_serv_estacion" class="styled-input select-text" required style="width:100%; background:#ffffff; color:#000000; border:1px solid #cbd5e1; font-weight:600; padding:8px 10px;">
+              <!-- Llenado dinámicamente -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:18px;">
+          <label for="edit_serv_precio" style="font-weight:700; font-size:0.85rem; color:#000000; margin-bottom:5px; display:block;">
+            Precio Base ($ MXN) <span style="color:#ef4444;">*</span>
+          </label>
+          <div class="currency-input-wrap">
+            <span class="currency-prefix">$</span>
+            <input type="number" id="edit_serv_precio" class="styled-input input-currency" min="0" step="0.01" required autocomplete="off" style="width:100%; background:#ffffff; color:#15803d; border:1px solid #cbd5e1; font-weight:800; font-size:1.05rem; padding:8px 12px 8px 24px;">
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px; border-top:1px solid #e2e8f0; padding-top:14px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-edit-serv" style="padding:8px 16px;">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-edit-serv" style="background:linear-gradient(135deg, #d4af37, #b8860b); color:#000000; font-weight:800; border:1px solid #e5c158; padding:8px 18px;">
+            💾 Guardar Cambios
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
