@@ -45,14 +45,14 @@ function getHidalgoDateTime(dateObj = new Date()) {
       display: `${m.day}/${m.month}/${m.year} ${hora}`
     };
   } catch (err) {
-    const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
-    const cst = new Date(utc - (6 * 3600000));
-    const y = cst.getFullYear();
-    const mo = String(cst.getMonth() + 1).padStart(2, '0');
-    const d = String(cst.getDate()).padStart(2, '0');
-    const h = String(cst.getHours()).padStart(2, '0');
-    const mi = String(cst.getMinutes()).padStart(2, '0');
-    const s = String(cst.getSeconds()).padStart(2, '0');
+    const cstEpoch = dateObj.getTime() - (6 * 3600000);
+    const cst = new Date(cstEpoch);
+    const y = cst.getUTCFullYear();
+    const mo = String(cst.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(cst.getUTCDate()).padStart(2, '0');
+    const h = String(cst.getUTCHours()).padStart(2, '0');
+    const mi = String(cst.getUTCMinutes()).padStart(2, '0');
+    const s = String(cst.getUTCSeconds()).padStart(2, '0');
     const fecha = `${y}-${mo}-${d}`;
     const hora = `${h}:${mi}`;
     const horaSeg = `${h}:${mi}:${s}`;
@@ -454,7 +454,13 @@ function getHidalgoIsoString(dateObj = new Date()) {
       loadControlCajaData();
     } else if (currentModule === 'ventas') {
       populateSalesDropdowns();
-      const vf = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
+      const todayHidalgo = getHidalgoDateStr();
+      const filterInput = document.getElementById('ventas_filtro_fecha');
+      let vf = filterInput?.value;
+      if (!vf || vf > todayHidalgo) {
+        vf = todayHidalgo;
+        if (filterInput) filterInput.value = todayHidalgo;
+      }
       renderVentas(vf);
     } else if (currentModule === 'balancescore') {
       renderBalanceScoreStations();
@@ -790,14 +796,19 @@ function getHidalgoIsoString(dateObj = new Date()) {
   }
 
   async function renderVentas(fecha) {
-    if (!fecha) {
-      fecha = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
-    }
+    const todayHidalgo = getHidalgoDateStr();
     const filterInput = document.getElementById('ventas_filtro_fecha');
-    if (filterInput && !filterInput.value) filterInput.value = fecha;
-
     const vFechaInput = document.getElementById('venta_fecha');
-    if (vFechaInput && !vFechaInput.value) vFechaInput.value = fecha;
+
+    if (!fecha || fecha > todayHidalgo) {
+      fecha = todayHidalgo;
+    }
+    if (filterInput && (!filterInput.value || filterInput.value > todayHidalgo)) {
+      filterInput.value = fecha;
+    }
+    if (vFechaInput && (!vFechaInput.value || vFechaInput.value > todayHidalgo)) {
+      vFechaInput.value = fecha;
+    }
 
     const tbody = document.getElementById('tbody-ventas');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
@@ -7523,11 +7534,14 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
     if (document.getElementById('chica_hora')) document.getElementById('chica_hora').value = hmStr;
 
-    if (document.getElementById('ventas_filtro_fecha')) document.getElementById('ventas_filtro_fecha').value = dStr;
-    if (document.getElementById('venta_fecha')) document.getElementById('venta_fecha').value = dStr;
-    if (document.getElementById('lead_reg_fecha')) document.getElementById('lead_reg_fecha').value = dStr;
-    if (document.getElementById('rep_ingresos_fecha')) document.getElementById('rep_ingresos_fecha').value = dStr;
-    if (document.getElementById('ev_fecha')) document.getElementById('ev_fecha').value = dStr;
+    ['ventas_filtro_fecha', 'venta_fecha', 'header_fecha', 'chica_fecha', 'lead_reg_fecha', 'rep_ingresos_fecha', 'ev_fecha', 'bs_fecha_dia', 'bs_fecha_semana'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (!el.value || el.value > dStr) {
+          el.value = dStr;
+        }
+      }
+    });
 
     // Inicializar controles de período de BalanceScore
     if (document.getElementById('bs_fecha_dia')) document.getElementById('bs_fecha_dia').value = dStr;

@@ -43,14 +43,14 @@ const TB_FIREBASE = (function () {
         display: `${m.day}/${m.month}/${m.year} ${hora}`
       };
     } catch (err) {
-      const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
-      const cst = new Date(utc - (6 * 3600000));
-      const y = cst.getFullYear();
-      const mo = String(cst.getMonth() + 1).padStart(2, '0');
-      const d = String(cst.getDate()).padStart(2, '0');
-      const h = String(cst.getHours()).padStart(2, '0');
-      const mi = String(cst.getMinutes()).padStart(2, '0');
-      const s = String(cst.getSeconds()).padStart(2, '0');
+      const cstEpoch = dateObj.getTime() - (6 * 3600000);
+      const cst = new Date(cstEpoch);
+      const y = cst.getUTCFullYear();
+      const mo = String(cst.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cst.getUTCDate()).padStart(2, '0');
+      const h = String(cst.getUTCHours()).padStart(2, '0');
+      const mi = String(cst.getUTCMinutes()).padStart(2, '0');
+      const s = String(cst.getUTCSeconds()).padStart(2, '0');
       const fecha = `${y}-${mo}-${d}`;
       const hora = `${h}:${mi}`;
       const horaSeg = `${h}:${mi}:${s}`;
@@ -783,7 +783,10 @@ const TB_FIREBASE = (function () {
 
 
   async function getVentasByFecha(fecha) {
-
+    const todayHidalgo = getHidalgoDateStr();
+    if (!fecha || fecha > todayHidalgo) {
+      fecha = todayHidalgo;
+    }
     const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
 
     const local = localVentas[fecha] || {};
