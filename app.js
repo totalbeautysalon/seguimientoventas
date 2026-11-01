@@ -4339,6 +4339,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       } else if (currentVal && Array.from(servSelect.options).some(o => o.value === currentVal)) {
         servSelect.value = currentVal;
       }
+      syncVentaServicioComboboxFromSelect();
     }
 
     // 2. Selector de Estaciones en Venta
@@ -4380,6 +4381,308 @@ function getHidalgoIsoString(dateObj = new Date()) {
         }
       }
     }
+  }
+
+  // =========================================================================
+  // BUSCADOR EN TIEMPO REAL - SERVICIO O PRODUCTO EN VENTAS
+  // =========================================================================
+  let comboboxHighlightedIndex = -1;
+
+  function renderVentaServicioComboboxOptions(searchTerm = '') {
+    const panel = document.getElementById('combobox_servicio_panel');
+    const optionsContainer = document.getElementById('combobox_servicio_options');
+    const countBadge = document.getElementById('combobox_servicio_count');
+    const servSelect = document.getElementById('venta_servicio');
+    if (!optionsContainer) return;
+
+    const term = (searchTerm || '').toLowerCase().trim();
+    const currentVal = servSelect?.value || '';
+
+    // Obtener catálogo catServicios
+    let allItems = Array.isArray(catServicios) ? [...catServicios] : [];
+    
+    // Si catServicios está vacío pero servSelect tiene opciones, extraerlas como fallback
+    if (allItems.length === 0 && servSelect && servSelect.options.length > 1) {
+      Array.from(servSelect.options).forEach(opt => {
+        if (opt.value) {
+          allItems.push({
+            nombre: opt.value,
+            tipo: opt.parentElement?.tagName === 'OPTGROUP' ? opt.parentElement.label.replace(/\s*\(.*\)/, '') : 'Servicio',
+            estacion: opt.dataset.estacion || '',
+            precio: parseFloat(opt.dataset.precio || 0)
+          });
+        }
+      });
+    }
+
+    const filtered = allItems.filter(s => {
+      if (!term) return true;
+      const haystack = `${s.nombre || ''} ${s.tipo || ''} ${s.estacion || ''} ${s.precio || ''}`.toLowerCase();
+      return haystack.includes(term);
+    });
+
+    if (countBadge) {
+      if (term) {
+        countBadge.textContent = `${filtered.length} encontrados de ${allItems.length}`;
+      } else {
+        countBadge.textContent = `${allItems.length} disponibles`;
+      }
+    }
+
+    if (filtered.length === 0) {
+      optionsContainer.innerHTML = `
+        <div class="combobox-empty-notice">
+          <div style="font-size:1.5rem; margin-bottom:4px;">🔍</div>
+          <div style="font-weight:700; color:#0f172a;">No se encontraron servicios ni productos que coincidan con "${escapeHtml(searchTerm)}".</div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:6px;">Pruebe con otra palabra clave o <a href="#" class="config-mini-link btn-goto-config" data-config-tab="servicios" style="color:#d4af37; font-weight:700; text-decoration:underline;">agregue uno nuevo en Configuración</a>.</div>
+        </div>
+      `;
+      comboboxHighlightedIndex = -1;
+      return;
+    }
+
+    // Agrupar por tipo (Servicio, Producto, Curso)
+    const grupos = {
+      'Servicios (Salón)': filtered.filter(s => (s.tipo || '').toLowerCase().includes('servicio')),
+      'Productos (Retail)': filtered.filter(s => (s.tipo || '').toLowerCase().includes('producto')),
+      'Cursos (Academia)': filtered.filter(s => (s.tipo || '').toLowerCase().includes('curso'))
+    };
+
+    const knownCheck = (t) => {
+      const tl = (t || '').toLowerCase();
+      return tl.includes('servicio') || tl.includes('producto') || tl.includes('curso');
+    };
+    const otherItems = filtered.filter(s => !knownCheck(s.tipo));
+    if (otherItems.length > 0) {
+      grupos['Otros Registros'] = otherItems;
+    }
+
+    let html = '';
+    let globalIndex = 0;
+
+    Object.entries(grupos).forEach(([grpName, items]) => {
+      if (items.length > 0) {
+        const icon = grpName.includes('Servicio') ? '✂️' : (grpName.includes('Producto') ? '🛍️' : (grpName.includes('Curso') ? '🎓' : '📌'));
+        html += `<div class="combobox-group-header">${icon} ${escapeHtml(grpName)} (${items.length})</div>`;
+        
+        items.forEach(it => {
+          const isSelected = it.nombre === currentVal;
+          const precioFormatted = parseFloat(it.precio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+          const estacionLabel = it.estacion ? `🪞 ${escapeHtml(it.estacion)}` : 'Sin estación fija';
+          const tipoBadge = it.tipo ? `<span class="combobox-item-badge">${escapeHtml(it.tipo)}</span>` : '';
+
+          // Resaltar coincidencia si hay búsqueda
+          let displayName = escapeHtml(it.nombre);
+          if (term) {
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp('(' + escapedTerm + ')', 'gi');
+            displayName = displayName.replace(regex, '<mark style="background:#fef08a; color:#854d0e; padding:0 2px; border-radius:2px; font-weight:800;">$1</mark>');
+          }
+
+          html += `
+            <div class="combobox-item ${isSelected ? 'selected' : ''}" 
+                 data-nombre="${escapeHtml(it.nombre)}" 
+                 data-estacion="${escapeHtml(it.estacion || '')}" 
+                 data-precio="${it.precio || 0}"
+                 data-tipo="${escapeHtml(it.tipo || '')}"
+                 data-idx="${globalIndex}">
+              <div class="combobox-item-info">
+                <div class="combobox-item-title">${displayName}</div>
+                <div class="combobox-item-meta">
+                  ${tipoBadge}
+                  <span>${estacionLabel}</span>
+                </div>
+              </div>
+              <div class="combobox-item-price">$${precioFormatted}</div>
+            </div>
+          `;
+          globalIndex++;
+        });
+      }
+    });
+
+    optionsContainer.innerHTML = html;
+    comboboxHighlightedIndex = -1;
+  }
+
+  function openVentaServicioCombobox() {
+    const panel = document.getElementById('combobox_servicio_panel');
+    const input = document.getElementById('venta_servicio_busqueda');
+    if (!panel) return;
+
+    const term = input ? input.value.trim() : '';
+    const servSelect = document.getElementById('venta_servicio');
+    const searchTerm = (servSelect && servSelect.value === term) ? '' : term;
+    
+    renderVentaServicioComboboxOptions(searchTerm);
+    panel.style.display = 'block';
+
+    setTimeout(() => {
+      const selectedEl = panel.querySelector('.combobox-item.selected');
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ block: 'nearest' });
+      }
+    }, 40);
+  }
+
+  function closeVentaServicioCombobox() {
+    const panel = document.getElementById('combobox_servicio_panel');
+    if (panel) panel.style.display = 'none';
+    comboboxHighlightedIndex = -1;
+  }
+
+  function selectVentaServicioItem(nombre, estacion, precio) {
+    const input = document.getElementById('venta_servicio_busqueda');
+    const btnClear = document.getElementById('btn-clear-combobox-servicio');
+    const servSelect = document.getElementById('venta_servicio');
+
+    if (input) input.value = nombre;
+    if (btnClear) btnClear.style.display = nombre ? 'block' : 'none';
+
+    if (servSelect) {
+      servSelect.value = nombre;
+      servSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    if (estacion) {
+      const estSelect = document.getElementById('venta_estacion');
+      if (estSelect) estSelect.value = estacion;
+    }
+    if (precio && parseFloat(precio) > 0) {
+      const prcInput = document.getElementById('venta_servicio_precio');
+      if (prcInput) prcInput.value = parseFloat(precio).toFixed(2);
+    }
+
+    closeVentaServicioCombobox();
+  }
+
+  function resetVentaServicioCombobox() {
+    const input = document.getElementById('venta_servicio_busqueda');
+    const btnClear = document.getElementById('btn-clear-combobox-servicio');
+    const servSelect = document.getElementById('venta_servicio');
+
+    if (input) input.value = '';
+    if (btnClear) btnClear.style.display = 'none';
+    if (servSelect) {
+      servSelect.value = '';
+      servSelect.selectedIndex = 0;
+    }
+    closeVentaServicioCombobox();
+  }
+
+  function syncVentaServicioComboboxFromSelect() {
+    const servSelect = document.getElementById('venta_servicio');
+    const input = document.getElementById('venta_servicio_busqueda');
+    const btnClear = document.getElementById('btn-clear-combobox-servicio');
+
+    if (!servSelect || !input) return;
+    const val = servSelect.value;
+    if (val) {
+      input.value = val;
+      if (btnClear) btnClear.style.display = 'block';
+    } else {
+      input.value = '';
+      if (btnClear) btnClear.style.display = 'none';
+    }
+  }
+
+  function initVentaServicioCombobox() {
+    const input = document.getElementById('venta_servicio_busqueda');
+    const btnClear = document.getElementById('btn-clear-combobox-servicio');
+    const btnToggle = document.getElementById('btn-toggle-combobox-servicio');
+    const panel = document.getElementById('combobox_servicio_panel');
+    const optionsContainer = document.getElementById('combobox_servicio_options');
+    const wrap = document.getElementById('wrap-combobox-servicio');
+
+    if (!input || !panel) return;
+
+    // Al hacer clic o enfocar el buscador, abrir la lista
+    input.addEventListener('focus', () => {
+      openVentaServicioCombobox();
+    });
+    input.addEventListener('click', () => {
+      openVentaServicioCombobox();
+    });
+
+    // Búsqueda y filtrado en TIEMPO REAL
+    input.addEventListener('input', (e) => {
+      const term = e.target.value;
+      if (btnClear) btnClear.style.display = term ? 'block' : 'none';
+      openVentaServicioCombobox();
+      renderVentaServicioComboboxOptions(term);
+    });
+
+    // Botón para alternar desplegable (▼)
+    btnToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (panel.style.display === 'block') {
+        closeVentaServicioCombobox();
+      } else {
+        input.focus();
+        openVentaServicioCombobox();
+      }
+    });
+
+    // Botón para limpiar búsqueda y selección (✕)
+    btnClear?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetVentaServicioCombobox();
+      const prcInput = document.getElementById('venta_servicio_precio');
+      if (prcInput) prcInput.value = '';
+      input.focus();
+    });
+
+    // Delegación de clic en las opciones del combobox
+    optionsContainer?.addEventListener('click', (e) => {
+      const itemEl = e.target.closest('.combobox-item');
+      if (itemEl) {
+        const nombre = itemEl.dataset.nombre;
+        const estacion = itemEl.dataset.estacion;
+        const precio = itemEl.dataset.precio;
+        selectVentaServicioItem(nombre, estacion, precio);
+      }
+    });
+
+    // Navegación por teclado (Flechas, Enter, Escape)
+    input.addEventListener('keydown', (e) => {
+      const items = panel.querySelectorAll('.combobox-item');
+      if (panel.style.display !== 'block' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        openVentaServicioCombobox();
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (items.length === 0) return;
+        comboboxHighlightedIndex = (comboboxHighlightedIndex + 1) % items.length;
+        items.forEach((it, i) => it.classList.toggle('highlighted', i === comboboxHighlightedIndex));
+        items[comboboxHighlightedIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (items.length === 0) return;
+        comboboxHighlightedIndex = (comboboxHighlightedIndex - 1 + items.length) % items.length;
+        items.forEach((it, i) => it.classList.toggle('highlighted', i === comboboxHighlightedIndex));
+        items[comboboxHighlightedIndex]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        if (panel.style.display === 'block' && items.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          const target = comboboxHighlightedIndex >= 0 ? items[comboboxHighlightedIndex] : items[0];
+          if (target) {
+            selectVentaServicioItem(target.dataset.nombre, target.dataset.estacion, target.dataset.precio);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        closeVentaServicioCombobox();
+      }
+    });
+
+    // Cerrar al hacer clic fuera del componente
+    document.addEventListener('click', (e) => {
+      if (wrap && !wrap.contains(e.target)) {
+        closeVentaServicioCombobox();
+      }
+    });
   }
 
   function populateConfigStationDropdowns() {
@@ -5346,6 +5649,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     hydrateMemoryFromLocalStorage();
     populateSalesDropdowns();
     populateConfigStationDropdowns();
+    initVentaServicioCombobox();
 
     // Inicializar vista en Ventas respetando preferencia guardada
     setVentasViewMode(currentVentasViewMode);
@@ -5978,6 +6282,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     // Al seleccionar un servicio: autocompletar estación y precio sugerido
     document.getElementById('venta_servicio')?.addEventListener('change', (e) => {
+      syncVentaServicioComboboxFromSelect();
       const selected = e.target.selectedOptions[0];
       if (selected) {
         const est = selected.dataset.estacion;
@@ -6098,6 +6403,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       // Limpiar select de servicio y precio para permitir agregar el siguiente cómodamente
       if (srvSelect) srvSelect.selectedIndex = 0;
       if (prcInput) prcInput.value = '';
+      resetVentaServicioCombobox();
 
       // Actualizar automáticamente el total cobrado con la suma de servicios
       const subtotal = currentTicketServicios.reduce((sum, item) => sum + (parseFloat(item.precio) || 0), 0);
@@ -6620,6 +6926,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       document.getElementById('venta_telefono').value = '';
       document.getElementById('venta_clienta').value = '';
       document.getElementById('venta_servicio').value = '';
+      resetVentaServicioCombobox();
       document.getElementById('venta_estacion').value = '';
       document.getElementById('venta_especialista').value = '';
       if (document.getElementById('venta_servicio_precio')) document.getElementById('venta_servicio_precio').value = '';
@@ -7176,6 +7483,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       document.querySelectorAll('.btn-status-pill').forEach(b => b.classList.toggle('active', b.dataset.status === 'Pagado completo'));
       if (document.getElementById('venta_metodo_pago')) document.getElementById('venta_metodo_pago').value = 'Efectivo';
       if (document.getElementById('venta_status_pago')) document.getElementById('venta_status_pago').value = 'Pagado completo';
+      resetVentaServicioCombobox();
     });
 
     // Switcher de Vista: Tabla vs Tarjetas
