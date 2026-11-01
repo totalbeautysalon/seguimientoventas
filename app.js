@@ -11,6 +11,74 @@
 (function () {
   'use strict';
 
+  // =========================================================================
+// GESTIÓN HORARIA OFICIAL: HIDALGO, MÉXICO (America/Mexico_City / UTC-6)
+// =========================================================================
+function getHidalgoDateTime(dateObj = new Date()) {
+  if (typeof window !== 'undefined' && window.getHidalgoDateTime) {
+    return window.getHidalgoDateTime(dateObj);
+  }
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(dateObj);
+    const m = {};
+    parts.forEach(p => { m[p.type] = p.value; });
+    let hour = m.hour;
+    if (hour === '24') hour = '00';
+    const fecha = `${m.year}-${m.month}-${m.day}`;
+    const hora = `${hour}:${m.minute}`;
+    const horaSeg = `${hour}:${m.minute}:${m.second}`;
+    return {
+      fecha,
+      hora,
+      horaSeg,
+      isoLocal: `${fecha}T${horaSeg}`,
+      display: `${m.day}/${m.month}/${m.year} ${hora}`
+    };
+  } catch (err) {
+    const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
+    const cst = new Date(utc - (6 * 3600000));
+    const y = cst.getFullYear();
+    const mo = String(cst.getMonth() + 1).padStart(2, '0');
+    const d = String(cst.getDate()).padStart(2, '0');
+    const h = String(cst.getHours()).padStart(2, '0');
+    const mi = String(cst.getMinutes()).padStart(2, '0');
+    const s = String(cst.getSeconds()).padStart(2, '0');
+    const fecha = `${y}-${mo}-${d}`;
+    const hora = `${h}:${mi}`;
+    const horaSeg = `${h}:${mi}:${s}`;
+    return {
+      fecha,
+      hora,
+      horaSeg,
+      isoLocal: `${fecha}T${horaSeg}`,
+      display: `${d}/${mo}/${y} ${hora}`
+    };
+  }
+}
+
+function getHidalgoDateStr(dateObj = new Date()) {
+  return getHidalgoDateTime(dateObj).fecha;
+}
+
+function getHidalgoTimeStr(dateObj = new Date()) {
+  return getHidalgoDateTime(dateObj).hora;
+}
+
+function getHidalgoIsoString(dateObj = new Date()) {
+  return getHidalgoDateTime(dateObj).isoLocal;
+}
+
+
   // --- ELEMENTOS Y CANVAS ---
   const formPrincipal = document.getElementById('form-arqueo-principal');
   const formChica = document.getElementById('form-arqueo-chica');
@@ -381,12 +449,12 @@
   function refreshActiveModuleData() {
     if (!currentModule) return;
     if (currentModule === 'arqueo-principal') {
-      const curFecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+      const curFecha = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
       syncVentasToCajaPrincipal(curFecha, false);
       loadControlCajaData();
     } else if (currentModule === 'ventas') {
       populateSalesDropdowns();
-      const vf = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      const vf = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
       renderVentas(vf);
     } else if (currentModule === 'balancescore') {
       renderBalanceScoreStations();
@@ -723,7 +791,7 @@
 
   async function renderVentas(fecha) {
     if (!fecha) {
-      fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      fecha = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
     }
     const filterInput = document.getElementById('ventas_filtro_fecha');
     if (filterInput && !filterInput.value) filterInput.value = fecha;
@@ -807,7 +875,7 @@
 
   function renderVentasFilteredList(fecha) {
     if (!fecha) {
-      fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      fecha = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
     }
     const tbody = document.getElementById('tbody-ventas');
     const cardsContainer = document.getElementById('ventas-cards-container');
@@ -1015,7 +1083,7 @@
 
   // Interconexión: Sincronizar automáticamente las ventas del día a Caja Principal
   async function syncVentasToCajaPrincipal(fecha, autoAlert = true) {
-    if (!fecha) fecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+    if (!fecha) fecha = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
     const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
 
     // Reiniciar contadores de ingresos (Solo Servicios de belleza, Cursos de academia y Venta de productos)
@@ -1270,7 +1338,7 @@
     if (rowTarj) rowTarj.style.display = (jVer + oVer) > 0 ? '' : 'none';
 
     // Efectivo entregado: mostrar cantidad y a quién se entregó
-    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
     const allEntregas = Object.values(controlCajaData.entregas || {});
     const entregasHoy = allEntregas.filter(e => e.fecha === today);
     const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
@@ -1307,7 +1375,7 @@
   }
 
   function serializePrincipal() {
-    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
     const allEntregas = Object.values(controlCajaData.entregas || {});
     const entregasHoy = allEntregas.filter(e => e.fecha === today);
     const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
@@ -1596,7 +1664,7 @@
       const arqueosList = Object.values(arqueosObj || {});
 
       // Determinar mes en curso (YYYY-MM)
-      const curFecha = document.getElementById('chica_fecha')?.value || new Date().toISOString().split('T')[0];
+      const curFecha = document.getElementById('chica_fecha')?.value || getHidalgoDateStr();
       const currentMonth = curFecha.slice(0, 7); // ej. "2026-10"
 
       // Sumar salidas de arqueos de este mes
@@ -2398,7 +2466,7 @@
   }
 
   function getBsActivePeriodRange() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getHidalgoDateStr();
     let fechaInicio = today;
     let fechaFin = today;
     let diasPeriodo = 1;
@@ -2855,7 +2923,7 @@
   async function renderIngresosReport() {
     const fIn = document.getElementById('rep_ingresos_fecha');
     if (!fIn) return;
-    if (!fIn.value) fIn.value = new Date().toISOString().split('T')[0];
+    if (!fIn.value) fIn.value = getHidalgoDateStr();
     const fecha = fIn.value;
 
     const tbody = document.getElementById('rep-ventas-tbody');
@@ -3243,7 +3311,7 @@
 
   function populateIngresosPrintable() {
     const fIn = document.getElementById('rep_ingresos_fecha');
-    const fecha = fIn?.value || new Date().toISOString().split('T')[0];
+    const fecha = fIn?.value || getHidalgoDateStr();
     const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Administración Total Beauty';
     const now = new Date();
     const horaEmision = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -3358,7 +3426,7 @@
   function openIngresosPdfViewer() {
     const fileName = populateIngresosPrintable();
     const fIn = document.getElementById('rep_ingresos_fecha');
-    const fecha = fIn?.value || new Date().toISOString().split('T')[0];
+    const fecha = fIn?.value || getHidalgoDateStr();
     const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Administración Total Beauty';
 
     const modalTitle = document.getElementById('pdf-modal-title');
@@ -3450,7 +3518,7 @@
 
   function loadInteresadasView() {
     const fReg = document.getElementById('lead_reg_fecha');
-    if (fReg && !fReg.value) fReg.value = new Date().toISOString().split('T')[0];
+    if (fReg && !fReg.value) fReg.value = getHidalgoDateStr();
     switchLeadOption(currentLeadOption || 1);
   }
 
@@ -4565,7 +4633,7 @@
   }
 
   function renderControlCajaFondo() {
-    const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+    const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
     const allEntregas = Object.values(controlCajaData.entregas || {});
     const entregasHoy = allEntregas.filter(e => e.fecha === today);
 
@@ -4734,7 +4802,7 @@
     try {
       const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Usuario';
       const logEntry = {
-        fechaHora: new Date().toISOString(),
+        fechaHora: getHidalgoIsoString(),
         usuario: userEmail,
         modulo,
         accion,
@@ -4754,14 +4822,17 @@
     if (!isoString) return '--/--/---- --:--';
     try {
       const d = new Date(isoString);
-      const pad = n => String(n).padStart(2, '0');
-      const dd = pad(d.getDate());
-      const mm = pad(d.getMonth() + 1);
-      const yyyy = d.getFullYear();
-      const hh = pad(d.getHours());
-      const min = pad(d.getMinutes());
-      const ss = pad(d.getSeconds());
-      return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+      if (isNaN(d.getTime())) return isoString;
+      return new Intl.DateTimeFormat('es-MX', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(d);
     } catch (e) {
       return isoString;
     }
@@ -5584,7 +5655,7 @@
 
     // Ver entregas de hoy y lightbox de fotos
     document.getElementById('btn-ver-entregas-hoy')?.addEventListener('click', () => {
-      const today = (document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0]);
+      const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
       const allEntregas = Object.values(controlCajaData.entregas || {});
       const entregasHoy = allEntregas.filter(e => e.fecha === today);
       const tbody = document.getElementById('tbody-entregas-hoy');
@@ -6826,7 +6897,7 @@
     });
 
     document.getElementById('btn-ventas-hoy')?.addEventListener('click', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getHidalgoDateStr();
       document.getElementById('ventas_filtro_fecha').value = today;
       renderVentas(today);
       logAuditMovement({
@@ -6839,7 +6910,7 @@
     });
 
     document.getElementById('btn-refresh-ventas')?.addEventListener('click', () => {
-      const fecha = document.getElementById('ventas_filtro_fecha')?.value || new Date().toISOString().split('T')[0];
+      const fecha = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
       renderVentas(fecha);
       showToast('Ventas recargadas desde Firebase', 'info');
       logAuditMovement({
@@ -7074,7 +7145,7 @@
 
       // Limpiar formulario
       document.getElementById('form-nuevo-lead').reset();
-      document.getElementById('lead_reg_fecha').value = new Date().toISOString().split('T')[0];
+      document.getElementById('lead_reg_fecha').value = getHidalgoDateStr();
 
       // Cambiar a la Opción 3 (Directorio de Seguimiento) para ver a la persona registrada
       switchLeadOption(3);
@@ -7196,7 +7267,7 @@
     document.getElementById('btn-toggle-nuevo-evento')?.addEventListener('click', () => {
       const wrap = document.getElementById('form-nuevo-evento-wrap');
       wrap.style.display = (wrap.style.display === 'none') ? 'block' : 'none';
-      document.getElementById('ev_fecha').value = new Date().toISOString().split('T')[0];
+      document.getElementById('ev_fecha').value = getHidalgoDateStr();
     });
 
     document.getElementById('btn-cancel-nuevo-evento')?.addEventListener('click', () => {
@@ -7260,7 +7331,7 @@
 
     // Botón Hoy en BalanceScore
     document.getElementById('btn-bs-dia-hoy')?.addEventListener('click', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getHidalgoDateStr();
       const el = document.getElementById('bs_fecha_dia');
       if (el) el.value = today;
       renderBalanceScoreStations();
@@ -7341,7 +7412,7 @@
     document.getElementById('btn-rep-dia-hoy')?.addEventListener('click', () => {
       const el = document.getElementById('rep_ingresos_fecha');
       if (el) {
-        el.value = new Date().toISOString().split('T')[0];
+        el.value = getHidalgoDateStr();
         renderIngresosReport();
       }
     });
@@ -7418,9 +7489,31 @@
     // -----------------------------------------------------------------------
     // INICIALIZACIÓN LIMPIA PARA PRODUCCIÓN
     // -----------------------------------------------------------------------
-    const now = new Date();
-    const dStr = now.toISOString().split('T')[0];
-    const hmStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // INICIALIZACIÓN OFICIAL DE FECHA Y HORA (HIDALGO, MÉXICO - UTC-6)
+    // -----------------------------------------------------------------------
+    function updateLiveHidalgoClocks() {
+      const tzNow = getHidalgoDateTime();
+      const { fecha, hora } = tzNow;
+
+      const elTime = document.getElementById('topbar-clock-time');
+      const elDate = document.getElementById('topbar-clock-date');
+      if (elTime) elTime.textContent = hora;
+      if (elDate) {
+        const parts = fecha.split('-');
+        elDate.textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      const elHeaderHora = document.getElementById('header_hora');
+      const elValHora = document.getElementById('val_hora_cierre');
+      const elChicaHora = document.getElementById('chica_hora');
+      if (elHeaderHora) elHeaderHora.value = hora;
+      if (elValHora) elValHora.value = hora;
+      if (elChicaHora) elChicaHora.value = hora;
+    }
+
+    const tzInit = getHidalgoDateTime();
+    const dStr = tzInit.fecha;
+    const hmStr = tzInit.hora;
 
     if (document.getElementById('header_fecha')) document.getElementById('header_fecha').value = dStr;
     if (document.getElementById('header_hora')) document.getElementById('header_hora').value = hmStr;
@@ -7444,6 +7537,9 @@
     if (document.getElementById('bs_mes_val')) document.getElementById('bs_mes_val').value = curMes;
     if (document.getElementById('bs_rango_desde')) document.getElementById('bs_rango_desde').value = `${curMes}-01`;
     if (document.getElementById('bs_rango_hasta')) document.getElementById('bs_rango_hasta').value = dStr;
+
+    updateLiveHidalgoClocks();
+    setInterval(updateLiveHidalgoClocks, 10000);
 
     recalculatePrincipal();
     recalculateChica();
@@ -7551,7 +7647,7 @@
     // =========================================================================
     setInterval(async () => {
       try {
-        const curFecha = document.getElementById('header_fecha')?.value || new Date().toISOString().split('T')[0];
+        const curFecha = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
         if (currentModule === 'arqueo-principal') {
           await syncVentasToCajaPrincipal(curFecha, false);
           await loadControlCajaData();

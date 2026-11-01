@@ -12,20 +12,90 @@
 
 const TB_FIREBASE = (function () {
 
+  // =========================================================================
+  // GESTIÓN HORARIA OFICIAL: HIDALGO, MÉXICO (America/Mexico_City / UTC-6)
+  // =========================================================================
+  function getHidalgoDateTime(dateObj = new Date()) {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(dateObj);
+      const m = {};
+      parts.forEach(p => { m[p.type] = p.value; });
+      let hour = m.hour;
+      if (hour === '24') hour = '00';
+      const fecha = `${m.year}-${m.month}-${m.day}`;
+      const hora = `${hour}:${m.minute}`;
+      const horaSeg = `${hour}:${m.minute}:${m.second}`;
+      return {
+        fecha,
+        hora,
+        horaSeg,
+        isoLocal: `${fecha}T${horaSeg}`,
+        display: `${m.day}/${m.month}/${m.year} ${hora}`
+      };
+    } catch (err) {
+      const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
+      const cst = new Date(utc - (6 * 3600000));
+      const y = cst.getFullYear();
+      const mo = String(cst.getMonth() + 1).padStart(2, '0');
+      const d = String(cst.getDate()).padStart(2, '0');
+      const h = String(cst.getHours()).padStart(2, '0');
+      const mi = String(cst.getMinutes()).padStart(2, '0');
+      const s = String(cst.getSeconds()).padStart(2, '0');
+      const fecha = `${y}-${mo}-${d}`;
+      const hora = `${h}:${mi}`;
+      const horaSeg = `${h}:${mi}:${s}`;
+      return {
+        fecha,
+        hora,
+        horaSeg,
+        isoLocal: `${fecha}T${horaSeg}`,
+        display: `${d}/${mo}/${y} ${hora}`
+      };
+    }
+  }
+
+  function getHidalgoDateStr(dateObj = new Date()) {
+    return getHidalgoDateTime(dateObj).fecha;
+  }
+
+  function getHidalgoTimeStr(dateObj = new Date()) {
+    return getHidalgoDateTime(dateObj).hora;
+  }
+
+  function getHidalgoIsoString(dateObj = new Date()) {
+    return getHidalgoDateTime(dateObj).isoLocal;
+  }
+
+  if (typeof window !== 'undefined') {
+    window.getHidalgoDateTime = getHidalgoDateTime;
+    window.getHidalgoDateStr = getHidalgoDateStr;
+    window.getHidalgoTimeStr = getHidalgoTimeStr;
+    window.getHidalgoIsoString = getHidalgoIsoString;
+  }
+
+
   // Cierre automático de jornada: La sesión se mantiene activa todo el día y se cierra sola después de las 9:00 PM (21:00 hrs)
   const WORKDAY_CLOSING_HOUR = 21; // 9:00 PM
 
   function isSessionExpired9PM(loginTimestamp) {
     if (!loginTimestamp) return true;
-    const now = new Date();
-    const loginDate = new Date(loginTimestamp);
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const loginDayStart = new Date(loginDate.getFullYear(), loginDate.getMonth(), loginDate.getDate()).getTime();
-    if (loginDayStart < todayStart) return true;
-    if (loginDate.getHours() < WORKDAY_CLOSING_HOUR) {
-      if (now.getHours() >= WORKDAY_CLOSING_HOUR) return true;
-    } else {
-      if (loginDayStart < todayStart) return true;
+    const tzNow = getHidalgoDateTime();
+    const tzLogin = getHidalgoDateTime(new Date(loginTimestamp));
+    if (tzLogin.fecha < tzNow.fecha) return true;
+    const currentHour = parseInt(tzNow.hora.split(':')[0], 10);
+    const loginHour = parseInt(tzLogin.hora.split(':')[0], 10);
+    if (loginHour < WORKDAY_CLOSING_HOUR) {
+      if (currentHour >= WORKDAY_CLOSING_HOUR) return true;
     }
     return false;
   }
@@ -666,7 +736,7 @@ const TB_FIREBASE = (function () {
 
     }
 
-    const fecha = venta.fecha || new Date().toISOString().split('T')[0];
+    const fecha = venta.fecha || getHidalgoDateStr();
 
 
 
@@ -837,7 +907,7 @@ const TB_FIREBASE = (function () {
   // =========================================================================
 
   async function saveArqueoPrincipal(data, pdfBase64 = null) {
-    const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
+    const fecha = data.header.fecha || getHidalgoDateStr();
     const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     const payload = {
@@ -900,7 +970,7 @@ const TB_FIREBASE = (function () {
   }
 
   async function saveArqueoCajaChica(data, pdfBase64 = null) {
-    const fecha = data.header.fecha || new Date().toISOString().split('T')[0];
+    const fecha = data.header.fecha || getHidalgoDateStr();
     const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     const payload = {
@@ -968,7 +1038,7 @@ const TB_FIREBASE = (function () {
 
   async function saveBalanceScore(fecha, stationsData) {
 
-    const key = fecha || new Date().toISOString().split('T')[0];
+    const key = fecha || getHidalgoDateStr();
 
     const payload = {
 
@@ -1014,7 +1084,7 @@ const TB_FIREBASE = (function () {
 
   async function getBalanceScore(fecha) {
 
-    const key = fecha || new Date().toISOString().split('T')[0];
+    const key = fecha || getHidalgoDateStr();
 
     const localScores = JSON.parse(localStorage.getItem('tb_balancescore') || '{}');
 
@@ -1046,7 +1116,7 @@ const TB_FIREBASE = (function () {
 
   async function saveIngresosReport(fecha, reportData) {
 
-    const key = fecha || new Date().toISOString().split('T')[0];
+    const key = fecha || getHidalgoDateStr();
 
     const payload = {
 
@@ -1092,7 +1162,7 @@ const TB_FIREBASE = (function () {
 
   async function getIngresosReport(fecha) {
 
-    const key = fecha || new Date().toISOString().split('T')[0];
+    const key = fecha || getHidalgoDateStr();
 
     const local = JSON.parse(localStorage.getItem('tb_ingresos_reportes') || '{}');
 
