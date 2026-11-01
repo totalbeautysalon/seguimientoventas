@@ -296,9 +296,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
       });
     }
 
-    // Si entramos a Registro de Ventas en móvil, asegurar vista de tarjetas amplia y sin amontonar
-    if (modKey === 'ventas' && typeof window !== 'undefined' && window.innerWidth <= 768) {
-      setVentasViewMode(currentVentasViewMode || 'tarjetas');
+    // Al entrar a Registro de Ventas, sincronizar vista activa respetando preferencia guardada
+    if (modKey === 'ventas') {
+      setVentasViewMode(currentVentasViewMode);
     }
 
     // Carga y actualización inmediata de datos de la sección
@@ -461,7 +461,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
         vf = todayHidalgo;
         if (filterInput) filterInput.value = todayHidalgo;
       }
-      renderVentas(vf);
+      const isSilent = currentVentasList && currentVentasList.length > 0;
+      renderVentas(vf, isSilent);
     } else if (currentModule === 'balancescore') {
       renderBalanceScoreStations();
     } else if (currentModule === 'configuracion') {
@@ -773,16 +774,21 @@ function getHidalgoIsoString(dateObj = new Date()) {
   let currentVentasList = [];
   let currentVentasMetodoFilter = 'todos';
   let currentVentasSearchTerm = '';
-  let currentVentasViewMode = (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'tarjetas' : 'tabla';
+  let currentVentasViewMode = (typeof localStorage !== 'undefined' && localStorage.getItem('tb_ventas_view_preference'))
+    || ((typeof window !== 'undefined' && window.innerWidth <= 768) ? 'tarjetas' : 'tabla');
 
   function setVentasViewMode(mode) {
-    currentVentasViewMode = mode;
+    currentVentasViewMode = mode || 'tabla';
+    try {
+      localStorage.setItem('tb_ventas_view_preference', currentVentasViewMode);
+    } catch (e) {}
+
     const btnTabla = document.getElementById('btn-view-tabla');
     const btnTarjetas = document.getElementById('btn-view-tarjetas');
     const tableWrap = document.getElementById('ventas-table-wrapper');
     const cardsWrap = document.getElementById('ventas-cards-wrapper');
 
-    if (mode === 'tarjetas') {
+    if (currentVentasViewMode === 'tarjetas') {
       if (btnTarjetas) btnTarjetas.classList.add('active');
       if (btnTabla) btnTabla.classList.remove('active');
       if (tableWrap) tableWrap.style.display = 'none';
@@ -795,7 +801,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
   }
 
-  async function renderVentas(fecha) {
+  async function renderVentas(fecha, isSilent = false) {
     const todayHidalgo = getHidalgoDateStr();
     const filterInput = document.getElementById('ventas_filtro_fecha');
     const vFechaInput = document.getElementById('venta_fecha');
@@ -811,12 +817,47 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
 
     const tbody = document.getElementById('tbody-ventas');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
     const cardsContainer = document.getElementById('ventas-cards-container');
-    if (cardsContainer) cardsContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px; color:var(--muted);">Cargando ventas...</div>';
 
-    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
-    currentVentasList = Array.isArray(ventas) ? ventas : Object.values(ventas || {});
+    // SOLUCIÓN DEFINITIVA A VENTAS QUE SE BORRAN O PARPADEAN:
+    // Sólo mostrar mensaje "Cargando ventas..." si NO hay ventas previas mostradas en pantalla
+    // y NO es una actualización en segundo plano. Si ya hay ventas mostradas, mantenerlas visibles
+    // hasta que lleguen los datos actualizados para que NUNCA desaparezcan de la vista del usuario.
+    if (!isSilent && (!currentVentasList || currentVentasList.length === 0)) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--muted);">Cargando ventas...</td></tr>';
+      if (cardsContainer) cardsContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px; color:var(--muted);">Cargando ventas...</div>';
+    }
+
+    let ventas = [];
+    try {
+      ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    } catch (e) {
+      console.warn('Error al obtener ventas de Firebase:', e);
+    }
+
+    const newVentasList = Array.isArray(ventas) ? ventas : Object.values(ventas || {});
+
+    // Ordenar de forma descendente: la venta más reciente siempre aparece arriba
+    newVentasList.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.hora || '').localeCompare(a.hora || '');
+    });
+
+    // ESCUDO DE PROTECCIÓN DE MEMORIA:
+    // Si la llamada devuelve 0 ventas pero en memoria YA tenemos ventas para este mismo día,
+    // NUNCA sobreescribir la memoria con un arreglo vacío por un fallo transitorio de red.
+    if (newVentasList.length === 0 && currentVentasList && currentVentasList.length > 0) {
+      const currentHasMatchingDate = currentVentasList.some(v => (v.fecha || todayHidalgo) === fecha);
+      if (currentHasMatchingDate) {
+        console.warn(`[renderVentas] Escudo de memoria activo: preservando ${currentVentasList.length} ventas mostradas para ${fecha}.`);
+      } else {
+        currentVentasList = newVentasList;
+      }
+    } else {
+      currentVentasList = newVentasList;
+    }
 
     let totCobrado = 0;
     let totEfec = 0;
@@ -925,20 +966,27 @@ function getHidalgoIsoString(dateObj = new Date()) {
         ? `No hay ventas registradas para este día (${fecha}). Registre una nueva venta arriba.`
         : `No se encontraron ventas que coincidan con la búsqueda o filtro seleccionado.`;
 
+      const resetBtnHtml = currentVentasList.length > 0 
+        ? `<div style="margin-top:12px;"><button type="button" class="btn btn-sm btn-outline-dark btn-reset-ventas-filters" style="font-size:0.82rem; font-weight:700; padding:6px 14px; border-radius:8px; cursor:pointer;">👁️ Mostrar todas las ventas registradas (${currentVentasList.length})</button></div>`
+        : '';
+
       if (tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" class="table-empty-notice">
-              <span>📂</span> ${msg}
+            <td colspan="8" class="table-empty-notice" style="text-align:center; padding:28px 16px;">
+              <div><span style="font-size:1.8rem;">📂</span></div>
+              <div style="margin-top:6px; font-weight:600; color:var(--text);">${msg}</div>
+              ${resetBtnHtml}
             </td>
           </tr>
         `;
       }
       if (cardsContainer) {
         cardsContainer.innerHTML = `
-          <div style="grid-column:1/-1; text-align:center; padding:32px 16px; color:var(--muted); background:#f8fafc; border-radius:12px; border:1px dashed var(--border);">
+          <div style="grid-column:1/-1; text-align:center; padding:32px 16px; color:var(--text); background:#f8fafc; border-radius:12px; border:1px dashed var(--border);">
             <div style="font-size:2rem; margin-bottom:8px;">📂</div>
             <div style="font-size:0.95rem; font-weight:600;">${msg}</div>
+            ${resetBtnHtml}
           </div>
         `;
       }
@@ -5299,10 +5347,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
     populateSalesDropdowns();
     populateConfigStationDropdowns();
 
-    // En pantallas móviles, inicializar vista de tarjetas en Ventas para evitar amontonamiento
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      setVentasViewMode('tarjetas');
-    }
+    // Inicializar vista en Ventas respetando preferencia guardada
+    setVentasViewMode(currentVentasViewMode);
 
     // Configurar Canvas de Firmas base
     sigCtxPrincipal = setupSignaturePad(sigPadPrincipal, () => { sigDataPrincipal = true; });
@@ -7193,6 +7239,21 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     // Eliminación de ventas: Requiere Clave Privada de Gerencia
     document.addEventListener('click', async (e) => {
+      // Restablecer filtros si las ventas estaban ocultas
+      const btnResetFilters = e.target.closest('.btn-reset-ventas-filters');
+      if (btnResetFilters) {
+        currentVentasSearchTerm = '';
+        currentVentasMetodoFilter = 'todos';
+        const searchInput = document.getElementById('ventas-search-input');
+        if (searchInput) searchInput.value = '';
+        document.querySelectorAll('.ventas-filter-chip').forEach(c => {
+          c.classList.toggle('active', (c.dataset.metodoFilter || 'todos') === 'todos');
+        });
+        renderVentasFilteredList();
+        showToast('Mostrando todas las ventas del día', 'info');
+        return;
+      }
+
       const btnDel = e.target.closest('.btn-del-venta');
       if (btnDel) {
         const id = btnDel.dataset.id;
@@ -7205,7 +7266,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
         const allVentasDia = await TB_FIREBASE.getVentasByFecha(fecha);
         const ventaBackup = Array.isArray(allVentasDia) ? allVentasDia.find(v => v.id === id) : allVentasDia?.[id];
         await TB_FIREBASE.deleteVenta(fecha, id);
-        renderVentas(fecha);
+        
+        // Actualizar lista en memoria inmediatamente
+        currentVentasList = currentVentasList.filter(v => v.id !== id);
+        renderVentas(fecha, true);
+
         if (fecha === document.getElementById('header_fecha')?.value) {
           syncVentasToCajaPrincipal(fecha, false);
         }
@@ -7793,7 +7858,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
           await loadControlCajaData();
         } else if (currentModule === 'ventas') {
           const vf = document.getElementById('ventas_filtro_fecha')?.value || curFecha;
-          renderVentas(vf);
+          renderVentas(vf, true);
         }
       } catch (e) {
         console.warn('Sync en segundo plano:', e);

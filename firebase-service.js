@@ -729,58 +729,38 @@ const TB_FIREBASE = (function () {
   // =========================================================================
 
   async function saveVenta(venta) {
-
     if (!venta.id) {
-
       venta.id = `v_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-
     }
-
     const fecha = venta.fecha || getHidalgoDateStr();
 
-
-
     // LocalStorage redundante
-
     const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
-
     if (!localVentas[fecha]) localVentas[fecha] = {};
-
     localVentas[fecha][venta.id] = venta;
-
     localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
 
-
-
     // Firebase Realtime Database
-
     try {
-
       await fetch(getDbUrl(`ventas_diarias/${fecha}/${venta.id}`), {
-
         method: 'PUT',
-
         headers: { 'Content-Type': 'application/json' },
-
         body: JSON.stringify(venta)
-
       });
-
+      delete venta._pendingSync;
+      venta._synced = true;
+      localVentas[fecha][venta.id] = venta;
+      localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
       notifyStatus(true, 'Venta guardada en Firebase');
-
       return { success: true, id: venta.id, source: 'firebase' };
-
     } catch (e) {
-
+      venta._pendingSync = true;
+      localVentas[fecha][venta.id] = venta;
+      localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
       notifyStatus(false, 'Venta guardada localmente');
-
       return { success: true, id: venta.id, source: 'local' };
-
     }
-
   }
-
-
 
   async function getVentasByFecha(fecha) {
     const todayHidalgo = getHidalgoDateStr();
@@ -788,31 +768,46 @@ const TB_FIREBASE = (function () {
       fecha = todayHidalgo;
     }
     const localVentas = JSON.parse(localStorage.getItem('tb_ventas_db') || '{}');
-
     const local = localVentas[fecha] || {};
-
-
 
     try {
       const res = await fetch(getDbUrl(`ventas_diarias/${fecha}`), { cache: 'no-store' });
       if (res.ok) {
         const cloud = await res.json();
-        if (cloud && typeof cloud === 'object') {
-          localVentas[fecha] = cloud;
+        if (cloud && typeof cloud === 'object' && Object.keys(cloud).length > 0) {
+          // Cloud contiene ventas válidas para esta fecha
+          const updated = { ...cloud };
+          const now = Date.now();
+          // Preservar ventas locales recién creadas o pendientes de sincronización
+          Object.values(local).forEach(lv => {
+            if (lv && lv.id && !cloud[lv.id]) {
+              const age = lv.createdAt ? (now - new Date(lv.createdAt).getTime()) : 0;
+              if (lv._pendingSync || (age > 0 && age < 120000)) {
+                updated[lv.id] = lv;
+              }
+            }
+          });
+          localVentas[fecha] = updated;
           localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
-          return Object.values(cloud);
-        } else if (cloud === null) {
+          return Object.values(updated);
+        } else if (cloud === null || (cloud && typeof cloud === 'object' && Object.keys(cloud).length === 0)) {
+          // PROTECCIÓN CRÍTICA:
+          // Si Firebase devuelve null o vacío, pero en local YA tenemos ventas registradas,
+          // NUNCA borrar las ventas locales por una falla temporal de red o suspensión en segundo plano!
+          if (Object.keys(local).length > 0) {
+            console.warn(`[TB_FIREBASE] Cloud devolvió null/vacío para ${fecha}, preservando ${Object.keys(local).length} ventas locales.`);
+            return Object.values(local);
+          }
           localVentas[fecha] = {};
           localStorage.setItem('tb_ventas_db', JSON.stringify(localVentas));
           return [];
         }
       }
-    } catch (e) {}
-
-
+    } catch (e) {
+      console.warn('Error al consultar ventas en Firebase:', e);
+    }
 
     return Object.values(local);
-
   }
 
 
