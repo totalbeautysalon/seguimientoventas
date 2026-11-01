@@ -1488,9 +1488,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (phP) phP.style.display = 'flex';
     if (pvP) pvP.style.display = 'none';
     if (imgP) imgP.src = '';
-    const now = new Date();
-    const dStr = now.toISOString().split('T')[0];
-    const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const dStr = getHidalgoDateStr();
+    const hm = getHidalgoTimeStr();
     const userEmail = TB_FIREBASE.getCurrentUser()?.email || '';
 
     if (document.getElementById('header_responsable')) document.getElementById('header_responsable').value = userEmail;
@@ -1781,6 +1780,30 @@ function getHidalgoIsoString(dateObj = new Date()) {
     setDisplay('chica_concil_diferencia', dif);
     setDisplay('kpi-chica-diferencia', dif);
 
+    // Actualizar tarjetas de resumen visual instantáneo de Caja Chica
+    const setTxt = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+    setTxt('lbl-chica-sum-fondo', formatCurrency(fChica));
+    setTxt('lbl-chica-sum-salidas', totSal > 0 ? `-${formatCurrency(totSal)}` : '$0.00');
+    setTxt('lbl-chica-sum-esperado', formatCurrency(esperado));
+    setTxt('lbl-chica-sum-contado', formatCurrency(totalContado));
+    
+    const sumDifEl = document.getElementById('lbl-chica-sum-diferencia');
+    if (sumDifEl) {
+      if (Math.abs(dif) < 0.005) {
+        sumDifEl.style.color = '#15803d';
+        sumDifEl.textContent = '$0.00 (Cuadrada)';
+      } else if (dif > 0) {
+        sumDifEl.style.color = '#d97706';
+        sumDifEl.textContent = `+${formatCurrency(dif)} (Sobrante)`;
+      } else {
+        sumDifEl.style.color = '#dc2626';
+        sumDifEl.textContent = `-${formatCurrency(Math.abs(dif))} (Faltante)`;
+      }
+    }
+
     // Badges automáticos no modificables y explicación condicional
     const cardBadge = document.getElementById('card_chica_cuadrada_badge');
     const kBadge = document.getElementById('kpi-chica-status-badge');
@@ -1837,6 +1860,69 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const valNC = document.getElementById('chica_val_nombre');
     if (respChica) respChica.value = userEmail;
     if (valNC) valNC.value = userEmail;
+  }
+
+  
+  function addOrFillChicaExpense(concept) {
+    if (!concept) return;
+    const tbody = document.getElementById('tbody-chica-salidas');
+    if (!tbody) return;
+
+    const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Encargada';
+    const rows = tbody.querySelectorAll('.chica-salida-row');
+    let targetRow = null;
+
+    if (rows.length === 1) {
+      const firstRow = rows[0];
+      const cVal = (firstRow.querySelector('.chica-concepto')?.value || '').trim();
+      const iVal = parseFloat(firstRow.querySelector('.chica-importe')?.value) || 0;
+      if (!cVal && iVal === 0) {
+        targetRow = firstRow;
+      }
+    }
+
+    if (!targetRow) {
+      const tr = document.createElement('tr');
+      tr.className = 'chica-salida-row';
+      tr.innerHTML = `
+        <td><input type="text" class="input-text chica-concepto" placeholder="Ej. Materiales, insumos..."></td>
+        <td><input type="text" class="input-text chica-motivo" placeholder="Para qué se utilizó..."></td>
+        <td><input type="text" class="input-text chica-autorizo" placeholder="Persona que autorizó..."></td>
+        <td>
+          <div class="currency-input-wrap"><span class="currency-prefix">$</span>
+            <input type="number" step="0.01" min="0" class="input-currency chica-calc-trigger chica-importe" value="0.00" onfocus="this.select()">
+          </div>
+        </td>
+        <td class="text-center">
+          <input type="file" accept="image/*" class="chica-file-input" style="display:none;">
+          <button type="button" class="btn btn-secondary btn-sm btn-subir-evidencia" style="padding:6px 10px; font-size:0.75rem; border-radius:6px; white-space:nowrap;">📷 Ticket</button>
+          <div class="chica-preview-wrap" style="display:none; margin-top:4px;">
+            <img class="chica-thumb-img btn-thumb-foto" src="" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1; cursor:pointer;" title="Clic para ampliar ticket">
+          </div>
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-danger btn-sm btn-del-row" title="Eliminar fila" style="padding:4px 8px;">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      targetRow = tr;
+    }
+
+    const cInput = targetRow.querySelector('.chica-concepto');
+    const mInput = targetRow.querySelector('.chica-motivo');
+    const aInput = targetRow.querySelector('.chica-autorizo');
+    const iInput = targetRow.querySelector('.chica-importe');
+
+    if (cInput) cInput.value = concept;
+    if (mInput && !mInput.value) mInput.value = concept;
+    if (aInput && !aInput.value) aInput.value = userEmail;
+
+    if (iInput) {
+      iInput.focus();
+      iInput.select();
+    }
+    recalculateChica();
+    showToast(`Concepto "${concept}" agregado. Ingrese el importe.`, 'info');
   }
 
   function serializeChica() {
@@ -1905,9 +1991,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (phC) phC.style.display = 'flex';
     if (pvC) pvC.style.display = 'none';
     if (imgC) imgC.src = '';
-    const now = new Date();
-    const dStr = now.toISOString().split('T')[0];
-    const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const dStr = getHidalgoDateStr();
+    const hm = getHidalgoTimeStr();
     const userEmail = TB_FIREBASE.getCurrentUser()?.email || '';
 
     if (document.getElementById('chica_fecha')) document.getElementById('chica_fecha').value = dStr;
@@ -5306,17 +5391,58 @@ function getHidalgoIsoString(dateObj = new Date()) {
       });
     });
 
-    document.querySelectorAll('.denom-btn-chica').forEach(btn => {
-      btn.addEventListener('click', () => {
+    // Botones de incremento/decremento denominaciones Caja Chica
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.denom-btn-chica');
+      if (btn) {
         const row = btn.closest('.denomination-row');
-        const input = row.querySelector('.chica-denom-input');
+        const input = row?.querySelector('.chica-denom-input');
         if (!input) return;
         let v = parseInt(input.value, 10) || 0;
         if (btn.dataset.action === 'inc') v += 1;
         if (btn.dataset.action === 'dec') v = Math.max(0, v - 1);
         input.value = v;
         recalculateChica();
+      }
+    });
+
+    // Botones de incremento rápido (+5) en denominaciones
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.denom-btn-quick');
+      if (btn) {
+        const row = btn.closest('.denomination-row');
+        const input = row?.querySelector('.chica-denom-input');
+        if (!input) return;
+        let v = parseInt(input.value, 10) || 0;
+        if (btn.dataset.action === 'add5') v += 5;
+        input.value = v;
+        recalculateChica();
+      }
+    });
+
+    // Chips de conceptos frecuentes en Caja Chica (1 clic)
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.btn-quick-chip');
+      if (chip) {
+        const concept = chip.dataset.concept || chip.textContent.trim();
+        addOrFillChicaExpense(concept);
+      }
+    });
+
+    // Botón reiniciar conteo en cero de Caja Chica
+    document.getElementById('btn-reset-conteo-chica')?.addEventListener('click', () => {
+      document.querySelectorAll('.chica-denom-input').forEach(inp => {
+        inp.value = 0;
       });
+      recalculateChica();
+      showToast('🧹 Conteo de caja chica reiniciado a cero', 'info');
+    });
+
+    // Auto-seleccionar texto al enfocar campos numéricos para escribir de inmediato
+    document.addEventListener('focusin', (e) => {
+      if (e.target.matches('.chica-denom-input') || e.target.matches('.chica-importe') || e.target.matches('.denom-input')) {
+        e.target.select();
+      }
     });
 
     // Filas dinámicas en Caja Chica y Anticipos
@@ -7871,6 +7997,13 @@ function getHidalgoIsoString(dateObj = new Date()) {
       }
     });
 
+    // Ocultar botón de sincronizar con Caja Principal en Ventas si no tiene permisos
+    const canCajaPrincipal = allowed.includes('arqueo-principal');
+    const btnSyncCaja = document.getElementById('btn-sync-ventas-caja');
+    if (btnSyncCaja) {
+      btnSyncCaja.style.display = canCajaPrincipal ? 'inline-flex' : 'none';
+    }
+
     // 4. Si el módulo activo quedó oculto o restringido, redirigir al primer módulo permitido
     if (!allowed.includes(currentModule)) {
       const fallback = allowed[0] || 'ventas';
@@ -8485,7 +8618,13 @@ function getHidalgoIsoString(dateObj = new Date()) {
       if (sidebarUserCard) sidebarUserCard.style.display = 'block';
       if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
 
-      // 4. OCULTAR EL MODAL DE LOGIN SOLO DESPUÉS DE QUE LOS PERMISOS YA FUERON APLICADOS AL DOM
+      // 4. OCULTAR EL MODAL DE LOGIN Y DESBLOQUEAR APLICACIÓN SOLO DESPUÉS DE QUE LOS PERMISOS YA FUERON APLICADOS AL DOM
+      const layoutWrapper = document.getElementById('app-layout-wrapper');
+      if (layoutWrapper) {
+        layoutWrapper.classList.remove('app-locked');
+        layoutWrapper.style.removeProperty('display');
+        layoutWrapper.style.display = 'flex';
+      }
       if (authOverlay) authOverlay.classList.add('hidden');
 
       if (isFreshLogin) {
@@ -8537,6 +8676,13 @@ function getHidalgoIsoString(dateObj = new Date()) {
       closeModuleLauncher();
       isConfigUnlocked = false;
       sessionStorage.removeItem('tb_cfg_unlocked');
+
+      // 1. BLOQUEAR Y OCULTAR COMPLETAMENTE LA APLICACIÓN AL CERRAR SESIÓN
+      const layoutWrapper = document.getElementById('app-layout-wrapper');
+      if (layoutWrapper) {
+        layoutWrapper.classList.add('app-locked');
+        layoutWrapper.style.display = 'none';
+      }
 
       // Ocultar módulos del menú y vistas activas para proteger el sistema al salir
       document.querySelectorAll('.sidebar-menu li').forEach(li => {
@@ -8635,30 +8781,13 @@ function getHidalgoIsoString(dateObj = new Date()) {
       });
     });
 
-    // Aplicación inmediata y sincrónica de permisos previos si existe usuario en sesión
+    // Aplicación defensiva de permisos previos si existe usuario en sesión (sin mostrar contenido antes de verificar)
     try {
       const savedUserRaw = localStorage.getItem('tb_auth_user') || sessionStorage.getItem('tb_auth_user');
       if (savedUserRaw) {
         const savedUser = JSON.parse(savedUserRaw);
         if (savedUser && savedUser.email) {
           applyUserPermissions(savedUser.email);
-        }
-      }
-      const initialSavedMod = localStorage.getItem('tb_active_module');
-      if (initialSavedMod) {
-        document.querySelectorAll('.module-view').forEach(v => v.classList.remove('active-view'));
-        const initialTarget = document.getElementById(`view-${initialSavedMod}`);
-        if (initialTarget) initialTarget.classList.add('active-view');
-        document.querySelectorAll('.menu-item-link').forEach(link => {
-          if (link.dataset.module === initialSavedMod) link.classList.add('active');
-          else link.classList.remove('active');
-        });
-        const info = moduleTitles[initialSavedMod];
-        if (info) {
-          const tEl = document.getElementById('topbar-module-title');
-          const dEl = document.getElementById('topbar-module-desc');
-          if (tEl) tEl.textContent = info.title;
-          if (dEl) dEl.textContent = info.desc;
         }
       }
     } catch (e) {}
