@@ -1989,14 +1989,16 @@ const TB_FIREBASE = (function () {
   // =========================================================================
   async function getControlCaja() {
     let local = JSON.parse(localStorage.getItem('tb_control_caja') || '{"fondoBase":0,"entregas":{}}');
+    if (!local.entregas) local.entregas = {};
     try {
       const res = await fetch(getDbUrl('control_caja', { _t: Date.now() }));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && typeof cloud === 'object') {
+          const mergedEntregas = Object.assign({}, local.entregas || {}, cloud.entregas || {});
           local = {
             fondoBase: typeof cloud.fondoBase === 'number' ? cloud.fondoBase : (local.fondoBase || 0),
-            entregas: cloud.entregas || {}
+            entregas: mergedEntregas
           };
           localStorage.setItem('tb_control_caja', JSON.stringify(local));
           return local;

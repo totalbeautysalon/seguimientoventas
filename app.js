@@ -1412,16 +1412,32 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
 
     // Conciliación Caja Principal:
-    // Efectivo esperado = Fondo inicial + Ingresos en efectivo
+    // Efectivo esperado = (Fondo inicial + Ingresos en efectivo) - Entregas realizadas en este corte
+    const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
+    const entregasCorte = getEntregasDelCorte(today);
+    const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+
     setDisplay('concil_ingresos_efectivo', totEfec);
+    setDisplay('concil_total_entregas', totalEntregadoCorte);
     setDisplay('concil_efectivo_contado', totalContado);
 
-    const esperado = fCaja + totEfec;
+    const lblBadgeEnt = document.getElementById('lbl_concil_entregas_badge');
+    if (lblBadgeEnt) {
+      lblBadgeEnt.textContent = '(-) ' + entregasCorte.length + (entregasCorte.length === 1 ? ' entrega' : ' entregas');
+    }
+
+    const esperado = Math.max(0, (fCaja + totEfec) - totalEntregadoCorte);
     setDisplay('concil_efectivo_esperado', esperado);
 
     const diferencia = totalContado - esperado;
     setDisplay('concil_diferencia_caja', diferencia);
     setDisplay('kpi-diferencia', diferencia);
+
+    // Actualizar indicador superior de efectivo en caja
+    const lblDisp = document.getElementById('lbl-fondo-disponible');
+    if (lblDisp) {
+      lblDisp.textContent = formatCurrency(esperado);
+    }
 
     // Resultado automático badge y campo de explicación condicional
     const cardBadge = document.getElementById('card_res_cuadrada_badge');
@@ -1527,9 +1543,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (rowTarj) rowTarj.style.display = (jVer + oVer) > 0 ? '' : 'none';
 
     // Efectivo entregado: mostrar cantidad y a quién se entregó
-    const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
-    const allEntregas = Object.values(controlCajaData.entregas || {});
-    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const entregasHoy = getEntregasDelDia(today);
     const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
 
     setDisplay('resumen_total_retiros', totalEntregadoHoy);
@@ -1653,6 +1667,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       conciliacion: {
         fondo: parseVal('f_inicial_caja'),
         ingresosEfec: parseVal('ing_total_efectivo'),
+        retiros: totalEntregadoCorte,
         esperado: parseVal('concil_efectivo_esperado'),
         contado: contado,
         diferencia: dif,
@@ -5332,6 +5347,60 @@ function getHidalgoIsoString(dateObj = new Date()) {
   // 11. INICIALIZACIÓN Y EVENT LISTENERS
   // =========================================================================
   // =========================================================================
+  // GESTIÓN Y FILTRADO ROBUSTO DE ENTREGAS DE DINERO (ZONA HIDALGO)
+  // =========================================================================
+  function isEntregaFromDate(entrega, targetDate) {
+    if (!entrega) return false;
+    if (entrega.fecha === targetDate) return true;
+    const dStr = entrega.createdAt || entrega.fechaHora;
+    if (dStr) {
+      try {
+        if (getHidalgoDateStr(new Date(dStr)) === targetDate) return true;
+      } catch (e) {}
+    }
+    if (entrega.id && typeof entrega.id === 'string' && entrega.id.startsWith('ent_')) {
+      const ts = parseInt(entrega.id.replace('ent_', ''), 10);
+      if (ts > 1000000000000) {
+        try {
+          if (getHidalgoDateStr(new Date(ts)) === targetDate) return true;
+        } catch (e) {}
+      }
+    }
+    return false;
+  }
+
+  function getEntregasDelDia(fecha) {
+    const targetDate = fecha || document.getElementById('header_fecha')?.value || getHidalgoDateStr();
+    const allEntregas = Object.values(controlCajaData.entregas || {});
+    return allEntregas.filter(e => isEntregaFromDate(e, targetDate)).sort((a, b) => {
+      const tA = (a.hora || a.createdAt || a.fechaHora || '');
+      const tB = (b.hora || b.createdAt || b.fechaHora || '');
+      return tA.localeCompare(tB);
+    });
+  }
+
+  function getEntregasDelCorte(fecha) {
+    const entregasHoy = getEntregasDelDia(fecha);
+    if (!currentCortesHoy || currentCortesHoy.length === 0) {
+      return entregasHoy;
+    }
+    const ultimoCorte = currentCortesHoy[currentCortesHoy.length - 1];
+    if (!ultimoCorte || !ultimoCorte.corteTimestamp) {
+      return entregasHoy;
+    }
+    const tCorte = new Date(ultimoCorte.corteTimestamp).getTime();
+    return entregasHoy.filter(e => {
+      const dStr = e.createdAt || e.fechaHora;
+      if (dStr) return new Date(dStr).getTime() > tCorte;
+      if (e.id && typeof e.id === 'string' && e.id.startsWith('ent_')) {
+        const ts = parseInt(e.id.replace('ent_', ''), 10);
+        if (ts > 1000000000000) return ts > tCorte;
+      }
+      return true;
+    });
+  }
+
+  // =========================================================================
   // CONTROL DE CAJA, FONDO INICIAL Y ENTREGAS DE DINERO (CON FOTOGRAFÍA)
   // =========================================================================
   async function loadControlCajaData() {
@@ -5359,50 +5428,41 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
   function renderControlCajaFondo() {
     const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
-    const allEntregas = Object.values(controlCajaData.entregas || {});
-    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const entregasHoy = getEntregasDelDia(today);
+    const entregasCorte = getEntregasDelCorte(today);
 
-    // Revisar cortes de hoy para determinar fondo inicial del corte activo
     let fondoBase = parseFloat(controlCajaData.fondoBase || 0);
-    let entregasFiltradas = entregasHoy;
 
     if (currentCortesHoy && currentCortesHoy.length > 0) {
       const ultimoCorte = currentCortesHoy[currentCortesHoy.length - 1];
       const dest = ultimoCorte.destinoEfectivo || ultimoCorte.validacion?.destinoEfectivo;
       if (dest === 'se_queda_en_caja') {
-        // Se quedó en caja: el fondo inicial para este corte es el monto que quedó en caja
         fondoBase = parseFloat(ultimoCorte.montoQuedaEnCaja || ultimoCorte.conteo?.total || ultimoCorte.conciliacion?.contado || 0);
       } else {
-        // Se guardó en sobre o se resguardó en otro lugar:
-        // El dinero salió de la caja física, la caja inicia en $0.00
         fondoBase = 0.00;
-      }
-
-      // Solo entregas realizadas después del último corte afectan este corte
-      if (ultimoCorte.corteTimestamp) {
-        const tCorte = new Date(ultimoCorte.corteTimestamp).getTime();
-        entregasFiltradas = entregasHoy.filter(e => e.createdAt && new Date(e.createdAt).getTime() > tCorte);
       }
     }
 
-    const totalEntregadoHoy = entregasFiltradas.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
-    const fondoDisponible = Math.max(0, fondoBase - totalEntregadoHoy);
+    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+    const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
 
     const fInput = document.getElementById('f_inicial_caja');
-    if (fInput) fInput.value = fondoDisponible.toFixed(2);
+    if (fInput) fInput.value = fondoBase.toFixed(2);
 
     const lblBase = document.getElementById('lbl-fondo-base');
     const lblEntr = document.getElementById('lbl-total-entregado');
     const lblDisp = document.getElementById('lbl-fondo-disponible');
     const countBadge = document.getElementById('count-entregas-hoy');
 
+    const vEfec = parseVal('ing_total_efectivo');
+    const efectivoTotalCaja = Math.max(0, (fondoBase + vEfec) - totalEntregadoCorte);
+
     if (lblBase) lblBase.textContent = formatCurrency(fondoBase);
     if (lblEntr) lblEntr.textContent = formatCurrency(totalEntregadoHoy);
-    if (lblDisp) lblDisp.textContent = formatCurrency(fondoDisponible);
-    if (countBadge) countBadge.textContent = String(entregasFiltradas.length);
+    if (lblDisp) lblDisp.textContent = formatCurrency(efectivoTotalCaja);
+    if (countBadge) countBadge.textContent = String(entregasHoy.length);
 
-    // Actualizar también en Configuración General si está abierto
-    renderConfigCajaPrincipalValues(fondoBase, totalEntregadoHoy, fondoDisponible);
+    renderConfigCajaPrincipalValues(fondoBase, totalEntregadoHoy, efectivoTotalCaja);
 
     recalculatePrincipal();
   }
@@ -6494,17 +6554,27 @@ function getHidalgoIsoString(dateObj = new Date()) {
       document.getElementById('modal-lista-cortes-hoy').style.display = 'none';
     });
 
-        // Control de Caja: Entrega de Dinero con Fotografía (Protegido por Clave Privada de Gerencia)
-    document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', async () => {
-      const autorizado = await solicitarClaveGerencia('realizar entrega de dinero');
-      if (!autorizado) return;
-
+        // Control de Caja: Entrega de Dinero
+    document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', () => {
       const modal = document.getElementById('modal-entrega-dinero');
       const form = document.getElementById('form-entrega-dinero');
       const prevWrap = document.getElementById('ent_preview_wrap');
       if (form) form.reset();
       if (prevWrap) prevWrap.style.display = 'none';
       fotoEntregaBase64 = null;
+
+      // Mostrar el efectivo actualmente disponible en caja
+      const dispEl = document.getElementById('modal-ent-disponible');
+      if (dispEl) {
+        const fBase = parseVal('f_inicial_caja');
+        const vEfec = parseVal('ing_total_efectivo');
+        const today = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
+        const entregasCorte = getEntregasDelCorte(today);
+        const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+        const disp = Math.max(0, (fBase + vEfec) - totalEntregadoCorte);
+        dispEl.textContent = formatCurrency(disp);
+      }
+
       if (modal) modal.style.display = 'flex';
       setTimeout(() => { document.getElementById('ent_recibe')?.focus(); }, 100);
     });
@@ -6557,64 +6627,73 @@ function getHidalgoIsoString(dateObj = new Date()) {
       const concepto = document.getElementById('ent_concepto').value.trim();
 
       if (!recibe || cantidad <= 0 || !concepto) {
-        showToast('Complete todos los campos obligatorios (*)', 'warning');
-        return;
-      }
-
-      if (!fotoEntregaBase64) {
-        showToast('Es obligatorio tomar o subir la fotografía de recepción del dinero', 'warning');
+        showToast('Complete los campos requeridos: A quién, Cantidad y Concepto', 'warning');
         return;
       }
 
       showToast('Guardando entrega de dinero...', 'info');
       const curUser = TB_FIREBASE.getCurrentUser();
-      const now = new Date();
+      const hDate = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
+      const hTime = getHidalgoTimeStr();
+      const nowIso = new Date().toISOString();
+
       const entrega = {
-        id: `ent_${Date.now()}`,
-        fechaHora: now.toISOString(),
-        fecha: now.toISOString().split('T')[0],
-        hora: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        id: 'ent_' + Date.now(),
+        fecha: hDate,
+        hora: hTime,
+        fechaHora: nowIso,
+        createdAt: nowIso,
         recibe,
         cantidad,
         concepto,
-        fotoBase64: fotoEntregaBase64,
+        fotoBase64: fotoEntregaBase64 || null,
         registradoPor: curUser?.email || 'Usuario'
       };
+
+      if (!controlCajaData.entregas) controlCajaData.entregas = {};
+      controlCajaData.entregas[entrega.id] = entrega;
 
       await TB_FIREBASE.saveEntregaDinero(entrega);
       logAuditMovement({
         modulo: 'Arqueo Principal',
         accion: 'ENTREGA_DINERO',
-        descripcion: `Entrega de dinero en efectivo: $${cantidad.toFixed(2)} a "${recibe}" por "${concepto}" (Con fotografía)`,
+        descripcion: 'Entrega de dinero en efectivo: $' + cantidad.toFixed(2) + ' a "' + recibe + '" por "' + concepto + '"',
         payload: { entrega }
       });
 
       document.getElementById('modal-entrega-dinero').style.display = 'none';
-      showToast(`✅ Entrega de $${cantidad.toFixed(2)} registrada y descontada de caja`, 'success');
+      showToast('✅ Entrega de $' + cantidad.toFixed(2) + ' registrada y descontada de la caja', 'success');
+
+      renderControlCajaFondo();
+      recalculatePrincipal();
       await loadControlCajaData();
+      renderControlCajaFondo();
     });
 
     // Ver entregas de hoy y lightbox de fotos
     document.getElementById('btn-ver-entregas-hoy')?.addEventListener('click', () => {
       const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
-      const allEntregas = Object.values(controlCajaData.entregas || {});
-      const entregasHoy = allEntregas.filter(e => e.fecha === today);
+      const entregasHoy = getEntregasDelDia(today);
       const tbody = document.getElementById('tbody-entregas-hoy');
+      const thTot = document.getElementById('th-total-entregas-hoy');
 
+      let sumEnt = 0;
       if (tbody) {
         tbody.innerHTML = '';
         if (entregasHoy.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--muted);">No hay entregas registradas hoy.</td></tr>';
         } else {
           entregasHoy.forEach(item => {
+            const imp = parseFloat(item.cantidad) || 0;
+            sumEnt += imp;
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td><span style="font-family:monospace; font-weight:600;">${item.hora || '--:--'}</span></td>
-              <td><strong>${item.recibe}</strong></td>
-              <td>${item.concepto}</td>
-              <td class="text-right"><strong style="color:#b91c1c;">$${parseFloat(item.cantidad).toFixed(2)}</strong></td>
+              <td><strong>${escapeHtml(item.recibe)}</strong></td>
+              <td>${escapeHtml(item.concepto)}</td>
+              <td class="text-right"><strong style="color:#b91c1c;">$${imp.toFixed(2)}</strong></td>
               <td class="text-center">
-                ${item.fotoBase64 ? `<img src="${item.fotoBase64}" class="btn-thumb-foto" data-id="${item.id}" title="Ver fotografía ampliada">` : '--'}
+                ${item.fotoBase64 ? `<img src="${item.fotoBase64}" class="btn-thumb-foto" data-id="${item.id}" title="Ver comprobante" style="width:36px; height:36px; object-fit:cover; border-radius:4px; cursor:pointer;">` : '<span style="color:#94a3b8; font-size:0.75rem;">Sin foto</span>'}
               </td>
               <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm btn-del-entrega" data-id="${item.id}" title="Eliminar registro">✕</button>
@@ -6625,6 +6704,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         }
       }
 
+      if (thTot) thTot.textContent = formatCurrency(sumEnt);
       document.getElementById('modal-lista-entregas').style.display = 'flex';
     });
 
