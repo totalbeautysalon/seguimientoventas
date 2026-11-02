@@ -990,10 +990,11 @@ const TB_FIREBASE = (function () {
   // =========================================================================
 
   async function saveArqueoPrincipal(data, pdfBase64 = null) {
-    const fecha = data.header.fecha || getHidalgoDateStr();
-    const corteNum = parseInt(data.corteNum || 1, 10);
-    const corteId = data.corteId || `corte_${Date.now()}`;
-    const respClean = (data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_');
+    const header = (data && data.header) ? data.header : {};
+    const fecha = header.fecha || (data && data.fecha) || getHidalgoDateStr();
+    const corteNum = parseInt((data && data.corteNum) || 1, 10);
+    const corteId = (data && data.corteId) || `corte_${Date.now()}`;
+    const respClean = (header.responsable || (data && data.responsable) || 'responsable').replace(/[^a-zA-Z0-9]/g, '_');
     const key = `${fecha}_corte${corteNum}_${respClean}`;
 
     const payload = {

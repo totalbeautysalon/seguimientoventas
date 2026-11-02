@@ -1594,8 +1594,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
   function serializePrincipal() {
     const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
     const allEntregas = Object.values(controlCajaData.entregas || {});
-    const entregasHoy = allEntregas.filter(e => e.fecha === today);
+    const entregasHoy = allEntregas.filter(e => isEntregaFromDate(e, today));
     const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+    const entregasCorte = getEntregasDelCorte(today);
+    const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
     const dif = parseVal('concil_diferencia_caja');
     const resArqueo = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
 
@@ -1730,7 +1732,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
   }
 
   function clearPrincipalForm() {
-    formPrincipal.reset();
+    if (formPrincipal) formPrincipal.reset();
     if (sigCtxPrincipal && sigPadPrincipal) {
       sigCtxPrincipal.clearRect(0, 0, sigPadPrincipal.width, sigPadPrincipal.height);
       sigDataPrincipal = false;
@@ -1753,7 +1755,51 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = '';
     if (document.getElementById('wrap_efectivo_otro_lugar')) document.getElementById('wrap_efectivo_otro_lugar').style.display = 'none';
 
-    // Resetear destino de efectivo a opción 1
+    // 1. Limpiar campo y estado del conteo de efectivo físico
+    const conteoEl = document.getElementById('conteo_total_efectivo');
+    if (conteoEl) {
+      conteoEl.value = '';
+      conteoEl.dataset.manual = 'false';
+    }
+    const hintConteo = document.getElementById('hint-conteo-estado');
+    if (hintConteo) {
+      hintConteo.textContent = 'Pendiente de captura';
+      hintConteo.style.color = 'var(--primary)';
+    }
+
+    // 2. Limpiar denominaciones de billetes y monedas
+    ['billete_1000', 'billete_500', 'billete_200', 'billete_100', 'billete_50', 'billete_20',
+     'moneda_10', 'moneda_5', 'moneda_2', 'moneda_1', 'moneda_050'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '0';
+    });
+    ['sub_1000', 'sub_500', 'sub_200', 'sub_100', 'sub_50', 'sub_20',
+     'sub_10', 'sub_5', 'sub_2', 'sub_1', 'sub_050',
+     'conteo_total_monedas', 'conteo_total_billetes', 'conteo_gran_total'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '$0.00';
+    });
+
+    // 3. Limpiar control de pagos verificados
+    ['ctrl_transf_verif', 'ctrl_tarj_verif', 'ctrl_otros_verif'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '0.00';
+    });
+    ['ctrl_transf_dif', 'ctrl_tarj_dif', 'ctrl_otros_dif', 'ctrl_total_verif', 'ctrl_total_dif'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '0.00';
+    });
+
+    // 4. Limpiar aclaraciones y notas
+    const explEl = document.getElementById('concil_explicacion');
+    if (explEl) explEl.value = '';
+    const wrapExpl = document.getElementById('wrap_concil_explicacion');
+    if (wrapExpl) wrapExpl.style.display = 'none';
+
+    const obsEl = document.getElementById('val_observaciones');
+    if (obsEl) obsEl.value = '';
+
+    // 5. Resetear destino de efectivo a opción 1 ("Se queda en caja")
     const selDest = document.getElementById('val_destino_efectivo');
     if (selDest) selDest.value = 'se_queda_en_caja';
     const wrapQ = document.getElementById('wrap_destino_queda_caja');
@@ -1763,15 +1809,32 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (wrapS) wrapS.style.display = 'none';
     if (wrapR) wrapR.style.display = 'none';
 
-    ['val_monto_queda_caja', 'val_importe_sobre', 'val_importe_resguardo'].forEach(id => {
+    ['val_monto_queda_caja', 'val_importe_sobre', 'val_importe_resguardo', 'val_importe_entregado'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.value = '0.00'; el.dataset.manual = 'false'; }
     });
 
-    ['val_folio_sobre', 'val_folio_resguardo'].forEach(id => {
+    ['val_folio_sobre', 'val_folio_resguardo', 'val_lugar_resguardo', 'val_efectivo_otro_lugar'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.value = ''; el.dataset.autoFolio = 'false'; }
     });
+
+    // 6. Resetear badges y etiquetas de estado de conciliación
+    const cardBadge = document.getElementById('card_res_cuadrada_badge');
+    if (cardBadge) {
+      cardBadge.className = 'kpi-status-badge badge-cuadrada';
+      cardBadge.textContent = 'Pendiente de conteo';
+    }
+    const kpiBadge = document.getElementById('kpi-status-badge');
+    if (kpiBadge) {
+      kpiBadge.textContent = 'Pendiente';
+      kpiBadge.className = 'kpi-status-badge';
+    }
+    const difLabel = document.getElementById('concil_diferencia_label');
+    if (difLabel) {
+      difLabel.textContent = 'Sin diferencia';
+      difLabel.style.color = 'var(--muted)';
+    }
 
     loadControlCajaData();
     loadCajaChicaFundData();
@@ -2517,18 +2580,25 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const fechaId = isChica ? 'chica_fecha' : 'header_fecha';
     const respId = isChica ? 'chica_responsable' : 'header_responsable';
 
-    const fecha = document.getElementById(fechaId).value;
-    const resp = document.getElementById(respId).value.trim();
+    let fecha = document.getElementById(fechaId)?.value;
+    let resp = document.getElementById(respId)?.value?.trim();
 
     if (!fecha) {
-      showToast('Por favor ingrese la fecha', 'warning');
-      document.getElementById(fechaId).focus();
-      return;
+      fecha = getHidalgoDateStr();
+      const el = document.getElementById(fechaId);
+      if (el) el.value = fecha;
     }
     if (!resp) {
-      showToast('Por favor ingrese el nombre del responsable', 'warning');
-      document.getElementById(respId).focus();
-      return;
+      const curEmail = TB_FIREBASE.getCurrentUser()?.email;
+      if (curEmail) {
+        resp = curEmail;
+        const el = document.getElementById(respId);
+        if (el) el.value = curEmail;
+      } else {
+        showToast('Por favor ingrese el nombre del responsable', 'warning');
+        document.getElementById(respId)?.focus();
+        return;
+      }
     }
 
     if (!isChica) {
@@ -2556,38 +2626,50 @@ function getHidalgoIsoString(dateObj = new Date()) {
       }
     }
 
-    showToast('Guardando ' + (isChica ? 'Caja Chica' : ('Corte #' + currentCorteNum + ' de Caja Principal')) + ' en Firebase...', 'info');
+    showToast('Guardando ' + (isChica ? 'Caja Chica' : ('Corte #' + (currentCorteNum || 1) + ' de Caja Principal')) + ' en Firebase...', 'info');
 
     // 1. Guardar en Firebase
     let saveResult = null;
     let savedData = null;
-    if (isChica) {
-      savedData = serializeChica();
-      saveResult = await TB_FIREBASE.saveArqueoCajaChica(savedData);
-      logAuditMovement({
-        modulo: 'Caja Chica',
-        accion: 'ALTA_ARQUEO_CHICA',
-        descripcion: 'Cierre Arqueo Caja Chica: Fecha ' + fecha + ' por ' + resp + ' - Fondo Final: $' + parseFloat(savedData.totalFondoFinal || 0).toFixed(2),
-        payload: { arqueoKey: saveResult?.key || (fecha + '_' + resp.replace(/[^a-zA-Z0-9]/g, '_')), fecha, data: savedData }
-      });
-    } else {
-      savedData = serializePrincipal();
-      saveResult = await TB_FIREBASE.saveArqueoPrincipal(savedData);
-      logAuditMovement({
-        modulo: 'Arqueo Principal',
-        accion: 'ALTA_ARQUEO_PRINCIPAL',
-        descripcion: 'Corte de Caja #' + (savedData.corteNum || 1) + ': Fecha ' + fecha + ' por ' + resp + ' - Ingresos Corte: $' + parseFloat(savedData.resumenFinal?.totalIngresosDia || 0).toFixed(2) + ' - Destino: ' + savedData.destinoEfectivo + (savedData.folioSobre ? ' [Sobre ' + savedData.folioSobre + ']' : '') + (savedData.folioResguardo ? ' [Resg ' + savedData.folioResguardo + ']' : ''),
-        payload: { arqueoKey: saveResult?.key, fecha, corteNum: savedData.corteNum, data: savedData }
-      });
+    try {
+      if (isChica) {
+        savedData = serializeChica();
+        saveResult = await TB_FIREBASE.saveArqueoCajaChica(savedData);
+        logAuditMovement({
+          modulo: 'Caja Chica',
+          accion: 'ALTA_ARQUEO_CHICA',
+          descripcion: 'Cierre Arqueo Caja Chica: Fecha ' + fecha + ' por ' + resp + ' - Fondo Final: $' + parseFloat(savedData.totalFondoFinal || 0).toFixed(2),
+          payload: { arqueoKey: saveResult?.key || (fecha + '_' + resp.replace(/[^a-zA-Z0-9]/g, '_')), fecha, data: savedData }
+        });
+      } else {
+        savedData = serializePrincipal();
+        saveResult = await TB_FIREBASE.saveArqueoPrincipal(savedData);
+        logAuditMovement({
+          modulo: 'Arqueo Principal',
+          accion: 'ALTA_ARQUEO_PRINCIPAL',
+          descripcion: 'Corte de Caja #' + (savedData.corteNum || 1) + ': Fecha ' + fecha + ' por ' + resp + ' - Ingresos Corte: $' + parseFloat(savedData.resumenFinal?.totalIngresosDia || 0).toFixed(2) + ' - Destino: ' + savedData.destinoEfectivo + (savedData.folioSobre ? ' [Sobre ' + savedData.folioSobre + ']' : '') + (savedData.folioResguardo ? ' [Resg ' + savedData.folioResguardo + ']' : ''),
+          payload: { arqueoKey: saveResult?.key, fecha, corteNum: savedData.corteNum, data: savedData }
+        });
+      }
+    } catch (saveErr) {
+      console.error('Error al guardar arqueo:', saveErr);
+      showToast('❌ Error al guardar arqueo: ' + (saveErr?.message || saveErr), 'error');
+      return;
     }
 
-    // 2. Descargar PDF automáticamente
-    showToast('Generando y descargando PDF oficial...', 'info');
-    const fileName = await exportPDF(isChica);
+    // 2. Descargar PDF automáticamente (sin bloquear el guardado ni la limpieza)
+    let fileName = '';
+    try {
+      showToast('Generando y descargando PDF oficial...', 'info');
+      fileName = await exportPDF(isChica);
+    } catch (pdfErr) {
+      console.warn('Advertencia al generar PDF:', pdfErr);
+    }
 
-    showToast('✅ ¡' + (isChica ? 'Caja Chica' : ('Corte #' + (savedData?.corteNum || 1) + ' de Caja Principal')) + ' guardado en Firebase y PDF descargado (' + fileName + ')!', 'success');
+    // 3. Notificación explícita de REGISTRO GUARDADO requerida por el usuario
+    showToast('✅ Registro guardado. ' + (isChica ? 'Arqueo de Caja Chica' : ('Corte #' + (savedData?.corteNum || 1) + ' de Caja Principal')) + ' guardado con éxito.', 'success');
 
-    // 3. Limpiar los campos para nuevo corte
+    // 4. Limpiar los campos para nuevo corte
     if (isChica) {
       clearChicaForm();
     } else {
@@ -2595,8 +2677,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
       // Recargar de inmediato los cortes de hoy y sincronizar ventas del nuevo corte
       await loadControlCajaData();
       await syncVentasToCajaPrincipal(fecha, false);
+      recalculatePrincipal();
     }
-    showToast('Campos listos para nuevo corte de caja.', 'info');
+    showToast('✨ Formulario listo para el siguiente corte de caja.', 'info');
   }
 
   // =========================================================================
@@ -6602,13 +6685,26 @@ function getHidalgoIsoString(dateObj = new Date()) {
       }
     });
 
-    // Guardado con autenticación obligatoria (contraseña de la cuenta)
-    document.getElementById('btn-save-firebase-bottom')?.addEventListener('click', () => {
-      openAuthConfirmModal(false);
+    // Guardado de Arqueo Diario de Caja Principal
+    document.getElementById('btn-save-firebase-bottom')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveFirebaseAndDownload(false);
     });
 
-    document.getElementById('btn-save-firebase-chica')?.addEventListener('click', () => {
-      openAuthConfirmModal(true);
+    document.getElementById('form-arqueo-principal')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await saveFirebaseAndDownload(false);
+    });
+
+    // Guardado de Arqueo Diario de Caja Chica
+    document.getElementById('btn-save-firebase-chica')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveFirebaseAndDownload(true);
+    });
+
+    document.getElementById('form-arqueo-chica')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await saveFirebaseAndDownload(true);
     });
 
     document.getElementById('btn-cancel-auth-confirm')?.addEventListener('click', () => {
