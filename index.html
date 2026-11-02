@@ -8,10 +8,10 @@
   <meta http-equiv="Expires" content="0">
   <title>Total Beauty Salón y Academia - Portal Integral de Gestión</title>
   <link rel="icon" type="image/png" href="assets/logoheader.png">
-  <link rel="stylesheet" href="styles.css?v=20261102_1215">
+  <link rel="stylesheet" href="styles.css?v=20261102_1235">
   <script src="libs/html2pdf.bundle.min.js"></script>
   <script src="assets/logo_base64.js"></script>
-  <script src="firebase-service.js?v=20261102_1215"></script>
+  <script src="firebase-service.js?v=20261102_1235"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -161,6 +161,14 @@
           <a class="menu-item-link" data-module="ventas">
             <span class="menu-icon">💰</span>
             <span>Registro Diario de Ventas</span>
+          </a>
+        </li>
+
+        <li class="sidebar-menu-category">Objetivos y Metas</li>
+        <li>
+          <a class="menu-item-link" data-module="mi-meta">
+            <span class="menu-icon">🎯</span>
+            <span style="font-weight:700;">Mi Meta</span>
           </a>
         </li>
 
@@ -1939,6 +1947,110 @@
       </section>
 
       <!-- ================================================================
+           MÓDULO: MI META (AVANCE DE METAS POR ESTACIÓN EN TIEMPO REAL)
+           ================================================================ -->
+      <section class="module-view" id="view-mi-meta" style="display:none;">
+        <div class="mi-meta-container">
+          
+          <!-- Banner Superior Informativo -->
+          <div class="mi-meta-banner">
+            <div class="mi-meta-banner-content">
+              <div class="mi-meta-banner-icon">🎯</div>
+              <div>
+                <h2 class="mi-meta-banner-title">Mi Meta - Avance de Estaciones en Tiempo Real</h2>
+                <p class="mi-meta-banner-desc">
+                  Monitoreo visual del cumplimiento de metas por estación de trabajo y academia. ¡Trabajemos en equipo para alcanzar y superar nuestros objetivos!
+                </p>
+              </div>
+            </div>
+            <div class="mi-meta-banner-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-mi-meta" style="background:#ffffff; color:#0f172a; font-weight:700; border:1.5px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.08); display:flex; align-items:center; gap:6px;">
+                <span>🔄</span> Actualizar Avance
+              </button>
+            </div>
+          </div>
+
+          <!-- Selector de Período y Filtros -->
+          <div class="mi-meta-controls-card">
+            <div class="mi-meta-pills-bar">
+              <span class="mi-meta-controls-label">Período de Medición:</span>
+              <button type="button" class="mi-meta-pill active" data-period="mes">
+                <span>🗓️</span> Mes Completo
+              </button>
+              <button type="button" class="mi-meta-pill" data-period="quincena">
+                <span>🌓</span> Quincena Actual
+              </button>
+              <button type="button" class="mi-meta-pill" data-period="semana">
+                <span>📆</span> Esta Semana
+              </button>
+              <button type="button" class="mi-meta-pill" data-period="dia">
+                <span>☀️</span> Hoy
+              </button>
+            </div>
+            <div class="mi-meta-period-info" id="mi-meta-periodo-texto">
+              Cargando período...
+            </div>
+          </div>
+
+          <!-- KPIs Globales de Mi Meta -->
+          <div class="mi-meta-kpi-grid">
+            <div class="mi-meta-kpi-card kpi-meta-global">
+              <div class="mi-meta-kpi-icon">🎯</div>
+              <div class="mi-meta-kpi-info">
+                <span class="mi-meta-kpi-label">Meta Global del Período</span>
+                <span class="mi-meta-kpi-value" id="kpi-mi-meta-total">$0.00</span>
+                <small class="mi-meta-kpi-sub" id="sub-mi-meta-total">Objetivo conjunto</small>
+              </div>
+            </div>
+
+            <div class="mi-meta-kpi-card kpi-meta-ventas">
+              <div class="mi-meta-kpi-icon">💰</div>
+              <div class="mi-meta-kpi-info">
+                <span class="mi-meta-kpi-label">Ventas Totales Logradas</span>
+                <span class="mi-meta-kpi-value" id="kpi-mi-meta-ventas">$0.00</span>
+                <small class="mi-meta-kpi-sub" id="sub-mi-meta-ventas">Facturación acumulada</small>
+              </div>
+            </div>
+
+            <div class="mi-meta-kpi-card kpi-meta-pct">
+              <div class="mi-meta-kpi-icon">📈</div>
+              <div class="mi-meta-kpi-info">
+                <span class="mi-meta-kpi-label">Cumplimiento Global</span>
+                <span class="mi-meta-kpi-value" id="kpi-mi-meta-pct">0%</span>
+                <div class="mi-meta-kpi-mini-bar">
+                  <div class="mi-meta-kpi-mini-fill" id="kpi-mi-meta-mini-fill" style="width:0%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mi-meta-kpi-card kpi-meta-dias">
+              <div class="mi-meta-kpi-icon">⏳</div>
+              <div class="mi-meta-kpi-info">
+                <span class="mi-meta-kpi-label">Días Restantes</span>
+                <span class="mi-meta-kpi-value" id="kpi-mi-meta-dias">0 días</span>
+                <small class="mi-meta-kpi-sub" id="sub-mi-meta-dias">Para cerrar el período</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cuadrícula de Barras de Avance por Estación -->
+          <div class="mi-meta-grid-header">
+            <h3 style="font-size:1.05rem; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:8px; margin:0;">
+              <span>💈</span> Barras de Avance por Estación de Trabajo
+            </h3>
+            <span style="font-size:0.82rem; color:var(--slate);" id="mi-meta-estaciones-count">0 estaciones</span>
+          </div>
+
+          <div class="mi-meta-stations-grid" id="mi-meta-stations-grid">
+            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">
+              Cargando barras de avance por estación...
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================================
            MÓDULO 5: REPORTE DIARIO DE INGRESOS
            ================================================================ -->
       <section class="module-view" id="view-ingresos" style="display:none;">
@@ -3135,7 +3247,7 @@
                 </label>
                 <div class="currency-input-wrap" style="max-width:320px;">
                   <span class="currency-prefix">$</span>
-                  <input type="number" step="0.01" min="0" class="input-currency styled-input" id="cfg_principal_fondo_base" placeholder="1000.00" required style="font-size:1.2rem; font-weight:800; color:#0f172a;">
+                  <input type="number" step="0.01" min="0" class="input-currency styled-input" id="cfg_principal_fondo_base" placeholder="0.00" value="0.00" required style="font-size:1.2rem; font-weight:800; color:#0f172a;">
                 </div>
                 <small style="display:block; margin-top:6px; font-size:0.76rem; color:#64748b;">
                   * Este importe se aplicará como saldo base para cambio y apertura en el Arqueo Diario de Caja Principal.
@@ -4144,7 +4256,7 @@
   </div>
 
   <div id="toast-container"></div>
-  <script src="app.js?v=20261102_1215"></script>
+  <script src="app.js?v=20261102_1235"></script>
 
   <!-- ========================================================================
        MODAL DE HISTORIAL DE CONTACTOS Y REGISTRO DE NUEVA TIPIFICACIÓN

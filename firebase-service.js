@@ -1997,7 +1997,7 @@ const TB_FIREBASE = (function () {
         if (cloud && typeof cloud === 'object') {
           const mergedEntregas = Object.assign({}, local.entregas || {}, cloud.entregas || {});
           local = {
-            fondoBase: typeof cloud.fondoBase === 'number' ? cloud.fondoBase : (local.fondoBase || 0),
+            fondoBase: typeof cloud.fondoBase === 'number' ? cloud.fondoBase : (typeof local.fondoBase === 'number' ? local.fondoBase : 0),
             entregas: mergedEntregas
           };
           localStorage.setItem('tb_control_caja', JSON.stringify(local));
@@ -2044,18 +2044,19 @@ const TB_FIREBASE = (function () {
   }
 
   async function saveFondoBaseCaja(monto) {
+    const val = typeof monto === 'number' ? monto : (parseFloat(monto) || 0);
     const local = JSON.parse(localStorage.getItem('tb_control_caja') || '{"fondoBase":0,"entregas":{}}');
-    local.fondoBase = parseFloat(monto) || 0;
+    local.fondoBase = val;
     localStorage.setItem('tb_control_caja', JSON.stringify(local));
 
     try {
       await fetch(getDbUrl('control_caja/fondoBase'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(local.fondoBase)
+        body: JSON.stringify(val)
       });
     } catch (e) {}
-    return { success: true };
+    return { success: true, fondoBase: val };
   }
 
 

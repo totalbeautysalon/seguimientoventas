@@ -213,6 +213,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
       title: 'Registro Diario de Ventas',
       desc: 'Captura detallada de operaciones, métodos de pago e interconexión con caja'
     },
+    'mi-meta': {
+      title: 'Mi Meta - Avance por Estación',
+      desc: 'Monitoreo en tiempo real del cumplimiento de metas por estación y academia para todo el equipo'
+    },
     'balancescore': {
       title: 'BalanceScore por Estaciones',
       desc: 'Medición de metas de ingresos y calidad operativa en las estaciones de trabajo'
@@ -321,6 +325,14 @@ function getHidalgoIsoString(dateObj = new Date()) {
       desc: 'Asistente dinámico paso a paso: clienta, servicio, estación, cobro mixto y confirmación.',
       badge: 'Operación Diaria',
       badgeClass: 'badge-ventas'
+    },
+    {
+      key: 'mi-meta',
+      icon: '🎯',
+      title: 'Mi Meta',
+      desc: 'Avance en tiempo real de metas por estación de trabajo y academia para todo el equipo.',
+      badge: 'Objetivos',
+      badgeClass: 'badge-metas'
     },
     {
       key: 'arqueo-principal',
@@ -468,6 +480,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
       }
       const isSilent = currentVentasList && currentVentasList.length > 0;
       renderVentas(vf, isSilent);
+    } else if (currentModule === 'mi-meta') {
+      renderMiMetaView();
     } else if (currentModule === 'balancescore') {
       renderBalanceScoreStations();
     } else if (currentModule === 'configuracion') {
@@ -3318,6 +3332,277 @@ function getHidalgoIsoString(dateObj = new Date()) {
   }
 
   // =========================================================================
+  // MÓDULO: MI META - AVANCE Y CUMPLIMIENTO POR ESTACIÓN EN TIEMPO REAL
+  // =========================================================================
+  let miMetaPeriodoModo = 'mes'; // 'mes', 'quincena', 'semana', 'dia'
+
+  function switchMiMetaPeriodMode(mode) {
+    miMetaPeriodoModo = mode;
+    document.querySelectorAll('.mi-meta-pill').forEach(btn => {
+      if (btn.dataset.period === mode) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    renderMiMetaView();
+  }
+
+  function getMiMetaDateRange() {
+    const today = getHidalgoDateStr();
+    const parts = today.split('-');
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    const lastDay = new Date(y, m, 0).getDate();
+
+    let fechaInicio = today;
+    let fechaFin = today;
+    let factorPeriodo = 2.0; // Mes completo (la meta base en catálogo es quincenal, 15 días, por lo que mes completo = * 2)
+    let periodoTexto = '';
+    let diasRestantes = 0;
+
+    if (miMetaPeriodoModo === 'mes') {
+      fechaInicio = `${parts[0]}-${parts[1]}-01`;
+      fechaFin = `${parts[0]}-${parts[1]}-${String(lastDay).padStart(2, '0')}`;
+      factorPeriodo = 2.0;
+      diasRestantes = Math.max(0, lastDay - d);
+      periodoTexto = `Mes de ${getMonthName(m)} ${y} (Del 01 al ${lastDay} de ${getMonthName(m)})`;
+    } else if (miMetaPeriodoModo === 'quincena') {
+      if (d <= 15) {
+        fechaInicio = `${parts[0]}-${parts[1]}-01`;
+        fechaFin = `${parts[0]}-${parts[1]}-15`;
+        diasRestantes = Math.max(0, 15 - d);
+        periodoTexto = `1ª Quincena (01 al 15 de ${getMonthName(m)} ${y})`;
+      } else {
+        fechaInicio = `${parts[0]}-${parts[1]}-16`;
+        fechaFin = `${parts[0]}-${parts[1]}-${String(lastDay).padStart(2, '0')}`;
+        diasRestantes = Math.max(0, lastDay - d);
+        periodoTexto = `2ª Quincena (16 al ${lastDay} de ${getMonthName(m)} ${y})`;
+      }
+      factorPeriodo = 1.0;
+    } else if (miMetaPeriodoModo === 'semana') {
+      const now = new Date(today + 'T00:00:00');
+      const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // 0 = Lunes, 6 = Domingo
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const fMon = monday.toISOString().split('T')[0];
+      const fSun = sunday.toISOString().split('T')[0];
+      fechaInicio = fMon;
+      fechaFin = fSun;
+      factorPeriodo = 7 / 15;
+      diasRestantes = Math.max(0, 6 - dayOfWeek);
+      periodoTexto = `Semana Actual: Del ${formatDateDisplay(fechaInicio)} al ${formatDateDisplay(fechaFin)}`;
+    } else if (miMetaPeriodoModo === 'dia') {
+      fechaInicio = today;
+      fechaFin = today;
+      factorPeriodo = 1 / 15;
+      diasRestantes = 0;
+      periodoTexto = `Día de Hoy: ${formatDateDisplay(today)}`;
+    }
+
+    return { fechaInicio, fechaFin, factorPeriodo, periodoTexto, diasRestantes, lastDay, currentDay: d };
+  }
+
+  async function renderMiMetaView() {
+    const container = document.getElementById('mi-meta-stations-grid');
+    if (!container) return;
+
+    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:35px; color:var(--muted);"><span class="spinner" style="display:inline-block; margin-right:8px;"></span> Calculando progreso y metas por estación...</div>';
+
+    const { fechaInicio, fechaFin, factorPeriodo, periodoTexto, diasRestantes } = getMiMetaDateRange();
+
+    const lblPeriodo = document.getElementById('mi-meta-periodo-texto');
+    if (lblPeriodo) lblPeriodo.textContent = periodoTexto;
+
+    // Obtener todas las ventas del rango desde Firebase
+    const ventas = await TB_FIREBASE.getVentasByRango(fechaInicio, fechaFin);
+    const activeMetas = getActiveStationMetas();
+
+    const countEl = document.getElementById('mi-meta-estaciones-count');
+    if (countEl) countEl.textContent = `${activeMetas.length} estación${activeMetas.length !== 1 ? 'es' : ''}`;
+
+    if (activeMetas.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1; text-align:center; padding:45px 20px; color:var(--muted); background:#fff; border-radius:12px; border:1px dashed #cbd5e1;">
+          <span style="font-size:2.5rem; display:block; margin-bottom:12px;">🎯</span>
+          <h3 style="color:#0f172a; font-size:1.15rem; margin-bottom:6px;">Sin Estaciones Configuradas</h3>
+          <p style="font-size:0.88rem; max-width:480px; margin:0 auto 16px auto;">
+            Para visualizar las barras de avance, primero configure las estaciones y metas en <strong>Configuración General &gt; Estaciones de Trabajo</strong>.
+          </p>
+        </div>
+      `;
+      document.getElementById('kpi-mi-meta-total') && (document.getElementById('kpi-mi-meta-total').textContent = '$0.00');
+      document.getElementById('kpi-mi-meta-ventas') && (document.getElementById('kpi-mi-meta-ventas').textContent = '$0.00');
+      document.getElementById('kpi-mi-meta-pct') && (document.getElementById('kpi-mi-meta-pct').textContent = '0%');
+      document.getElementById('kpi-mi-meta-mini-fill') && (document.getElementById('kpi-mi-meta-mini-fill').style.width = '0%');
+      document.getElementById('kpi-mi-meta-dias') && (document.getElementById('kpi-mi-meta-dias').textContent = `${diasRestantes} días`);
+      return;
+    }
+
+    container.innerHTML = '';
+    let granTotalVentas = 0;
+    let granTotalMeta = 0;
+
+    activeMetas.forEach(st => {
+      const isCursos = st.id === 'Cursos' || (st.nombre || '').toLowerCase().includes('curso') || (st.nombre || '').toLowerCase().includes('academia') || st.isCurso;
+
+      // Filtrar ventas asignadas a esta estación
+      let ventasSt = [];
+      if (isCursos) {
+        ventasSt = ventas.filter(v => {
+          const est = (v.estacion || '').toLowerCase();
+          const serv = (v.servicio || '').toLowerCase();
+          return est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller') || v.tipo === 'Curso';
+        });
+      } else {
+        ventasSt = ventas.filter(v => {
+          const est = (v.estacion || '').trim().toLowerCase();
+          const serv = (v.servicio || '').trim().toLowerCase();
+          const stName = (st.nombre || st.id || '').trim().toLowerCase();
+          const esCurso = est.includes('academia') || est.includes('curso') || serv.includes('curso') || serv.includes('taller') || v.tipo === 'Curso';
+          const matchEst = est === stName || est.includes(stName) || stName.includes(est);
+          return matchEst && !esCurso;
+        });
+      }
+
+      const lograda = ventasSt.reduce((sum, v) => sum + (parseFloat(v.totalCobrado) || 0), 0);
+      const clientesReales = ventasSt.length;
+      const ticket = clientesReales > 0 ? (lograda / clientesReales) : 0;
+
+      // Calcular meta para el período
+      const metaQuincenalBase = parseFloat(st.metaQuincenal) || 0;
+      const metaPeriodo = Math.round(metaQuincenalBase * factorPeriodo);
+
+      granTotalVentas += lograda;
+      granTotalMeta += metaPeriodo;
+
+      // Porcentaje real de avance
+      const pct = metaPeriodo > 0 ? Math.round((lograda / metaPeriodo) * 100) : (lograda > 0 ? 100 : 0);
+      const barWidth = Math.min(100, Math.max(0, pct));
+      const diferencia = lograda - metaPeriodo;
+      const isCumplida = pct >= 100;
+
+      // Cálculo de meta diaria sugerida
+      const diasDiv = Math.max(1, diasRestantes || 1);
+      const metaDiariaSugerida = isCumplida ? 0 : Math.round(Math.max(0, -diferencia) / diasDiv);
+
+      // Determinar clase, colores, badges y mensaje motivacional
+      let statusClass = 'meta-iniciando';
+      let badgeClass = 'badge-meta-iniciando';
+      let badgeText = '⏳ Impulso Requerido';
+      let barGradient = 'linear-gradient(90deg, #ef4444, #f87171)';
+      let pctColor = '#ef4444';
+      let motivationalMsg = `Faltan $${formatCurrency(Math.abs(diferencia))} para alcanzar el objetivo.`;
+
+      if (pct >= 100) {
+        statusClass = 'meta-cumplida';
+        badgeClass = 'badge-meta-cumplida';
+        badgeText = '🎉 ¡Meta Cumplida!';
+        barGradient = 'linear-gradient(90deg, #10b981, #059669)';
+        pctColor = '#059669';
+        motivationalMsg = `¡Felicidades! Se ha superado la meta por $${formatCurrency(diferencia)} 👏`;
+      } else if (pct >= 75) {
+        statusClass = 'meta-cerca';
+        badgeClass = 'badge-meta-cerca';
+        badgeText = '⚡ Muy Cerca';
+        barGradient = 'linear-gradient(90deg, #3b82f6, #10b981)';
+        pctColor = '#0284c7';
+        motivationalMsg = `¡A solo $${formatCurrency(Math.abs(diferencia))} de lograr la meta! ¡El último esfuerzo! 💪`;
+      } else if (pct >= 40) {
+        statusClass = 'meta-en-camino';
+        badgeClass = 'badge-meta-en-camino';
+        badgeText = '🚀 En Buen Camino';
+        barGradient = 'linear-gradient(90deg, #f59e0b, #3b82f6)';
+        pctColor = '#d97706';
+        motivationalMsg = `¡Buen ritmo! Generando $${formatCurrency(metaDiariaSugerida)}/día se llega a la meta.`;
+      }
+
+      const card = document.createElement('div');
+      card.className = `mi-meta-card ${statusClass}`;
+      card.innerHTML = `
+        <div class="mi-meta-card-top">
+          <div class="mi-meta-card-identity">
+            <span class="mi-meta-station-icon">${st.icono || (isCursos ? '🎓' : '💈')}</span>
+            <div>
+              <h4 class="mi-meta-station-title">${escapeHtml(st.nombre)}</h4>
+              <span class="mi-meta-station-type">${isCursos ? 'Academia Total Beauty' : 'Estación de Trabajo'}</span>
+            </div>
+          </div>
+          <div class="mi-meta-status-badge ${badgeClass}">
+            ${badgeText}
+          </div>
+        </div>
+
+        <div class="mi-meta-progress-section">
+          <div class="mi-meta-pct-row">
+            <span class="mi-meta-pct-label">Avance hacia la meta:</span>
+            <span class="mi-meta-pct-number" style="color:${pctColor};">${pct}%</span>
+          </div>
+          <div class="mi-meta-bar-track" title="${pct}% completado">
+            <div class="mi-meta-bar-fill" style="width:${barWidth}%; background:${barGradient};"></div>
+          </div>
+        </div>
+
+        <div class="mi-meta-stats-grid">
+          <div class="mi-meta-stat-box">
+            <span class="stat-box-label">Vendido</span>
+            <span class="stat-box-value val-lograda">$${formatCurrency(lograda)}</span>
+          </div>
+          <div class="mi-meta-stat-box">
+            <span class="stat-box-label">Meta Objetivo</span>
+            <span class="stat-box-value val-meta">$${formatCurrency(metaPeriodo)}</span>
+          </div>
+          <div class="mi-meta-stat-box">
+            <span class="stat-box-label">${isCumplida ? 'Superada por' : 'Faltante'}</span>
+            <span class="stat-box-value ${isCumplida ? 'val-superada' : 'val-faltante'}">
+              ${isCumplida ? '+' : ''}$${formatCurrency(Math.abs(diferencia))}
+            </span>
+          </div>
+          <div class="mi-meta-stat-box">
+            <span class="stat-box-label">Meta Diaria Sug.</span>
+            <span class="stat-box-value val-diaria">
+              ${isCumplida ? '¡Lograda! 🎉' : `$${formatCurrency(metaDiariaSugerida)}/día`}
+            </span>
+          </div>
+        </div>
+
+        <div class="mi-meta-card-footer">
+          <div class="mi-meta-footer-extra">
+            <span>👥 <strong>${clientesReales}</strong> cliente${clientesReales !== 1 ? 's' : ''}</span>
+            <span>🎟️ Prom: <strong>$${formatCurrency(ticket)}</strong></span>
+          </div>
+          <div class="mi-meta-motivational-msg">
+            ${motivationalMsg}
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    // Actualizar KPIs Globales
+    const pctGlobal = granTotalMeta > 0 ? Math.round((granTotalVentas / granTotalMeta) * 100) : (granTotalVentas > 0 ? 100 : 0);
+
+    const kTotal = document.getElementById('kpi-mi-meta-total');
+    if (kTotal) kTotal.textContent = `$${formatCurrency(granTotalMeta)}`;
+
+    const kVentas = document.getElementById('kpi-mi-meta-ventas');
+    if (kVentas) kVentas.textContent = `$${formatCurrency(granTotalVentas)}`;
+
+    const kPct = document.getElementById('kpi-mi-meta-pct');
+    if (kPct) kPct.textContent = `${pctGlobal}%`;
+
+    const kMini = document.getElementById('kpi-mi-meta-mini-fill');
+    if (kMini) kMini.style.width = `${Math.min(100, Math.max(0, pctGlobal))}%`;
+
+    const kDias = document.getElementById('kpi-mi-meta-dias');
+    if (kDias) {
+      if (miMetaPeriodoModo === 'dia') kDias.textContent = 'Hoy';
+      else kDias.textContent = `${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}`;
+    }
+  }
+
+  // =========================================================================
   // 7. REPORTE DIARIO DE INGRESOS (SALÓN Y ACADEMIA)
   // =========================================================================
   let currentRepIngresosVentas = [];
@@ -4423,6 +4708,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     'arqueo-chica',
     'historial',
     'ventas',
+    'mi-meta',
     'balancescore',
     'ingresos',
     'interesadas',
@@ -4436,6 +4722,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     { id: 'arqueo-chica', icono: '🪙', label: 'Arqueo Caja Chica', desc: 'Fondo base mensual, gastos menores y comprobantes' },
     { id: 'historial', icono: '📑', label: 'Reportes Diarios Arqueo', desc: 'Historial de arqueos guardados y visor PDF oficial' },
     { id: 'ventas', icono: '💰', label: 'Registro Diario de Ventas', desc: 'Captura visual de operaciones, métodos de pago y caja' },
+    { id: 'mi-meta', icono: '🎯', label: 'Mi Meta', desc: 'Progreso y avance de metas por estación de trabajo en tiempo real' },
     { id: 'balancescore', icono: '💈', label: 'BalanceScore Estaciones', desc: 'Balanced Scorecard por estación y academia por períodos' },
     { id: 'ingresos', icono: '💰', label: 'Reporte Diario Ingresos', desc: 'Desglose detallado de servicios, montos y exportación PDF' },
     { id: 'interesadas', icono: '🎯', label: 'Interesadas y Cierres', desc: 'BalanceScore de conversión, registro y tipificación' },
@@ -4448,26 +4735,26 @@ function getHidalgoIsoString(dateObj = new Date()) {
     'Administrador': {
       nombre: 'Administrador',
       modulos: [
-        'arqueo-principal', 'arqueo-chica', 'historial', 'ventas',
+        'arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'mi-meta',
         'balancescore', 'ingresos', 'interesadas', 'campana',
         'configuracion', 'auditoria'
       ]
     },
     'Encargado de Caja': {
       nombre: 'Encargado de Caja',
-      modulos: ['arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'ingresos']
+      modulos: ['arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'mi-meta', 'ingresos']
     },
     'Recepción y Ventas': {
       nombre: 'Recepción y Ventas',
-      modulos: ['ventas', 'ingresos', 'interesadas']
+      modulos: ['ventas', 'mi-meta', 'ingresos', 'interesadas']
     },
     'Ventas y Crecimiento': {
       nombre: 'Ventas y Crecimiento',
-      modulos: ['ventas', 'balancescore', 'interesadas', 'campana']
+      modulos: ['ventas', 'mi-meta', 'balancescore', 'interesadas', 'campana']
     },
     'Personalizado': {
       nombre: 'Personalizado',
-      modulos: []
+      modulos: ['mi-meta']
     }
   };
 
@@ -5407,8 +5694,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
     try {
       controlCajaData = await TB_FIREBASE.getControlCaja();
       
-      // Si el fondo base no está fijado, consultar el último arqueo cerrado
-      if (!controlCajaData.fondoBase || controlCajaData.fondoBase === 0) {
+      // Si el fondo base nunca ha sido definido en Firebase o LocalStorage, consultar el último arqueo cerrado
+      if (controlCajaData.fondoBase === undefined || controlCajaData.fondoBase === null || isNaN(controlCajaData.fondoBase)) {
         const list = await TB_FIREBASE.getArqueosList();
         const keys = Object.keys(list).sort().reverse();
         if (keys.length > 0) {
@@ -5416,7 +5703,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
           const dest = lastArqueo.validacion?.destinoEfectivo;
           if (dest === 'se_queda_en_caja' || !dest) {
             controlCajaData.fondoBase = parseFloat(lastArqueo.conteo?.total || lastArqueo.conciliacion?.contado || 0) || 0;
+          } else {
+            controlCajaData.fondoBase = 0;
           }
+        } else {
+          controlCajaData.fondoBase = 0;
         }
       }
 
@@ -5473,8 +5764,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const lEntr = document.getElementById('cfg_lbl_principal_entregas');
     const lDisp = document.getElementById('cfg_lbl_principal_disponible');
 
-    if (inp && (!inp.value || inp.dataset.loaded !== 'true')) {
-      inp.value = base > 0 ? base.toFixed(2) : '';
+    const cfgBase = (typeof controlCajaData.fondoBase === 'number' && !isNaN(controlCajaData.fondoBase)) ? controlCajaData.fondoBase : base;
+
+    if (inp && (!inp.value || inp.dataset.loaded !== 'true' || document.activeElement !== inp)) {
+      inp.value = (typeof cfgBase === 'number' && !isNaN(cfgBase)) ? cfgBase.toFixed(2) : '0.00';
       inp.dataset.loaded = 'true';
     }
     if (lBase) lBase.textContent = formatCurrency(base);
@@ -6258,8 +6551,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
     // Guardar Fondo Inicial de Caja Principal en Configuración General
     document.getElementById('form-config-cajaprincipal')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const val = parseFloat(document.getElementById('cfg_principal_fondo_base')?.value) || 0;
-      if (val < 0) {
+      const raw = document.getElementById('cfg_principal_fondo_base')?.value;
+      const val = parseFloat(raw);
+      if (isNaN(val) || val < 0) {
         showToast('El fondo inicial no puede ser negativo', 'warning');
         return;
       }
@@ -8373,6 +8667,22 @@ function getHidalgoIsoString(dateObj = new Date()) {
       });
     });
 
+    // -----------------------------------------------------------------------
+    // EVENTOS: MI META (AVANCE DE METAS POR ESTACIÓN)
+    // -----------------------------------------------------------------------
+    document.querySelectorAll('.mi-meta-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.period;
+        if (p) switchMiMetaPeriodMode(p);
+      });
+    });
+
+    document.getElementById('btn-refresh-mi-meta')?.addEventListener('click', async () => {
+      showToast('Actualizando avance de metas por estación...', 'info');
+      await renderMiMetaView();
+      showToast('Avance de metas sincronizado con éxito', 'success');
+    });
+
     // Botón Hoy en BalanceScore
     document.getElementById('btn-bs-dia-hoy')?.addEventListener('click', () => {
       const today = getHidalgoDateStr();
@@ -8721,6 +9031,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
   // =========================================================================
 
   function hasModulePermission(modKey) {
+    if (modKey === 'mi-meta') return true;
     const curUser = TB_FIREBASE.getCurrentUser();
     if (!curUser || !curUser.email) return false;
     const email = (curUser.email || '').toLowerCase().trim();
@@ -8740,7 +9051,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     const userCfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
     if (!userCfg) {
-      return ['ventas', 'ingresos', 'interesadas'].includes(modKey);
+      return ['ventas', 'mi-meta', 'ingresos', 'interesadas'].includes(modKey);
     }
     if (userCfg.isAdmin || userCfg.rol === 'Administrador') return true;
     return Array.isArray(userCfg.modulos) && userCfg.modulos.includes(modKey);
@@ -8764,9 +9075,15 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
 
     const cfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
-    if (!cfg) return ['ventas', 'ingresos', 'interesadas'];
-    if (cfg.isAdmin || cfg.rol === 'Administrador') return ALL_MODULE_KEYS;
-    return cfg.modulos || ['ventas', 'ingresos', 'interesadas'];
+    let allowed = [];
+    if (!cfg) allowed = ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
+    else if (cfg.isAdmin || cfg.rol === 'Administrador') allowed = [...ALL_MODULE_KEYS];
+    else allowed = Array.isArray(cfg.modulos) ? [...cfg.modulos] : ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
+
+    if (!allowed.includes('mi-meta')) {
+      allowed.push('mi-meta');
+    }
+    return allowed;
   }
 
   async function syncAndApplyUserPermissions(userEmail) {
@@ -8793,7 +9110,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         nombre: isFran ? 'Francisco (Admin Principal)' : email.split('@')[0],
         rol: isFran ? 'Administrador' : 'Recepción y Ventas',
         isAdmin: isFran,
-        modulos: isFran ? [...ALL_MODULE_KEYS] : ['ventas', 'ingresos', 'interesadas'],
+        modulos: isFran ? [...ALL_MODULE_KEYS] : ['ventas', 'mi-meta', 'ingresos', 'interesadas'],
         fechaAlta: new Date().toISOString(),
         ultimoAcceso: new Date().toISOString()
       };
@@ -8841,15 +9158,19 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     let userCfg = (catUsuariosRoles || []).find(u => (u.email || '').toLowerCase().trim() === email);
 
-    let allowed = ALL_MODULE_KEYS;
+    let allowed = [...ALL_MODULE_KEYS];
     if (!isFran) {
       if (userCfg && (userCfg.isAdmin || userCfg.rol === 'Administrador')) {
-        allowed = ALL_MODULE_KEYS;
+        allowed = [...ALL_MODULE_KEYS];
       } else if (userCfg && Array.isArray(userCfg.modulos)) {
-        allowed = userCfg.modulos;
+        allowed = [...userCfg.modulos];
       } else {
-        allowed = ['ventas', 'ingresos', 'interesadas'];
+        allowed = ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
       }
+    }
+
+    if (!allowed.includes('mi-meta')) {
+      allowed.push('mi-meta');
     }
 
     // 1. Filtrar enlaces de módulos en el menú lateral y aplicar clases estrictas
