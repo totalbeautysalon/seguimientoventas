@@ -8,10 +8,10 @@
   <meta http-equiv="Expires" content="0">
   <title>Total Beauty Salón y Academia - Portal Integral de Gestión</title>
   <link rel="icon" type="image/png" href="assets/logoheader.png">
-  <link rel="stylesheet" href="styles.css?v=20261031_2210">
+  <link rel="stylesheet" href="styles.css?v=20261101_0001">
   <script src="libs/html2pdf.bundle.min.js"></script>
   <script src="assets/logo_base64.js"></script>
-  <script src="firebase-service.js?v=20261031_2210"></script>
+  <script src="firebase-service.js?v=20261101_0001"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -355,6 +355,29 @@
             </div>
           </div>
 
+          <!-- BANNER OFICIAL DE CORTE DE CAJA EN CURSO -->
+          <div class="corte-info-banner" id="banner-corte-principal" style="background:#ffffff; border:1.5px solid #d4af37; border-top:3.5px solid #d4af37; border-radius:12px; padding:12px 18px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 10px rgba(0,0,0,0.04);">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div style="background:#0b0f17; color:#d4af37; border-radius:8px; padding:8px 14px; font-weight:800; font-size:1.05rem; border:1px solid #d4af37; display:inline-flex; align-items:center; gap:6px;">
+                <span>✂️</span>
+                <span id="badge-corte-numero">CORTE #1</span>
+              </div>
+              <div>
+                <div style="font-weight:700; color:#000000; font-size:0.95rem;" id="banner-corte-periodo">
+                  Período: Inicio del día (00:00) &rarr; En curso
+                </div>
+                <div style="font-size:0.8rem; color:#475569;" id="banner-corte-resumen">
+                  0 ventas en este corte &bull; Arqueo actuará como corte de caja oficial
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;" id="banner-corte-actions">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-ver-cortes-hoy" style="font-size:0.82rem; padding:6px 12px; font-weight:700; border-radius:6px; display:none;">
+                📜 Ver Cortes de Hoy (<span id="count-cortes-hoy">0</span>)
+              </button>
+            </div>
+          </div>
+
           <!-- 1. CONTEO FÍSICO DEL EFECTIVO (SOLO CANTIDAD EN CAJA) -->
           <div class="form-section" id="sec-conteo-fisico">
             <div class="section-header">
@@ -522,33 +545,97 @@
               </div>
             </div>
             <div class="section-body">
-              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:16px;">
-                <div class="form-group">
-                  <label for="val_destino_efectivo"><strong>Destino del efectivo en caja:</strong> <span class="required">*</span></label>
-                  <select class="input-text styled-select" id="val_destino_efectivo" style="font-weight:700;">
+              <!-- DESTINO DEL EFECTIVO AL CIERRE DEL CORTE -->
+              <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:16px; margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label for="val_destino_efectivo" style="font-size:0.95rem; font-weight:700; color:#0f172a;">
+                    🎯 Destino del efectivo contado al cierre de este corte: <span class="required">*</span>
+                  </label>
+                  <select class="input-text styled-select" id="val_destino_efectivo" style="font-weight:700; font-size:0.95rem; background:#ffffff; color:#000000; border:1.5px solid #0f172a;">
                     <option value="se_queda_en_caja" selected>1.- Se queda en caja (Fondo base)</option>
                     <option value="se_guarda_en_sobre">2.- Se guarda en sobre</option>
                     <option value="se_resguarda_otro">3.- Se resguarda en otro lugar</option>
                   </select>
                 </div>
 
-                <div class="form-group" id="wrap_importe_entregado" style="display:none;">
-                  <label for="val_importe_entregado">
-                    <strong>Importe a resguardar / retirar:</strong>
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-entregado" style="padding:2px 8px; font-size:0.72rem; margin-left:6px; font-weight:700;">
-                      Copiar Contado
-                    </button>
-                  </label>
-                  <div class="currency-input-wrap">
-                    <span class="currency-prefix">$</span>
-                    <input type="number" step="0.01" min="0" class="input-currency" id="val_importe_entregado" value="0.00" style="font-weight:700;">
+                <!-- DETALLE OPCIÓN 1: SE QUEDA EN CAJA -->
+                <div id="wrap_destino_queda_caja" style="display:block; margin-top:10px;">
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:flex-end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_monto_queda_caja" style="font-weight:600; font-size:0.85rem;">
+                        Monto que permanece en caja:
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-queda-caja" style="padding:2px 8px; font-size:0.72rem; margin-left:6px; font-weight:700;">Copiar Contado</button>
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency" id="val_monto_queda_caja" value="0.00" style="font-weight:700; background:#ffffff; color:#000000;">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="destino-info-badge badge-caja-info" style="margin-top:10px; padding:8px 12px; background:#f0fdf4; border-left:4px solid #16a34a; border-radius:4px; font-size:0.82rem; color:#14532d;">
+                    💡 <strong>Se queda en caja:</strong> Este dinero permanecerá físicamente en la caja registradora y se sumará automáticamente como <strong>Fondo Inicial del siguiente corte</strong>.
                   </div>
                 </div>
 
-                <div class="form-group" id="wrap_efectivo_otro_lugar" style="display:none;">
-                  <label for="val_efectivo_otro_lugar">Especificar lugar de resguardo: <span class="required">*</span></label>
-                  <input type="text" class="input-text" id="val_efectivo_otro_lugar" placeholder="Ej. Caja fuerte de dirección, oficina...">
+                <!-- DETALLE OPCIÓN 2: SE GUARDA EN SOBRE -->
+                <div id="wrap_destino_guarda_sobre" style="display:none; margin-top:10px;">
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:flex-end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_folio_sobre" style="font-weight:600; font-size:0.85rem;">
+                        ✉️ Folio del Sobre: <span class="required">*</span>
+                      </label>
+                      <input type="text" class="input-text" id="val_folio_sobre" placeholder="Ej. SOBRE-20261031-01" style="font-weight:700; font-family:monospace; background:#ffffff; color:#000000;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_importe_sobre" style="font-weight:600; font-size:0.85rem;">
+                        Importe en efectivo guardado:
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-sobre" style="padding:2px 8px; font-size:0.72rem; margin-left:6px; font-weight:700;">Copiar Contado</button>
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency" id="val_importe_sobre" value="0.00" style="font-weight:700; background:#ffffff; color:#000000;">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="destino-info-badge badge-sobre-info" style="margin-top:10px; padding:8px 12px; background:#eff6ff; border-left:4px solid #2563eb; border-radius:4px; font-size:0.82rem; color:#1e3a8a;">
+                    ✉️ <strong>Guardado en sobre con folio:</strong> El efectivo sale de la caja en sobre cerrado y queda formalmente registrado. <strong>NO se considera como faltante</strong> y NO se suma al fondo inicial del próximo corte (la caja para el próximo corte iniciará en $0.00).
+                  </div>
                 </div>
+
+                <!-- DETALLE OPCIÓN 3: SE RESGUARDA EN OTRO LUGAR -->
+                <div id="wrap_destino_resguarda_otro" style="display:none; margin-top:10px;">
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:flex-end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_folio_resguardo" style="font-weight:600; font-size:0.85rem;">
+                        🏦 Folio de Resguardo: <span class="required">*</span>
+                      </label>
+                      <input type="text" class="input-text" id="val_folio_resguardo" placeholder="Ej. RESG-20261031-01" style="font-weight:700; font-family:monospace; background:#ffffff; color:#000000;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_lugar_resguardo" style="font-weight:600; font-size:0.85rem;">
+                        Lugar de Resguardo: <span class="required">*</span>
+                      </label>
+                      <input type="text" class="input-text" id="val_lugar_resguardo" placeholder="Ej. Caja fuerte dirección, oficina..." style="background:#ffffff; color:#000000;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label for="val_importe_resguardo" style="font-weight:600; font-size:0.85rem;">
+                        Importe resguardado:
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-resguardo" style="padding:2px 8px; font-size:0.72rem; margin-left:6px; font-weight:700;">Copiar Contado</button>
+                      </label>
+                      <div class="currency-input-wrap">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" step="0.01" min="0" class="input-currency" id="val_importe_resguardo" value="0.00" style="font-weight:700; background:#ffffff; color:#000000;">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="destino-info-badge badge-resguardo-info" style="margin-top:10px; padding:8px 12px; background:#fffbeb; border-left:4px solid #d97706; border-radius:4px; font-size:0.82rem; color:#78350f;">
+                    🏦 <strong>Resguardado en otro lugar con folio:</strong> El efectivo sale de la caja hacia el lugar especificado. <strong>Queda formalmente registrado: NO es faltante</strong> y NO se suma al fondo inicial del siguiente corte.
+                  </div>
+                </div>
+
+                <!-- Inputs ocultos para compatibilidad -->
+                <input type="hidden" id="val_importe_entregado" value="0.00">
+                <input type="hidden" id="val_efectivo_otro_lugar" value="">
               </div>
 
               <div class="form-group" style="margin-bottom:18px;">
@@ -3411,6 +3498,7 @@
         </div>
         <div class="pdf-meta-box" style="font-size:8pt; line-height:1.35; text-align:right;">
           <div><strong>Fecha:</strong> <span class="underlined" id="p_fecha" style="min-width:85px; font-weight:700;">__/__/____</span></div>
+          <div><strong>Corte:</strong> <span class="underlined" id="p_corte_num" style="min-width:65px; font-weight:800; color:#0f172a;">Corte #1</span></div>
           <div><strong>Hora de Cierre:</strong> <span class="underlined" id="p_hora" style="min-width:65px;">--:--</span></div>
           <div><strong>Responsable:</strong> <span class="underlined" id="p_responsable" style="min-width:140px; font-weight:700;">_______________</span></div>
         </div>
@@ -3533,9 +3621,11 @@
 
       <!-- 5. DESTINO DEL DINERO Y VALIDACIÓN -->
       <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; margin-bottom:6px; background:#f8fafc; font-size:7.8pt;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:3px;">
-          <div><strong>Destino del Efectivo:</strong> <span id="p_val_entregado_a">1.- Se queda en caja</span></div>
-          <div><strong>Importe Retirado / Entregado:</strong> <span id="p_val_importe_entregado" style="font-weight:700;">$0.00</span></div>
+        <div style="display:grid; grid-template-columns: 1fr; gap:3px; margin-bottom:3px;">
+          <div><strong>Destino del Efectivo:</strong> <span id="p_val_entregado_a" style="font-weight:700;">1.- Se queda en caja (Fondo base)</span></div>
+          <div id="pdf_wrap_folio_row" style="display:none;"><strong>Folio Oficial Registrado:</strong> <span id="p_val_folio_oficial" style="font-family:monospace; font-weight:700;">--</span> &bull; <strong>Importe:</strong> <span id="p_val_importe_entregado" style="font-weight:700;">$0.00</span></div>
+          <div id="pdf_wrap_queda_row"><strong>Importe que permanece en caja:</strong> <span id="p_val_importe_queda" style="font-weight:700;">$0.00</span> (Pasa como Fondo Inicial al siguiente corte)</div>
+          <div><strong>Estatus Financiero:</strong> <span id="p_val_estatus_cierre" style="font-weight:700; color:#15803d;">Fondo en caja disponible para operaciones</span></div>
         </div>
         <div id="pdf_wrap_obs">
           <strong>Observaciones de Cierre:</strong> <span id="p_val_observaciones">Ninguna.</span>
@@ -3974,6 +4064,30 @@
   </div>
 
   <!-- ========================================================================
+       MODAL HISTORIAL DE CORTES DE CAJA DE HOY
+       ======================================================================== -->
+  <div class="modal-backdrop-custom" id="modal-lista-cortes-hoy" style="display:none; z-index:99990;">
+    <div class="master-modal-card" style="max-width:760px; background:#ffffff; color:#000000; border-top:3.5px solid #d4af37;">
+      <div class="master-modal-header" style="background: linear-gradient(135deg, #0b0f17, #1e293b); color:#ffffff; display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:10px 10px 0 0;">
+        <div class="master-modal-icon" style="font-size:1.6rem;">✂️</div>
+        <div style="flex:1;">
+          <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#d4af37;">Cortes de Caja de Hoy</h3>
+          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#cbd5e1;">Historial de cortes realizados y resguardo de efectivo del día</p>
+        </div>
+        <button type="button" class="btn-close-modal" id="btn-close-cortes-hoy-x" style="background:none; border:none; font-size:1.3rem; color:#d4af37; cursor:pointer;">✕</button>
+      </div>
+      <div class="master-modal-body" style="padding:16px; max-height:75vh; overflow-y:auto; background:#ffffff;">
+        <div id="cortes-hoy-cards-container" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Se llena dinámicamente con las tarjetas de cada corte -->
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-close-cortes-hoy" style="font-weight:700;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
        MODAL LIGHTBOX PARA VER FOTOGRAFÍA EN GRANDE
        ======================================================================== -->
   <div class="modal-backdrop-custom" id="modal-ver-foto" style="display:none; z-index:99999;">
@@ -4014,7 +4128,7 @@
   </div>
 
   <div id="toast-container"></div>
-  <script src="app.js?v=20261031_2210"></script>
+  <script src="app.js?v=20261101_0001"></script>
 
   <!-- ========================================================================
        MODAL DE HISTORIAL DE CONTACTOS Y REGISTRO DE NUEVA TIPIFICACIÓN

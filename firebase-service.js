@@ -900,17 +900,108 @@ const TB_FIREBASE = (function () {
 
   // =========================================================================
 
+  // GESTIÓN DE CORTES DE CAJA (ARQUEOS COMO CORTES CONTINUOS)
+
+  // =========================================================================
+
+  async function saveCorteCaja(fecha, corteData) {
+    if (!fecha) fecha = getHidalgoDateStr();
+    const corteId = corteData.corteId || `corte_${Date.now()}`;
+    const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
+    if (!localCortes[fecha]) localCortes[fecha] = {};
+    localCortes[fecha][corteId] = corteData;
+    localStorage.setItem('tb_cortes_db', JSON.stringify(localCortes));
+
+    try {
+      await fetch(getDbUrl(`cortes_caja/${fecha}/${corteId}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corteData)
+      });
+    } catch (err) {
+      console.warn('Error sincronizando corte_caja con Firebase:', err);
+    }
+    return { success: true, corteId };
+  }
+
+  async function getCortesByFecha(fecha) {
+    if (!fecha) fecha = getHidalgoDateStr();
+    const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
+    const local = localCortes[fecha] || {};
+
+    try {
+      const res = await fetch(getDbUrl(`cortes_caja/${fecha}`, { _t: Date.now() }), { cache: 'no-store' });
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && typeof cloud === 'object') {
+          const merged = { ...local, ...cloud };
+          localCortes[fecha] = merged;
+          localStorage.setItem('tb_cortes_db', JSON.stringify(localCortes));
+          return Object.values(merged).sort((a, b) => {
+            const numA = parseInt(a.corteNum || 0, 10);
+            const numB = parseInt(b.corteNum || 0, 10);
+            if (numA !== numB) return numA - numB;
+            return (a.corteTimestamp || a.savedAt || '').localeCompare(b.corteTimestamp || b.savedAt || '');
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error al consultar cortes_caja en Firebase:', e);
+    }
+
+    // Retrocompatibilidad: Si no hay en cortes_caja, consultar arqueos_caja con esa fecha
+    let list = Object.values(local);
+    if (list.length === 0) {
+      try {
+        const allArqueos = await getArqueosList();
+        if (allArqueos && typeof allArqueos === 'object') {
+          const matching = Object.values(allArqueos).filter(a => {
+            const f = a.header?.fecha || a.fecha;
+            return f === fecha && a.tipo !== 'caja_chica';
+          });
+          if (matching.length > 0) {
+            matching.sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''));
+            matching.forEach((m, idx) => {
+              if (!m.corteNum) m.corteNum = idx + 1;
+              if (!m.corteId) m.corteId = `corte_compat_${idx + 1}`;
+              if (!m.corteTimestamp) m.corteTimestamp = m.savedAt || new Date().toISOString();
+              if (!m.destinoEfectivo) m.destinoEfectivo = m.validacion?.destinoEfectivo || 'se_queda_en_caja';
+            });
+            return matching;
+          }
+        }
+      } catch (err) {
+        console.warn('Error en retrocompatibilidad de cortes:', err);
+      }
+    }
+
+    return list.sort((a, b) => {
+      const numA = parseInt(a.corteNum || 0, 10);
+      const numB = parseInt(b.corteNum || 0, 10);
+      if (numA !== numB) return numA - numB;
+      return (a.corteTimestamp || a.savedAt || '').localeCompare(b.corteTimestamp || b.savedAt || '');
+    });
+  }
+
+  // =========================================================================
+
   // 2. ARQUEOS DE CAJA PRINCIPAL Y CAJA CHICA
 
   // =========================================================================
 
   async function saveArqueoPrincipal(data, pdfBase64 = null) {
     const fecha = data.header.fecha || getHidalgoDateStr();
-    const key = `${fecha}_${(data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const corteNum = parseInt(data.corteNum || 1, 10);
+    const corteId = data.corteId || `corte_${Date.now()}`;
+    const respClean = (data.header.responsable || 'responsable').replace(/[^a-zA-Z0-9]/g, '_');
+    const key = `${fecha}_corte${corteNum}_${respClean}`;
 
     const payload = {
       tipo: 'caja_principal',
       ...data,
+      key,
+      corteNum,
+      corteId,
       pdfBase64: pdfBase64 || null,
       savedAt: new Date().toISOString(),
       userEmail: currentUser?.email || 'admin'
@@ -919,6 +1010,9 @@ const TB_FIREBASE = (function () {
     const localHistory = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
     localHistory[key] = payload;
     localStorage.setItem('tb_arqueos_history', JSON.stringify(localHistory));
+
+    // Guardar también en el registro persistente de cortes de caja
+    await saveCorteCaja(fecha, payload);
 
     try {
       const res = await fetch(getDbUrl(`arqueos_caja/${key}`), {
@@ -930,12 +1024,12 @@ const TB_FIREBASE = (function () {
         const errText = await res.text();
         throw new Error(`Firebase status ${res.status}: ${errText}`);
       }
-      notifyStatus(true, 'Arqueo guardado en Firebase');
-      return { success: true, key, source: 'firebase' };
+      notifyStatus(true, `Arqueo y Corte #${corteNum} guardado en Firebase`);
+      return { success: true, key, corteNum, corteId, source: 'firebase' };
     } catch (err) {
       console.error('Error guardando arqueo principal:', err);
-      notifyStatus(false, 'Arqueo guardado localmente (error Firebase)');
-      return { success: true, key, source: 'local' };
+      notifyStatus(false, `Arqueo y Corte #${corteNum} guardado localmente (error Firebase)`);
+      return { success: true, key, corteNum, corteId, source: 'local' };
     }
   }
 
@@ -1770,10 +1864,23 @@ const TB_FIREBASE = (function () {
     } else {
 
       const local = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
+      const item = local[key];
 
       delete local[key];
 
       localStorage.setItem('tb_arqueos_history', JSON.stringify(local));
+
+      if (item && item.corteId) {
+        const f = item.header?.fecha || item.fecha || getHidalgoDateStr();
+        const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
+        if (localCortes[f] && localCortes[f][item.corteId]) {
+          delete localCortes[f][item.corteId];
+          localStorage.setItem('tb_cortes_db', JSON.stringify(localCortes));
+        }
+        try {
+          await fetch(getDbUrl(`cortes_caja/${f}/${item.corteId}`), { method: 'DELETE' });
+        } catch (e) {}
+      }
 
       try {
 
@@ -2145,6 +2252,10 @@ const TB_FIREBASE = (function () {
     saveArqueoPrincipal,
 
     getArqueosList,
+
+    saveCorteCaja,
+
+    getCortesByFecha,
 
     saveArqueoCajaChica,
 

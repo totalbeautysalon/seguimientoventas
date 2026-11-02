@@ -96,6 +96,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
   let currentModule = 'arqueo-principal';
   let lastLoggedModule = null;
   let currentHistTipo = 'principal'; // 'principal' o 'chica'
+  // --- ESTADO DE CORTES CONTINUOS DE CAJA PRINCIPAL ---
+  let currentCorteNum = 1;
+  let currentCorteVentas = [];
+  let currentCortesHoy = [];
+  let currentCorteHoraInicio = '00:00';
   let currentLeadOption = 1;         // 1: Nuevo, 2: Seguimiento, 3: BalanceScore
 
   // --- FORMATEO DE MONEDA Y NÚMEROS ---
@@ -1140,10 +1145,112 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
   }
 
+  // =========================================================================
+  // GESTIÓN Y CONTROL DE CORTES DIARIOS DE CAJA PRINCIPAL
+  // =========================================================================
+  function updateCorteBanner(fecha, numVentasCorte, cortesHoy = []) {
+    const badgeNum = document.getElementById('badge-corte-numero');
+    const periodoEl = document.getElementById('banner-corte-periodo');
+    const resumenEl = document.getElementById('banner-corte-resumen');
+    const btnVerCortes = document.getElementById('btn-ver-cortes-hoy');
+    const countCortesEl = document.getElementById('count-cortes-hoy');
+
+    const corteNum = (cortesHoy ? cortesHoy.length : 0) + 1;
+    currentCorteNum = corteNum;
+
+    if (badgeNum) badgeNum.textContent = 'CORTE #' + corteNum;
+
+    const ultimoCorte = (cortesHoy && cortesHoy.length > 0) ? cortesHoy[cortesHoy.length - 1] : null;
+    const horaDesde = ultimoCorte ? (ultimoCorte.header?.hora || ultimoCorte.hora || '00:00') : 'Inicio (00:00)';
+    currentCorteHoraInicio = horaDesde;
+
+    if (periodoEl) {
+      periodoEl.innerHTML = 'Período del corte: <strong>' + horaDesde + '</strong> &rarr; <strong>En curso</strong>';
+    }
+
+    if (resumenEl) {
+      let ultInfo = 'Primer corte del día';
+      if (ultimoCorte) {
+        const dest = ultimoCorte.destinoEfectivo || ultimoCorte.validacion?.destinoEfectivo;
+        if (dest === 'se_guarda_en_sobre') {
+          ultInfo = 'Último corte #' + (ultimoCorte.corteNum || 1) + ': Retirado en Sobre [' + (ultimoCorte.folioSobre || ultimoCorte.validacion?.folioSobre || 'Folio') + '] (' + formatCurrency(ultimoCorte.montoSobre || ultimoCorte.validacion?.importeEntregado || 0) + ' - No faltante)';
+        } else if (dest === 'se_resguarda_otro') {
+          ultInfo = 'Último corte #' + (ultimoCorte.corteNum || 1) + ': Resguardado en ' + (ultimoCorte.lugarResguardo || ultimoCorte.validacion?.lugarResguardo || 'Lugar') + ' [' + (ultimoCorte.folioResguardo || ultimoCorte.validacion?.folioResguardo || 'Folio') + '] (' + formatCurrency(ultimoCorte.montoResguardo || ultimoCorte.validacion?.importeEntregado || 0) + ' - No faltante)';
+        } else {
+          ultInfo = 'Último corte #' + (ultimoCorte.corteNum || 1) + ': Quedó en caja (' + formatCurrency(ultimoCorte.montoQuedaEnCaja || ultimoCorte.conteo?.total || 0) + ' &bull; Pasó a Fondo)';
+        }
+      }
+      resumenEl.innerHTML = '<strong>' + numVentasCorte + '</strong> venta(s) en este corte &bull; ' + ultInfo;
+    }
+
+    if (btnVerCortes && countCortesEl) {
+      if (cortesHoy && cortesHoy.length > 0) {
+        btnVerCortes.style.display = 'inline-block';
+        countCortesEl.textContent = String(cortesHoy.length);
+      } else {
+        btnVerCortes.style.display = 'none';
+        countCortesEl.textContent = '0';
+      }
+    }
+
+    suggestFolios(fecha, corteNum);
+  }
+
+  function suggestFolios(fecha, corteNum) {
+    const fClean = (fecha || getHidalgoDateStr()).replace(/[^0-9]/g, '');
+    const cPad = String(corteNum || 1).padStart(2, '0');
+
+    const inpSobre = document.getElementById('val_folio_sobre');
+    if (inpSobre && (!inpSobre.value || inpSobre.dataset.autoFolio === 'true')) {
+      inpSobre.value = 'SOBRE-' + fClean + '-' + cPad;
+      inpSobre.dataset.autoFolio = 'true';
+    }
+
+    const inpResg = document.getElementById('val_folio_resguardo');
+    if (inpResg && (!inpResg.value || inpResg.dataset.autoFolio === 'true')) {
+      inpResg.value = 'RESG-' + fClean + '-' + cPad;
+      inpResg.dataset.autoFolio = 'true';
+    }
+  }
+
   // Interconexión: Sincronizar automáticamente las ventas del día a Caja Principal
   async function syncVentasToCajaPrincipal(fecha, autoAlert = true) {
     if (!fecha) fecha = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
-    const ventas = await TB_FIREBASE.getVentasByFecha(fecha);
+    const allVentas = await TB_FIREBASE.getVentasByFecha(fecha);
+    const cortesHoy = await TB_FIREBASE.getCortesByFecha(fecha);
+    currentCortesHoy = cortesHoy;
+
+    // Recopilar IDs de ventas ya contempladas en cortes anteriores del día
+    const yaCortadasSet = new Set();
+    let ultimoCorte = null;
+    if (Array.isArray(cortesHoy) && cortesHoy.length > 0) {
+      cortesHoy.forEach(c => {
+        if (Array.isArray(c.ventasIds)) {
+          c.ventasIds.forEach(id => yaCortadasSet.add(id));
+        }
+      });
+      ultimoCorte = cortesHoy[cortesHoy.length - 1];
+    }
+
+    // Filtrar exclusivamente las ventas que corresponden al corte actual
+    // (Ocurridas después del último corte registrado)
+    const ventas = allVentas.filter(v => {
+      if (!v || !v.id) return false;
+      if (yaCortadasSet.has(v.id)) return false;
+      if (ultimoCorte) {
+        if (ultimoCorte.corteTimestamp && v.createdAt) {
+          if (new Date(v.createdAt).getTime() <= new Date(ultimoCorte.corteTimestamp).getTime()) {
+            return false;
+          }
+        } else if (v.hora && ultimoCorte.hora && v.hora <= ultimoCorte.hora) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    currentCorteVentas = ventas;
+    updateCorteBanner(fecha, ventas.length, cortesHoy);
 
     // Reiniciar contadores de ingresos (Solo Servicios de belleza, Cursos de academia y Venta de productos)
     const matrix = {
@@ -1280,6 +1387,29 @@ function getHidalgoIsoString(dateObj = new Date()) {
       }
     }
     setDisplay('kpi-efectivo-contado', totalContado);
+
+    // Sincronizar automáticamente el monto contado con el destino del efectivo si no fue editado manualmente
+    const destVal = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
+    if (destVal === 'se_queda_en_caja') {
+      const inpQ = document.getElementById('val_monto_queda_caja');
+      if (inpQ && (!inpQ.value || inpQ.dataset.manual !== 'true')) {
+        inpQ.value = totalContado.toFixed(2);
+      }
+    } else if (destVal === 'se_guarda_en_sobre') {
+      const inpS = document.getElementById('val_importe_sobre');
+      if (inpS && (!inpS.value || inpS.dataset.manual !== 'true')) {
+        inpS.value = totalContado.toFixed(2);
+      }
+      const inpEnt = document.getElementById('val_importe_entregado');
+      if (inpEnt) inpEnt.value = totalContado.toFixed(2);
+    } else if (destVal === 'se_resguarda_otro') {
+      const inpR = document.getElementById('val_importe_resguardo');
+      if (inpR && (!inpR.value || inpR.dataset.manual !== 'true')) {
+        inpR.value = totalContado.toFixed(2);
+      }
+      const inpEnt = document.getElementById('val_importe_entregado');
+      if (inpEnt) inpEnt.value = totalContado.toFixed(2);
+    }
 
     // Conciliación Caja Principal:
     // Efectivo esperado = Fondo inicial + Ingresos en efectivo
@@ -1441,7 +1571,51 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const dif = parseVal('concil_diferencia_caja');
     const resArqueo = (Math.abs(dif) < 0.005) ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante');
 
+    const destVal = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
+    const contado = parseVal('conteo_total_efectivo');
+
+    let montoQueda = 0;
+    let folioSobre = null;
+    let montoSobre = 0;
+    let folioResguardo = null;
+    let lugarResguardo = null;
+    let montoResguardo = 0;
+    let importeRetirado = 0;
+
+    if (destVal === 'se_queda_en_caja') {
+      montoQueda = parseVal('val_monto_queda_caja') || contado;
+      importeRetirado = 0;
+    } else if (destVal === 'se_guarda_en_sobre') {
+      folioSobre = document.getElementById('val_folio_sobre')?.value.trim() || '';
+      montoSobre = parseVal('val_importe_sobre') || contado;
+      importeRetirado = montoSobre;
+    } else if (destVal === 'se_resguarda_otro') {
+      folioResguardo = document.getElementById('val_folio_resguardo')?.value.trim() || '';
+      lugarResguardo = document.getElementById('val_lugar_resguardo')?.value.trim() || '';
+      montoResguardo = parseVal('val_importe_resguardo') || contado;
+      importeRetirado = montoResguardo;
+    }
+
+    const corteNum = currentCorteNum || 1;
+    const corteId = 'corte_' + Date.now();
+    const corteTimestamp = new Date().toISOString();
+
     return {
+      corteId,
+      corteNum,
+      corteTimestamp,
+      periodo: {
+        desdeHora: currentCorteHoraInicio || '00:00',
+        hastaHora: document.getElementById('header_hora')?.value || getHidalgoTimeStr()
+      },
+      ventasIds: (currentCorteVentas || []).map(v => v.id),
+      destinoEfectivo: destVal,
+      montoQuedaEnCaja: montoQueda,
+      folioSobre,
+      montoSobre,
+      folioResguardo,
+      lugarResguardo,
+      montoResguardo,
       header: {
         fecha: document.getElementById('header_fecha')?.value || '',
         responsable: document.getElementById('header_responsable')?.value || '',
@@ -1461,7 +1635,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         operaciones: document.getElementById('ing_operaciones_cobradas')?.value || ''
       },
       conteo: {
-        total: parseVal('conteo_total_efectivo'),
+        total: contado,
         desglose: {
           b1000: parseInt(document.getElementById('billete_1000')?.value, 10) || 0,
           b500:  parseInt(document.getElementById('billete_500')?.value, 10) || 0,
@@ -1480,7 +1654,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         fondo: parseVal('f_inicial_caja'),
         ingresosEfec: parseVal('ing_total_efectivo'),
         esperado: parseVal('concil_efectivo_esperado'),
-        contado: parseVal('conteo_total_efectivo'),
+        contado: contado,
         diferencia: dif,
         resultado: resArqueo,
         explicacion: document.getElementById('concil_explicacion')?.value || ''
@@ -1499,7 +1673,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         totalTransf: parseVal('ctrl_transf_verif'),
         totalTarjetas: parseVal('ctrl_tarj_verif'),
         totalEntregado: totalEntregadoHoy,
-        detalleEntregas: entregasHoy.map(e => `${e.recibe}: $${(parseFloat(e.cantidad)||0).toFixed(2)}`).join(', '),
+        detalleEntregas: entregasHoy.map(e => e.recibe + ': $' + (parseFloat(e.cantidad)||0).toFixed(2)).join(', '),
         numServicios: document.getElementById('resumen_num_servicios')?.value || '',
         numCursos: document.getElementById('resumen_num_cursos')?.value || '',
         obsDia: document.getElementById('resumen_observaciones_dia')?.value || ''
@@ -1515,9 +1689,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
         responsable: document.getElementById('val_responsable_nombre')?.value || '',
         horaCierre: document.getElementById('val_hora_cierre')?.value || '',
         horaEntrega: document.getElementById('val_hora_entrega')?.value || '',
-        destinoEfectivo: document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja',
-        lugarResguardo: document.getElementById('val_efectivo_otro_lugar')?.value || '',
-        importeEntregado: parseVal('val_importe_entregado'),
+        destinoEfectivo: destVal,
+        folioSobre,
+        folioResguardo,
+        lugarResguardo: lugarResguardo || document.getElementById('val_efectivo_otro_lugar')?.value || '',
+        importeEntregado: importeRetirado,
         signatureData: sigDataPrincipal && sigPadPrincipal ? sigPadPrincipal.toDataURL() : null,
         observaciones: document.getElementById('val_observaciones')?.value || ''
       }
@@ -1548,6 +1724,26 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (document.getElementById('val_hora_entrega')) document.getElementById('val_hora_entrega').value = '';
     if (document.getElementById('wrap_efectivo_otro_lugar')) document.getElementById('wrap_efectivo_otro_lugar').style.display = 'none';
 
+    // Resetear destino de efectivo a opción 1
+    const selDest = document.getElementById('val_destino_efectivo');
+    if (selDest) selDest.value = 'se_queda_en_caja';
+    const wrapQ = document.getElementById('wrap_destino_queda_caja');
+    const wrapS = document.getElementById('wrap_destino_guarda_sobre');
+    const wrapR = document.getElementById('wrap_destino_resguarda_otro');
+    if (wrapQ) wrapQ.style.display = 'block';
+    if (wrapS) wrapS.style.display = 'none';
+    if (wrapR) wrapR.style.display = 'none';
+
+    ['val_monto_queda_caja', 'val_importe_sobre', 'val_importe_resguardo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = '0.00'; el.dataset.manual = 'false'; }
+    });
+
+    ['val_folio_sobre', 'val_folio_resguardo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.dataset.autoFolio = 'false'; }
+    });
+
     loadControlCajaData();
     loadCajaChicaFundData();
     recalculatePrincipal();
@@ -1577,6 +1773,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
     setEl('p_fecha', rawF || '__ / __ / ____');
     setEl('p_responsable', rawR || '________________');
     setEl('p_hora', rawH || '____');
+
+    // Número de corte y período
+    const corteNum = data.corteNum || 1;
+    const perDesde = data.periodo?.desdeHora || '00:00';
+    const perHasta = data.periodo?.hastaHora || rawH || '';
+    setEl('p_corte_num', 'Corte #' + corteNum + ' (' + perDesde + ' - ' + perHasta + ')');
 
     // 1. Fondo Inicial y Conciliación
     const fondo = parseFloat(data.fondoInicial !== undefined ? data.fondoInicial : concil.fondo) || 0;
@@ -1629,12 +1831,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
         badgeStatusPdf.style.borderColor = '#16a34a';
         badgeStatusPdf.style.color = '#15803d';
       } else if (resArqueo === 'sobrante') {
-        badgeStatusPdf.textContent = `🟡 SOBRANTE: ${formatCurrency(dif)}`;
+        badgeStatusPdf.textContent = '🟡 SOBRANTE: ' + formatCurrency(dif);
         badgeStatusPdf.style.background = '#fffbeb';
         badgeStatusPdf.style.borderColor = '#f59e0b';
         badgeStatusPdf.style.color = '#b45309';
       } else {
-        badgeStatusPdf.textContent = `🔴 FALTANTE: ${formatCurrency(Math.abs(dif))}`;
+        badgeStatusPdf.textContent = '🔴 FALTANTE: ' + formatCurrency(Math.abs(dif));
         badgeStatusPdf.style.background = '#fef2f2';
         badgeStatusPdf.style.borderColor = '#ef4444';
         badgeStatusPdf.style.color = '#b91c1c';
@@ -1669,7 +1871,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       secCtrlPdf.style.display = (totRegCtrl > 0.005) ? 'block' : 'none';
     }
 
-    // Observaciones y Destino
+    // Observaciones y Destino del Efectivo
     const valResp = val.responsable || rawR || '';
     setEl('p_val_nombre', valResp);
 
@@ -1686,19 +1888,55 @@ function getHidalgoIsoString(dateObj = new Date()) {
       if (fBlank) fBlank.style.display = 'inline-block';
     }
 
-    let destTexto = '1.- Se queda en caja';
-    const dest = val.destinoEfectivo || 'se_queda_en_caja';
-    if (dest === 'se_guarda_en_sobre') destTexto = '2.- Se guarda en sobre';
-    else if (dest === 'se_resguarda_otro') {
-      const lug = val.lugarResguardo ? `: ${val.lugarResguardo}` : '';
-      destTexto = `3.- Se resguarda en otro lugar${lug}`;
+    const dest = data.destinoEfectivo || val.destinoEfectivo || 'se_queda_en_caja';
+    let destTexto = '1.- Se queda en caja (Fondo base)';
+    let folioTexto = '--';
+    let showFolio = false;
+    let showQueda = false;
+    let estatusTexto = 'Permanece en caja física y pasa como Fondo Inicial al siguiente corte';
+
+    const quedaMonto = parseFloat(data.montoQuedaEnCaja || totContado) || 0;
+    const sobreMonto = parseFloat(data.montoSobre || val.importeEntregado || totContado) || 0;
+    const resgMonto = parseFloat(data.montoResguardo || val.importeEntregado || totContado) || 0;
+
+    if (dest === 'se_guarda_en_sobre') {
+      destTexto = '2.- Se guarda en sobre cerrado';
+      folioTexto = data.folioSobre || val.folioSobre || 'Sin folio';
+      showFolio = true;
+      showQueda = false;
+      estatusTexto = 'Retirado en sobre con folio oficial &bull; DEBIDAMENTE REGISTRADO (NO considerado faltante)';
+      setEl('p_val_importe_entregado', formatCurrency(sobreMonto));
+    } else if (dest === 'se_resguarda_otro') {
+      const lug = data.lugarResguardo || val.lugarResguardo || 'Otro lugar';
+      destTexto = '3.- Se resguarda en ' + lug;
+      folioTexto = data.folioResguardo || val.folioResguardo || 'Sin folio';
+      showFolio = true;
+      showQueda = false;
+      estatusTexto = 'Resguardado en ' + lug + ' con folio oficial &bull; DEBIDAMENTE REGISTRADO (NO considerado faltante)';
+      setEl('p_val_importe_entregado', formatCurrency(resgMonto));
+    } else {
+      destTexto = '1.- Se queda en caja (Fondo base)';
+      showFolio = false;
+      showQueda = true;
+      estatusTexto = 'Permanece en caja física &bull; Pasa como Fondo Inicial al corte siguiente';
+      setEl('p_val_importe_queda', formatCurrency(quedaMonto));
     }
+
     setEl('p_val_entregado_a', destTexto);
-    setEl('p_val_importe_entregado', formatCurrency(totEntregado));
+    setEl('p_val_folio_oficial', folioTexto);
+
+    const wrapFolio = document.getElementById('pdf_wrap_folio_row');
+    if (wrapFolio) wrapFolio.style.display = showFolio ? 'block' : 'none';
+    const wrapQueda = document.getElementById('pdf_wrap_queda_row');
+    if (wrapQueda) wrapQueda.style.display = showQueda ? 'block' : 'none';
+
+    const elEst = document.getElementById('p_val_estatus_cierre');
+    if (elEst) elEst.innerHTML = estatusTexto;
+
     setEl('p_val_observaciones', val.observaciones?.trim() || res.obsDia?.trim() || 'Sin observaciones.');
 
     const cln = valResp.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim().replace(/\s+/g, '_');
-    return `Arqueo_Caja_Principal_${rawF || 'Fecha'}_${cln || 'Responsable'}.pdf`;
+    return 'Arqueo_Caja_Principal_Corte' + corteNum + '_' + (rawF || 'Fecha') + '_' + (cln || 'Responsable') + '.pdf';
   }
 
   function syncPrincipalPrintable() {
@@ -2264,7 +2502,32 @@ function getHidalgoIsoString(dateObj = new Date()) {
       return;
     }
 
-    showToast(`Guardando ${isChica ? 'Caja Chica' : 'Caja Principal'} en Firebase...`, 'info');
+    if (!isChica) {
+      const destVal = document.getElementById('val_destino_efectivo')?.value || 'se_queda_en_caja';
+      if (destVal === 'se_guarda_en_sobre') {
+        const fol = document.getElementById('val_folio_sobre')?.value.trim();
+        if (!fol) {
+          showToast('Por favor ingrese el Folio Oficial del Sobre', 'warning');
+          document.getElementById('val_folio_sobre')?.focus();
+          return;
+        }
+      } else if (destVal === 'se_resguarda_otro') {
+        const fol = document.getElementById('val_folio_resguardo')?.value.trim();
+        const lug = document.getElementById('val_lugar_resguardo')?.value.trim();
+        if (!fol) {
+          showToast('Por favor ingrese el Folio de Resguardo', 'warning');
+          document.getElementById('val_folio_resguardo')?.focus();
+          return;
+        }
+        if (!lug) {
+          showToast('Por favor especifique el lugar de resguardo', 'warning');
+          document.getElementById('val_lugar_resguardo')?.focus();
+          return;
+        }
+      }
+    }
+
+    showToast('Guardando ' + (isChica ? 'Caja Chica' : ('Corte #' + currentCorteNum + ' de Caja Principal')) + ' en Firebase...', 'info');
 
     // 1. Guardar en Firebase
     let saveResult = null;
@@ -2275,8 +2538,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
       logAuditMovement({
         modulo: 'Caja Chica',
         accion: 'ALTA_ARQUEO_CHICA',
-        descripcion: `Cierre Arqueo Caja Chica: Fecha ${fecha} por ${resp} - Fondo Final: $${parseFloat(savedData.totalFondoFinal || 0).toFixed(2)}`,
-        payload: { arqueoKey: saveResult?.key || `${fecha}_${resp.replace(/[^a-zA-Z0-9]/g, '_')}`, fecha, data: savedData }
+        descripcion: 'Cierre Arqueo Caja Chica: Fecha ' + fecha + ' por ' + resp + ' - Fondo Final: $' + parseFloat(savedData.totalFondoFinal || 0).toFixed(2),
+        payload: { arqueoKey: saveResult?.key || (fecha + '_' + resp.replace(/[^a-zA-Z0-9]/g, '_')), fecha, data: savedData }
       });
     } else {
       savedData = serializePrincipal();
@@ -2284,8 +2547,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
       logAuditMovement({
         modulo: 'Arqueo Principal',
         accion: 'ALTA_ARQUEO_PRINCIPAL',
-        descripcion: `Cierre Arqueo Principal: Fecha ${fecha} por ${resp} - Total Ingresos: $${parseFloat(savedData.resumenFinal?.totalIngresosDia || 0).toFixed(2)} - Diferencia: $${parseFloat(savedData.conciliacion?.diferenciaCaja || 0).toFixed(2)}`,
-        payload: { arqueoKey: saveResult?.key || `${fecha}_${resp.replace(/[^a-zA-Z0-9]/g, '_')}`, fecha, data: savedData }
+        descripcion: 'Corte de Caja #' + (savedData.corteNum || 1) + ': Fecha ' + fecha + ' por ' + resp + ' - Ingresos Corte: $' + parseFloat(savedData.resumenFinal?.totalIngresosDia || 0).toFixed(2) + ' - Destino: ' + savedData.destinoEfectivo + (savedData.folioSobre ? ' [Sobre ' + savedData.folioSobre + ']' : '') + (savedData.folioResguardo ? ' [Resg ' + savedData.folioResguardo + ']' : ''),
+        payload: { arqueoKey: saveResult?.key, fecha, corteNum: savedData.corteNum, data: savedData }
       });
     }
 
@@ -2293,15 +2556,18 @@ function getHidalgoIsoString(dateObj = new Date()) {
     showToast('Generando y descargando PDF oficial...', 'info');
     const fileName = await exportPDF(isChica);
 
-    showToast(`✅ ¡${isChica ? 'Caja Chica' : 'Caja Principal'} guardada en Firebase y PDF descargado (${fileName})!`, 'success');
+    showToast('✅ ¡' + (isChica ? 'Caja Chica' : ('Corte #' + (savedData?.corteNum || 1) + ' de Caja Principal')) + ' guardado en Firebase y PDF descargado (' + fileName + ')!', 'success');
 
-    // 3. Limpiar los campos para introducir nueva información
+    // 3. Limpiar los campos para nuevo corte
     if (isChica) {
       clearChicaForm();
     } else {
       clearPrincipalForm();
+      // Recargar de inmediato los cortes de hoy y sincronizar ventas del nuevo corte
+      await loadControlCajaData();
+      await syncVentasToCajaPrincipal(fecha, false);
     }
-    showToast('Campos limpios y listos para nuevo registro.', 'info');
+    showToast('Campos listos para nuevo corte de caja.', 'info');
   }
 
   // =========================================================================
@@ -2499,16 +2765,28 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
       if (currentHistTipo === 'principal') {
         const efecEntregado = item.resumen?.totalEntregado ?? item.resumenFinal?.totalEntregado ?? item.validacion?.importeEntregado ?? item.conciliacion?.retiros ?? 0;
+        const cNum = item.corteNum || 1;
+        const dest = item.destinoEfectivo || item.validacion?.destinoEfectivo;
+        let destBadge = '<span style="background:#f0fdf4; color:#15803d; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">💵 En Caja</span>';
+        if (dest === 'se_guarda_en_sobre') {
+          destBadge = `<span style="background:#eff6ff; color:#2563eb; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">✉️ Sobre [${item.folioSobre || 'Folio'}]</span>`;
+        } else if (dest === 'se_resguarda_otro') {
+          destBadge = `<span style="background:#fffbeb; color:#d97706; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">🏦 Resguardo [${item.folioResguardo || 'Folio'}]</span>`;
+        }
         card.innerHTML = `
           <div class="history-card-header">
             <div>
-              <div class="history-date">📅 ${item.header?.fecha || item.fecha || 'Sin Fecha'}</div>
+              <div class="history-date" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span>📅 ${item.header?.fecha || item.fecha || 'Sin Fecha'}</span>
+                <span style="background:#0b0f17; color:#d4af37; padding:2px 7px; border-radius:4px; font-weight:800; font-size:0.75rem;">Corte #${cNum}</span>
+                ${destBadge}
+              </div>
               <div class="history-responsable">👤 ${item.header?.responsable || item.validacion?.responsable || 'Sin asignar'} (${item.header?.hora || ''})</div>
             </div>
             <span class="kpi-status-badge ${resBadgeClass}">${resText}</span>
           </div>
           <div class="history-metrics">
-            <div class="history-metric-box"><div class="label">Ingresos Totales</div><div class="val">${formatCurrency(item.ingresos?.totales?.granTotal || item.resumen?.totalIngresos || 0)}</div></div>
+            <div class="history-metric-box"><div class="label">Ingresos Corte</div><div class="val">${formatCurrency(item.ingresos?.totales?.granTotal || item.resumen?.totalIngresos || 0)}</div></div>
             <div class="history-metric-box"><div class="label">Efectivo Contado</div><div class="val">${formatCurrency(item.conteo?.total || item.conciliacion?.contado || 0)}</div></div>
             <div class="history-metric-box"><div class="label">Efectivo Entregado</div><div class="val">${formatCurrency(efecEntregado)}</div></div>
             <div class="history-metric-box"><div class="label">Diferencia</div><div class="val" style="color:${Math.abs(item.conciliacion?.diferencia || 0) < 0.01 ? 'var(--success)' : 'var(--danger)'}">${formatCurrency(item.conciliacion?.diferencia || 0)}</div></div>
@@ -5084,8 +5362,30 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const allEntregas = Object.values(controlCajaData.entregas || {});
     const entregasHoy = allEntregas.filter(e => e.fecha === today);
 
-    const totalEntregadoHoy = entregasHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
-    const fondoBase = parseFloat(controlCajaData.fondoBase || 0);
+    // Revisar cortes de hoy para determinar fondo inicial del corte activo
+    let fondoBase = parseFloat(controlCajaData.fondoBase || 0);
+    let entregasFiltradas = entregasHoy;
+
+    if (currentCortesHoy && currentCortesHoy.length > 0) {
+      const ultimoCorte = currentCortesHoy[currentCortesHoy.length - 1];
+      const dest = ultimoCorte.destinoEfectivo || ultimoCorte.validacion?.destinoEfectivo;
+      if (dest === 'se_queda_en_caja') {
+        // Se quedó en caja: el fondo inicial para este corte es el monto que quedó en caja
+        fondoBase = parseFloat(ultimoCorte.montoQuedaEnCaja || ultimoCorte.conteo?.total || ultimoCorte.conciliacion?.contado || 0);
+      } else {
+        // Se guardó en sobre o se resguardó en otro lugar:
+        // El dinero salió de la caja física, la caja inicia en $0.00
+        fondoBase = 0.00;
+      }
+
+      // Solo entregas realizadas después del último corte afectan este corte
+      if (ultimoCorte.corteTimestamp) {
+        const tCorte = new Date(ultimoCorte.corteTimestamp).getTime();
+        entregasFiltradas = entregasHoy.filter(e => e.createdAt && new Date(e.createdAt).getTime() > tCorte);
+      }
+    }
+
+    const totalEntregadoHoy = entregasFiltradas.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
     const fondoDisponible = Math.max(0, fondoBase - totalEntregadoHoy);
 
     const fInput = document.getElementById('f_inicial_caja');
@@ -5099,7 +5399,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (lblBase) lblBase.textContent = formatCurrency(fondoBase);
     if (lblEntr) lblEntr.textContent = formatCurrency(totalEntregadoHoy);
     if (lblDisp) lblDisp.textContent = formatCurrency(fondoDisponible);
-    if (countBadge) countBadge.textContent = String(entregasHoy.length);
+    if (countBadge) countBadge.textContent = String(entregasFiltradas.length);
 
     // Actualizar también en Configuración General si está abierto
     renderConfigCajaPrincipalValues(fondoBase, totalEntregadoHoy, fondoDisponible);
@@ -6023,24 +6323,178 @@ function getHidalgoIsoString(dateObj = new Date()) {
       showToast('Pagos no en efectivo marcados como verificados', 'success');
     });
 
-    // Control de destino de efectivo
-    document.getElementById('val_destino_efectivo')?.addEventListener('change', (e) => {
-      const val = e.target.value;
-      const wrapLugar = document.getElementById('wrap_efectivo_otro_lugar');
-      const wrapImp = document.getElementById('wrap_importe_entregado');
-      if (wrapLugar) wrapLugar.style.display = (val === 'se_resguarda_otro') ? 'block' : 'none';
-      if (wrapImp) {
-        if (val === 'se_guarda_en_sobre' || val === 'se_resguarda_otro') {
-          wrapImp.style.display = 'block';
+  // =========================================================================
+  // CONTROLADOR DEL MODAL DE CORTES DE CAJA DE HOY
+  // =========================================================================
+  function renderModalCortesHoy() {
+    const modal = document.getElementById('modal-lista-cortes-hoy');
+    const container = document.getElementById('cortes-hoy-cards-container');
+    if (!modal || !container) return;
+
+    if (!currentCortesHoy || currentCortesHoy.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:28px 16px; color:#64748b; font-size:0.95rem;">No se han realizado cortes de caja en esta fecha.</div>';
+    } else {
+      container.innerHTML = '';
+      currentCortesHoy.forEach(corte => {
+        const card = document.createElement('div');
+        card.className = 'corte-card-item';
+
+        const num = corte.corteNum || 1;
+        const hora = corte.header?.hora || corte.hora || '--:--';
+        const resp = corte.header?.responsable || corte.validacion?.responsable || 'Responsable';
+        const totIng = parseFloat(corte.ingresos?.totales?.granTotal || corte.resumen?.totalIngresos || 0);
+        const totCont = parseFloat(corte.conteo?.total || corte.conciliacion?.contado || 0);
+        const dif = parseFloat(corte.conciliacion?.diferencia || 0);
+        const resArqueo = corte.conciliacion?.resultado || (Math.abs(dif) < 0.005 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
+        const dest = corte.destinoEfectivo || corte.validacion?.destinoEfectivo;
+
+        let badgeClass = 'badge-cuadrada';
+        let badgeText = 'Cuadrada';
+        if (resArqueo === 'sobrante') { badgeClass = 'badge-sobrante'; badgeText = 'Sobrante'; }
+        else if (resArqueo === 'faltante') { badgeClass = 'badge-faltante'; badgeText = 'Faltante'; }
+
+        let destHtml = '';
+        if (dest === 'se_guarda_en_sobre') {
+          destHtml = '✉️ <strong>Sobre cerrado:</strong> Folio <span style="font-family:monospace; font-weight:700;">' + (corte.folioSobre || corte.validacion?.folioSobre || 'N/A') + '</span> &bull; Monto: <strong>' + formatCurrency(corte.montoSobre || corte.validacion?.importeEntregado || totCont) + '</strong> <span style="color:#2563eb; font-weight:600;">(Resguardado - No faltante)</span>';
+        } else if (dest === 'se_resguarda_otro') {
+          destHtml = '🏦 <strong>Resguardo:</strong> ' + (corte.lugarResguardo || 'Otro lugar') + ' &bull; Folio <span style="font-family:monospace; font-weight:700;">' + (corte.folioResguardo || corte.validacion?.folioResguardo || 'N/A') + '</span> &bull; Monto: <strong>' + formatCurrency(corte.montoResguardo || corte.validacion?.importeEntregado || totCont) + '</strong> <span style="color:#d97706; font-weight:600;">(Resguardado - No faltante)</span>';
         } else {
-          wrapImp.style.display = 'none';
-          const inp = document.getElementById('val_importe_entregado');
-          if (inp) inp.value = '0.00';
+          destHtml = '💵 <strong>Se quedó en caja:</strong> Monto: <strong>' + formatCurrency(corte.montoQuedaEnCaja || totCont) + '</strong> <span style="color:#15803d; font-weight:600;">(Pasó al Fondo Inicial del sig. corte)</span>';
         }
-      }
+
+        const numVentas = Array.isArray(corte.ventasIds) ? corte.ventasIds.length : (corte.ingresos?.operaciones || '0');
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="background:#0b0f17; color:#d4af37; padding:2px 8px; border-radius:4px; font-weight:800; font-size:0.85rem;">Corte #${num}</span>
+              <span style="font-weight:700; color:#0f172a; font-size:0.92rem;">Hora: ${hora}</span>
+              <span style="color:#64748b; font-size:0.8rem;">&bull; 👤 ${resp}</span>
+            </div>
+            <span class="kpi-status-badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:8px; font-size:0.82rem;">
+            <div><span style="color:#64748b;">Ventas en corte:</span> <strong>${numVentas}</strong> (${formatCurrency(totIng)})</div>
+            <div><span style="color:#64748b;">Efectivo contado:</span> <strong>${formatCurrency(totCont)}</strong></div>
+            <div><span style="color:#64748b;">Diferencia:</span> <strong style="color:${Math.abs(dif)<0.01?'#16a34a':'#dc2626'}">${formatCurrency(dif)}</strong></div>
+          </div>
+          <div style="font-size:0.8rem; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 10px; border-radius:6px; margin-bottom:8px;">
+            ${destHtml}
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="button" class="btn btn-firebase btn-sm btn-view-corte-pdf" style="font-size:0.78rem; padding:4px 10px; font-weight:700;">
+              📄 Ver PDF Oficial
+            </button>
+          </div>
+        `;
+
+        card.querySelector('.btn-view-corte-pdf')?.addEventListener('click', () => {
+          modal.style.display = 'none';
+          openReportPdfViewer(corte, false, corte.key);
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    modal.style.display = 'flex';
+  }
+
+    // Control interactivo de destino del efectivo al cierre del corte
+    const destSelect = document.getElementById('val_destino_efectivo');
+    if (destSelect) {
+      destSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const wrapQueda = document.getElementById('wrap_destino_queda_caja');
+        const wrapSobre = document.getElementById('wrap_destino_guarda_sobre');
+        const wrapResg = document.getElementById('wrap_destino_resguarda_otro');
+        const inpContado = parseVal('conteo_total_efectivo');
+
+        if (wrapQueda) wrapQueda.style.display = (val === 'se_queda_en_caja') ? 'block' : 'none';
+        if (wrapSobre) wrapSobre.style.display = (val === 'se_guarda_en_sobre') ? 'block' : 'none';
+        if (wrapResg) wrapResg.style.display = (val === 'se_resguarda_otro') ? 'block' : 'none';
+
+        if (val === 'se_queda_en_caja') {
+          const inpQ = document.getElementById('val_monto_queda_caja');
+          if (inpQ && (!inpQ.value || parseVal('val_monto_queda_caja') === 0)) {
+            inpQ.value = inpContado.toFixed(2);
+          }
+          const inpEnt = document.getElementById('val_importe_entregado');
+          if (inpEnt) inpEnt.value = '0.00';
+        } else if (val === 'se_guarda_en_sobre') {
+          const inpS = document.getElementById('val_importe_sobre');
+          if (inpS && (!inpS.value || parseVal('val_importe_sobre') === 0)) {
+            inpS.value = inpContado.toFixed(2);
+          }
+          const inpEnt = document.getElementById('val_importe_entregado');
+          if (inpEnt) inpEnt.value = (inpS ? inpS.value : inpContado.toFixed(2));
+          suggestFolios(document.getElementById('header_fecha')?.value, currentCorteNum);
+        } else if (val === 'se_resguarda_otro') {
+          const inpR = document.getElementById('val_importe_resguardo');
+          if (inpR && (!inpR.value || parseVal('val_importe_resguardo') === 0)) {
+            inpR.value = inpContado.toFixed(2);
+          }
+          const inpEnt = document.getElementById('val_importe_entregado');
+          if (inpEnt) inpEnt.value = (inpR ? inpR.value : inpContado.toFixed(2));
+          suggestFolios(document.getElementById('header_fecha')?.value, currentCorteNum);
+        }
+      });
+    }
+
+    // Botones rápidos Copiar Contado
+    document.getElementById('btn-copy-queda-caja')?.addEventListener('click', () => {
+      const val = parseVal('conteo_total_efectivo').toFixed(2);
+      const inp = document.getElementById('val_monto_queda_caja');
+      if (inp) { inp.value = val; inp.dataset.manual = 'true'; }
+      showToast('Monto copiado: $' + val, 'info');
     });
 
-    // Control de Caja: Entrega de Dinero con Fotografía (Protegido por Clave Privada de Gerencia)
+    document.getElementById('btn-copy-sobre')?.addEventListener('click', () => {
+      const val = parseVal('conteo_total_efectivo').toFixed(2);
+      const inp = document.getElementById('val_importe_sobre');
+      if (inp) { inp.value = val; inp.dataset.manual = 'true'; }
+      const inpEnt = document.getElementById('val_importe_entregado');
+      if (inpEnt) inpEnt.value = val;
+      showToast('Importe copiado al sobre: $' + val, 'info');
+    });
+
+    document.getElementById('btn-copy-resguardo')?.addEventListener('click', () => {
+      const val = parseVal('conteo_total_efectivo').toFixed(2);
+      const inp = document.getElementById('val_importe_resguardo');
+      if (inp) { inp.value = val; inp.dataset.manual = 'true'; }
+      const inpEnt = document.getElementById('val_importe_entregado');
+      if (inpEnt) inpEnt.value = val;
+      showToast('Importe copiado a resguardo: $' + val, 'info');
+    });
+
+    ['val_monto_queda_caja', 'val_importe_sobre', 'val_importe_resguardo'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', (e) => {
+        e.target.dataset.manual = 'true';
+        if (id === 'val_importe_sobre' || id === 'val_importe_resguardo') {
+          const inpEnt = document.getElementById('val_importe_entregado');
+          if (inpEnt) inpEnt.value = e.target.value;
+        }
+      });
+    });
+
+    ['val_folio_sobre', 'val_folio_resguardo'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', (e) => {
+        e.target.dataset.autoFolio = 'false';
+      });
+    });
+
+    // Modal Cortes de Hoy
+    document.getElementById('btn-ver-cortes-hoy')?.addEventListener('click', () => {
+      renderModalCortesHoy();
+    });
+    document.getElementById('btn-close-cortes-hoy')?.addEventListener('click', () => {
+      document.getElementById('modal-lista-cortes-hoy').style.display = 'none';
+    });
+    document.getElementById('btn-close-cortes-hoy-x')?.addEventListener('click', () => {
+      document.getElementById('modal-lista-cortes-hoy').style.display = 'none';
+    });
+
+        // Control de Caja: Entrega de Dinero con Fotografía (Protegido por Clave Privada de Gerencia)
     document.getElementById('btn-open-entrega-dinero')?.addEventListener('click', async () => {
       const autorizado = await solicitarClaveGerencia('realizar entrega de dinero');
       if (!autorizado) return;

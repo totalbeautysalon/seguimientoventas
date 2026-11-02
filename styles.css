@@ -6035,3 +6035,36 @@ input[readonly],
     padding: 12px 14px;
   }
 }
+
+/* =========================================================================
+   ESTILOS CORTE DE CAJA DIARIO (CAJA PRINCIPAL)
+   ========================================================================= */
+.corte-info-banner {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #d4af37 !important;
+  border-top: 3.5px solid #d4af37 !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.destino-info-badge {
+  line-height: 1.45;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.corte-card-item {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-left: 4px solid #d4af37;
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+}
+
+.corte-card-item:hover {
+  border-color: #d4af37;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+}
+
