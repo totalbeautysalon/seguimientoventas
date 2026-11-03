@@ -2650,6 +2650,16 @@ function getHidalgoIsoString(dateObj = new Date()) {
           descripcion: 'Corte de Caja #' + (savedData.corteNum || 1) + ': Fecha ' + fecha + ' por ' + resp + ' - Ingresos Corte: $' + parseFloat(savedData.resumenFinal?.totalIngresosDia || 0).toFixed(2) + ' - Destino: ' + savedData.destinoEfectivo + (savedData.folioSobre ? ' [Sobre ' + savedData.folioSobre + ']' : '') + (savedData.folioResguardo ? ' [Resg ' + savedData.folioResguardo + ']' : ''),
           payload: { arqueoKey: saveResult?.key, fecha, corteNum: savedData.corteNum, data: savedData }
         });
+
+        // Actualizar fondo persistente continuo en Firebase para el próximo corte o día siguiente
+        let nuevoFondo = 0.00;
+        if (savedData.destinoEfectivo === 'se_queda_en_caja') {
+          nuevoFondo = parseFloat(savedData.montoQuedaEnCaja || savedData.conteo?.total || 0) || 0;
+        } else {
+          nuevoFondo = 0.00;
+        }
+        await TB_FIREBASE.saveFondoBaseCaja(nuevoFondo);
+        controlCajaData.fondoBase = nuevoFondo;
       }
     } catch (saveErr) {
       console.error('Error al guardar arqueo:', saveErr);
@@ -2677,6 +2687,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       // Recargar de inmediato los cortes de hoy y sincronizar ventas del nuevo corte
       await loadControlCajaData();
       await syncVentasToCajaPrincipal(fecha, false);
+      renderControlCajaFondo();
       recalculatePrincipal();
     }
     showToast('✨ Formulario listo para el siguiente corte de caja.', 'info');
@@ -5777,20 +5788,19 @@ function getHidalgoIsoString(dateObj = new Date()) {
     try {
       controlCajaData = await TB_FIREBASE.getControlCaja();
       
-      // Si el fondo base nunca ha sido definido en Firebase o LocalStorage, consultar el último arqueo cerrado
-      if (controlCajaData.fondoBase === undefined || controlCajaData.fondoBase === null || isNaN(controlCajaData.fondoBase)) {
-        const list = await TB_FIREBASE.getArqueosList();
-        const keys = Object.keys(list).sort().reverse();
-        if (keys.length > 0) {
-          const lastArqueo = list[keys[0]];
-          const dest = lastArqueo.validacion?.destinoEfectivo;
+      // Si el fondo base nunca ha sido definido o es 0, consultar el último corte global cerrado
+      const valFondo = parseFloat(controlCajaData.fondoBase);
+      if (isNaN(valFondo) || valFondo === 0) {
+        const lastCorte = await TB_FIREBASE.getUltimoCorteGlobal();
+        if (lastCorte) {
+          const dest = lastCorte.destinoEfectivo || lastCorte.validacion?.destinoEfectivo;
           if (dest === 'se_queda_en_caja' || !dest) {
-            controlCajaData.fondoBase = parseFloat(lastArqueo.conteo?.total || lastArqueo.conciliacion?.contado || 0) || 0;
-          } else {
-            controlCajaData.fondoBase = 0;
+            const monto = parseFloat(lastCorte.montoQuedaEnCaja || lastCorte.conteo?.total || lastCorte.conciliacion?.contado || 0) || 0;
+            if (monto > 0) {
+              controlCajaData.fondoBase = monto;
+              await TB_FIREBASE.saveFondoBaseCaja(monto);
+            }
           }
-        } else {
-          controlCajaData.fondoBase = 0;
         }
       }
 
@@ -7121,7 +7131,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
         if (confirm('¿Está seguro de eliminar este registro de entrega de dinero? El importe volverá al fondo disponible de caja.')) {
           TB_FIREBASE.deleteEntregaDinero(id).then(async () => {
+            if (controlCajaData.entregas && controlCajaData.entregas[id]) {
+              delete controlCajaData.entregas[id];
+            }
             await loadControlCajaData();
+            renderControlCajaFondo();
+            recalculatePrincipal();
             document.getElementById('btn-ver-entregas-hoy')?.click();
             showToast('Entrega eliminada', 'info');
             logAuditMovement({

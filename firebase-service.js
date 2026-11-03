@@ -983,6 +983,77 @@ const TB_FIREBASE = (function () {
     });
   }
 
+  async function getUltimoCorteGlobal() {
+    let allCortes = [];
+
+    // 1. Consultar cortes_caja desde Firebase
+    try {
+      const res = await fetch(getDbUrl('cortes_caja', { _t: Date.now() }), { cache: 'no-store' });
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && typeof cloudData === 'object') {
+          Object.keys(cloudData).forEach(fecha => {
+            const cortesDia = cloudData[fecha];
+            if (cortesDia && typeof cortesDia === 'object') {
+              Object.values(cortesDia).forEach(c => {
+                if (c && typeof c === 'object') allCortes.push(c);
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error consultando cortes_caja global:', e);
+    }
+
+    // 2. Si no hay en cortes_caja, consultar arqueos_caja
+    if (allCortes.length === 0) {
+      try {
+        const allArqueos = await getArqueosList();
+        if (allArqueos && typeof allArqueos === 'object') {
+          Object.values(allArqueos).forEach(a => {
+            if (a && a.tipo !== 'caja_chica') {
+              allCortes.push(a);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Error consultando arqueos_caja global:', e);
+      }
+    }
+
+    // 3. Fusionar también desde localStorage por si está sin conexión
+    try {
+      const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
+      Object.keys(localCortes).forEach(fecha => {
+        const cDia = localCortes[fecha];
+        if (cDia && typeof cDia === 'object') {
+          Object.values(cDia).forEach(c => {
+            if (c && !allCortes.some(x => (x.corteId && x.corteId === c.corteId) || (x.key && x.key === c.key))) {
+              allCortes.push(c);
+            }
+          });
+        }
+      });
+    } catch (e) {}
+
+    if (allCortes.length === 0) return null;
+
+    allCortes.sort((a, b) => {
+      const fA = a.header?.fecha || a.fecha || '';
+      const fB = b.header?.fecha || b.fecha || '';
+      if (fA !== fB) return fA.localeCompare(fB);
+      const nA = parseInt(a.corteNum || 0, 10);
+      const nB = parseInt(b.corteNum || 0, 10);
+      if (nA !== nB) return nA - nB;
+      const tA = a.corteTimestamp || a.savedAt || '';
+      const tB = b.corteTimestamp || b.savedAt || '';
+      return tA.localeCompare(tB);
+    });
+
+    return allCortes[allCortes.length - 1];
+  }
+
   // =========================================================================
 
   // 2. ARQUEOS DE CAJA PRINCIPAL Y CAJA CHICA
@@ -2260,6 +2331,8 @@ const TB_FIREBASE = (function () {
     saveCorteCaja,
 
     getCortesByFecha,
+
+    getUltimoCorteGlobal,
 
     saveArqueoCajaChica,
 
