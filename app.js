@@ -1072,6 +1072,10 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
     const cleanPhone = clientaPhone.replace(/\D/g, '');
     const totalCobrado = parseFloat(venta.totalCobrado) || 0;
     const totalCobradoFormatted = formatCurrency(totalCobrado);
+    const folioSafeJs = JSON.stringify(folio);
+    const clientaSafeJs = JSON.stringify(clientaName);
+    const phoneSafeJs = JSON.stringify(cleanPhone);
+    const totalSafeJs = JSON.stringify(totalCobradoFormatted);
 
     // Método y Status badges
     let metodoBadge = `<span class="ticket-payment-badge badge-pagado">💵 Efectivo</span>`;
@@ -1529,7 +1533,7 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
   <div class="ticket-actions-bar">
     <button type="button" id="btn-share-wa" class="btn-action-primary-wa" onclick="shareWhatsAppTicketImage()">
       <span style="font-size:1.35rem;">📲</span>
-      <span>Compartir Ticket a WhatsApp de ${escapeHtml(clientaName)}</span>
+      <span>Abrir Chat de WhatsApp y Enviar a ${escapeHtml(clientaName)}</span>
     </button>
 
     <div class="ticket-sub-actions">
@@ -1630,11 +1634,9 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       <div class="ticket-footer-sub">Tu preferencia nos impulsa a seguir brindándote la mejor calidad y servicio.</div>
       
       <div class="ticket-google-review-box">
-        <div style="font-size:0.78rem; font-weight:800; color:#854d0e;">¿Nos regalas tu opinión en Google Maps?</div>
+        <div style="font-size:0.8rem; font-weight:800; color:#854d0e;">¡Tu opinión nos ayuda a seguir creciendo!</div>
         <div class="ticket-stars">★★★★★</div>
-        <a href="https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac" target="_blank" class="ticket-review-cta">
-          👉 maps.app.goo.gl/unQv8bQhD5uHivNc9
-        </a>
+        <div style="font-size:0.75rem; color:#a16207; font-weight:700;">Déjanos tu reseña en Google Maps</div>
       </div>
 
       <div style="margin-top:12px; font-size:0.72rem; color:#94a3b8;">
@@ -1666,88 +1668,108 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       const originalHtml = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span>⏳</span> Generando Imagen en Alta Resolución...';
+        btn.innerHTML = '<span>⏳</span> Abriendo Chat Directo de WhatsApp...';
       }
 
       try {
-        const canvas = await captureTicketCanvas();
-        if (!canvas) throw new Error('No se pudo generar la imagen del ticket');
+        var folio = ${folioSafeJs};
+        var clientName = ${clientaSafeJs};
+        var clientPhone = ${phoneSafeJs};
+        var totalFormatted = ${totalSafeJs};
+        var reviewUrl = "https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac";
 
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-        const folio = "${folio}";
-        const clientName = "${escapeJsString(clientaName)}";
-        const clientPhone = "${cleanPhone}";
-        const totalFormatted = "${totalCobradoFormatted}";
-        const reviewUrl = "https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac";
+        // Asegurar que siempre tengamos un número a 10 dígitos para abrir el chat directamente
+        var cleanDigits = (clientPhone || '').replace(/[^0-9]/g, '');
+        if (cleanDigits.length < 10) {
+          var inputPhone = prompt(
+            [
+              '📱 Número de WhatsApp para "' + clientName + '":',
+              '',
+              'No se registró un número a 10 dígitos.',
+              '',
+              'Por favor escriba el número a 10 dígitos para abrir directamente el chat de WhatsApp:'
+            ].join(String.fromCharCode(10)),
+            ''
+          );
+          if (inputPhone && inputPhone.trim()) {
+            cleanDigits = inputPhone.replace(/[^0-9]/g, '');
+          }
+        }
 
-        const fileName = \`Ticket-TotalBeauty-\${folio}.png\`;
-        const file = new File([blob], fileName, { type: 'image/png' });
-
-        const messageText = \`¡Hola, \${clientName}! 💖✨\n\nMuchas gracias por visitarnos hoy en *Total Beauty*. Te compartimos tu comprobante de compra *#\${folio}* por \${totalFormatted}.\n\n¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 \${reviewUrl}\nSi gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸\n\n¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌\`;
-
-        // 1. DISPOSITIVOS MÓVILES (Android / iOS): Compartir archivo directo vía Web Share API
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Comprobante de Compra - Total Beauty',
-            text: messageText
-          });
+        if (cleanDigits.length < 10) {
+          alert('Se requiere un número telefónico a 10 dígitos para abrir el chat de WhatsApp de forma directa.');
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<span>✅</span> ¡Ticket Compartido con Éxito!';
+            btn.innerHTML = originalHtml;
           }
           return;
         }
 
-        // 2. DISPOSITIVOS DE ESCRITORIO (PC / Mac)
-        let copied = false;
-        try {
-          if (navigator.clipboard && navigator.clipboard.write) {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
-            copied = true;
-          }
-        } catch (cErr) {
-          console.warn('Portapapeles no soportado:', cErr);
-        }
+        // Formato internacional oficial para WhatsApp México (52 + 10 dígitos)
+        var waNumber = '52' + cleanDigits.slice(-10);
 
-        // Descargar la imagen
-        const dlLink = document.createElement('a');
-        dlLink.download = fileName;
-        dlLink.href = URL.createObjectURL(blob);
-        dlLink.click();
+        var messageText = [
+          '¡Hola, ' + clientName + '! 💖✨',
+          '',
+          'Muchas gracias por visitarnos hoy en *Total Beauty*. Te compartimos tu comprobante de compra *#' + folio + '* por ' + totalFormatted + '.',
+          '',
+          '¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 ' + reviewUrl,
+          'Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸',
+          '',
+          '¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌'
+        ].join(String.fromCharCode(10));
 
-        // Abrir WhatsApp
-        let waNumber = clientPhone;
-        if (waNumber.length === 10) waNumber = '52' + waNumber;
-        else if (waNumber.length > 10 && !waNumber.startsWith('52')) waNumber = '52' + waNumber;
-
-        const waUrl = waNumber 
-          ? \`https://api.whatsapp.com/send?phone=\${waNumber}&text=\${encodeURIComponent(messageText)}\`
-          : \`https://api.whatsapp.com/send?text=\${encodeURIComponent(messageText)}\`;
-
+        // 1. ABRIR DIRECTAMENTE EL CHAT DE WHATSAPP CON EL NÚMERO Y MENSAJE PRECARGADO
+        var waUrl = 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(waNumber) + '&text=' + encodeURIComponent(messageText);
         window.open(waUrl, '_blank');
 
-        const notice = document.getElementById('share-feedback-notice');
+        // 2. Generar y descargar la imagen en segundo plano y copiarla al portapapeles
+        var copied = false;
+        try {
+          var canvas = await captureTicketCanvas();
+          if (canvas) {
+            var fileName = 'Ticket-TotalBeauty-' + folio + '.png';
+            var blob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+
+            if (navigator.clipboard && navigator.clipboard.write && blob) {
+              try {
+                await navigator.clipboard.write([
+                  new ClipboardItem({ 'image/png': blob })
+                ]);
+                copied = true;
+              } catch (clipErr) {
+                console.warn('Portapapeles no soportado o bloqueado:', clipErr);
+              }
+            }
+
+            // Descargar archivo de imagen
+            var dlLink = document.createElement('a');
+            dlLink.download = fileName;
+            dlLink.href = URL.createObjectURL(blob);
+            dlLink.click();
+          }
+        } catch (imgErr) {
+          console.warn('Detalle al generar imagen en segundo plano:', imgErr);
+        }
+
+        var notice = document.getElementById('share-feedback-notice');
         if (notice) {
           notice.style.display = 'block';
-          notice.innerHTML = \`
-            <strong>✅ ¡Imagen del ticket lista y descargada!</strong><br>
-            \${copied ? '📋 <em>La imagen fue copiada a tu portapapeles.</em> ' : ''}
-            Se abrió el chat de WhatsApp con <strong>\${clientName}</strong> (\${clientPhone || 'Clienta'}).<br>
-            \${copied ? 'Simplemente presiona <strong>Ctrl + V</strong> (o Pegar)' : 'Adjunta o arrastra la imagen descargada'} en la conversación para enviársela.
-          \`;
+          notice.innerHTML = '<strong>✅ ¡Chat de WhatsApp abierto directamente con ' + clientName + ' (+' + waNumber + ')!</strong><br>' +
+            'El mensaje con tu enlace de Google Maps ya está listo en el cuadro de texto de WhatsApp.<br>' +
+            (copied ? '📋 <em>La imagen del ticket fue copiada a tu portapapeles (Ctrl + V para pegarla).</em><br>' : '') +
+            '📁 <em>La imagen del ticket se descargó en tu dispositivo para adjuntarla fácilmente.</em><br>' +
+            'Solo presiona <strong>Enviar</strong> en WhatsApp.';
         }
 
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = '<span>📲</span> Compartir por WhatsApp';
+          btn.innerHTML = '<span>📲</span> Abrir Chat de WhatsApp y Enviar';
         }
 
       } catch (err) {
-        console.error('Error al compartir:', err);
-        alert('No se pudo compartir la imagen: ' + (err.message || err));
+        console.error('Error al abrir chat de WhatsApp:', err);
+        alert('No se pudo abrir el chat de WhatsApp: ' + (err.message || err));
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = originalHtml;
@@ -1756,13 +1778,14 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
     }
 
     async function downloadTicketImage() {
-      const btn = document.getElementById('btn-download-img');
+      var btn = document.getElementById('btn-download-img');
       if (btn) btn.disabled = true;
       try {
-        const canvas = await captureTicketCanvas();
+        var canvas = await captureTicketCanvas();
         if (!canvas) return;
-        const dlLink = document.createElement('a');
-        dlLink.download = \`Ticket-TotalBeauty-\${"${folio}"}.png\`;
+        var folio = ${folioSafeJs};
+        var dlLink = document.createElement('a');
+        dlLink.download = 'Ticket-TotalBeauty-' + folio + '.png';
         dlLink.href = canvas.toDataURL('image/png');
         dlLink.click();
       } catch (e) {
