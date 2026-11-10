@@ -6565,22 +6565,24 @@ input[readonly],
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(11, 15, 25, 0.84);
+  background: rgba(11, 15, 25, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 9999999;
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.28s ease, visibility 0.28s ease;
-  pointer-events: all;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .tb-loader-overlay.active {
-  opacity: 1;
-  visibility: visible;
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
 }
 
 .tb-loader-card {

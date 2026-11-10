@@ -82,8 +82,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
   // SISTEMA GLOBAL DE ANIMACIÓN Y CARGA LUXURY TOTAL BEAUTY
   // =========================================================================
   let globalLoaderTimeout = null;
+  let globalLoaderSafetyTimer = null;
 
-  function showGlobalLoader(title = 'Cargando...', subtitle = 'Sincronizando información...') {
+  function showGlobalLoader(title = 'Cargando...', subtitle = 'Sincronizando...') {
     const overlay = document.getElementById('tb-global-loader');
     if (!overlay) return;
     const titleEl = document.getElementById('tb-loader-title');
@@ -91,22 +92,27 @@ function getHidalgoIsoString(dateObj = new Date()) {
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
 
+    clearTimeout(globalLoaderTimeout);
+    clearTimeout(globalLoaderSafetyTimer);
+
     overlay.style.display = 'flex';
     void overlay.offsetWidth;
     overlay.classList.add('active');
+
+    // Auto-cierre de seguridad absoluto: nunca puede quedarse trabado más de 3 segundos
+    globalLoaderSafetyTimer = setTimeout(() => {
+      hideGlobalLoader(0);
+    }, 3000);
   }
 
-  function hideGlobalLoader(minDelayMs = 250) {
+  function hideGlobalLoader(minDelayMs = 100) {
     const overlay = document.getElementById('tb-global-loader');
     if (!overlay) return;
+    clearTimeout(globalLoaderSafetyTimer);
     clearTimeout(globalLoaderTimeout);
     globalLoaderTimeout = setTimeout(() => {
       overlay.classList.remove('active');
-      setTimeout(() => {
-        if (!overlay.classList.contains('active')) {
-          overlay.style.display = 'none';
-        }
-      }, 280);
+      overlay.style.display = 'none';
     }, minDelayMs);
   }
 
@@ -7508,51 +7514,58 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
       showGlobalLoader('Registrando Entrega...', 'Descontando de caja y guardando comprobante...');
       showToast('Guardando entrega de dinero...', 'info');
-      const curUser = TB_FIREBASE.getCurrentUser();
-      const hDate = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
-      const hTime = getHidalgoTimeStr();
-      const nowIso = new Date().toISOString();
+      try {
+        const curUser = TB_FIREBASE.getCurrentUser();
+        const hDate = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
+        const hTime = getHidalgoTimeStr();
+        const nowIso = new Date().toISOString();
 
-      const entrega = {
-        id: 'ent_' + Date.now(),
-        fecha: hDate,
-        hora: hTime,
-        fechaHora: nowIso,
-        createdAt: nowIso,
-        recibe,
-        cantidad,
-        concepto,
-        fotoBase64: fotoEntregaBase64 || null,
-        registradoPor: curUser?.email || 'Usuario'
-      };
+        const entrega = {
+          id: 'ent_' + Date.now(),
+          fecha: hDate,
+          hora: hTime,
+          fechaHora: nowIso,
+          createdAt: nowIso,
+          recibe,
+          cantidad,
+          concepto,
+          fotoBase64: fotoEntregaBase64 || null,
+          registradoPor: curUser?.email || 'Usuario'
+        };
 
-      if (!controlCajaData.entregas) controlCajaData.entregas = {};
-      controlCajaData.entregas[entrega.id] = entrega;
+        if (!controlCajaData.entregas) controlCajaData.entregas = {};
+        controlCajaData.entregas[entrega.id] = entrega;
 
-      await TB_FIREBASE.saveEntregaDinero(entrega);
+        await TB_FIREBASE.saveEntregaDinero(entrega);
 
-      // Descontar inmediatamente del Fondo Base en Firebase y memoria
-      const fondoActual = (typeof controlCajaData.fondoBase === 'number' && !isNaN(controlCajaData.fondoBase))
-        ? controlCajaData.fondoBase
-        : (parseFloat(document.getElementById('f_inicial_caja')?.value) || 0);
-      const nuevoFondo = Math.max(0, fondoActual - cantidad);
-      await TB_FIREBASE.saveFondoBaseCaja(nuevoFondo);
-      controlCajaData.fondoBase = nuevoFondo;
+        // Descontar inmediatamente del Fondo Base en Firebase y memoria
+        const fondoActual = (typeof controlCajaData.fondoBase === 'number' && !isNaN(controlCajaData.fondoBase))
+          ? controlCajaData.fondoBase
+          : (parseFloat(document.getElementById('f_inicial_caja')?.value) || 0);
+        const nuevoFondo = Math.max(0, fondoActual - cantidad);
+        await TB_FIREBASE.saveFondoBaseCaja(nuevoFondo);
+        controlCajaData.fondoBase = nuevoFondo;
 
-      logAuditMovement({
-        modulo: 'Arqueo Principal',
-        accion: 'ENTREGA_DINERO',
-        descripcion: 'Entrega de dinero en efectivo: $' + cantidad.toFixed(2) + ' a "' + recibe + '" por "' + concepto + '" - Nuevo fondo en caja: $' + nuevoFondo.toFixed(2),
-        payload: { entrega, fondoRestante: nuevoFondo }
-      });
+        logAuditMovement({
+          modulo: 'Arqueo Principal',
+          accion: 'ENTREGA_DINERO',
+          descripcion: 'Entrega de dinero en efectivo: $' + cantidad.toFixed(2) + ' a "' + recibe + '" por "' + concepto + '" - Nuevo fondo en caja: $' + nuevoFondo.toFixed(2),
+          payload: { entrega, fondoRestante: nuevoFondo }
+        });
 
-      document.getElementById('modal-entrega-dinero').style.display = 'none';
-      showToast('✅ Entrega de $' + cantidad.toFixed(2) + ' registrada. Total en caja restante: $' + nuevoFondo.toFixed(2), 'success');
+        document.getElementById('modal-entrega-dinero').style.display = 'none';
+        showToast('✅ Entrega de $' + cantidad.toFixed(2) + ' registrada. Total en caja restante: $' + nuevoFondo.toFixed(2), 'success');
 
-      renderControlCajaFondo();
-      recalculatePrincipal();
-      await loadControlCajaData();
-      renderControlCajaFondo();
+        renderControlCajaFondo();
+        recalculatePrincipal();
+        await loadControlCajaData();
+        renderControlCajaFondo();
+      } catch (err) {
+        console.error('Error al guardar entrega:', err);
+        showToast('Error al registrar entrega de dinero', 'error');
+      } finally {
+        hideGlobalLoader(150);
+      }
     });
 
     // Ver entregas de hoy y lightbox de fotos
@@ -10504,8 +10517,8 @@ function getHidalgoIsoString(dateObj = new Date()) {
       const allowed = getAllowedModulesForCurrentUser();
       const savedMod = localStorage.getItem('tb_active_module');
 
+      hideGlobalLoader(150);
       if (isFreshLogin) {
-        hideGlobalLoader(300);
         openModuleLauncher();
       } else {
         let targetMod = savedMod;
