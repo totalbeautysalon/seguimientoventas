@@ -976,6 +976,851 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
     window.open(waUrl, '_blank');
   }
 
+  // =========================================================================
+  // TICKET DIGITAL DE COMPRA EN VENTANA EXTERNA Y COMPARTIR POR WHATSAPP
+  // =========================================================================
+  function escapeJsString(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '');
+  }
+
+  function getTicketLoadingHTML(venta) {
+    const clienta = venta?.clienta || 'Cliente';
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generando Comprobante - Total Beauty</title>
+  <style>
+    body {
+      margin: 0; padding: 24px;
+      background: #0b0f19; color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 90vh; text-align: center;
+    }
+    .spinner-box {
+      width: 58px; height: 58px;
+      border: 4px solid rgba(212,175,55,0.2);
+      border-top-color: #d4af37;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 22px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .brand { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; color: #d4af37; margin-bottom: 6px; }
+    .sub { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; letter-spacing: 1px; }
+    .notice {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(212,175,55,0.35);
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      color: #fef08a;
+      max-width: 400px;
+      line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .countdown-sec {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #22c55e;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="spinner-box"></div>
+  <div class="brand">TOTAL BEAUTY</div>
+  <div class="sub">SALÓN • ACADEMY • SPA</div>
+  <div class="notice">
+    <div>Asegurando registro de venta en Firebase...</div>
+    <div style="color:#ffffff; font-size:0.85rem; margin-top:4px;">Preparando ticket de compra para <strong>${escapeHtml(clienta)}</strong></div>
+    <div class="countdown-sec" id="timer">3s</div>
+  </div>
+  <script>
+    let s = 3;
+    const t = document.getElementById('timer');
+    const interval = setInterval(() => {
+      s--;
+      if (s > 0) {
+        if (t) t.textContent = s + 's';
+      } else {
+        if (t) t.textContent = '¡Listo!';
+        clearInterval(interval);
+      }
+    }, 1000);
+  <\/script>
+</body>
+</html>`;
+  }
+
+  function generateVentaTicketHTML(venta) {
+    if (!venta) return '';
+
+    const folio = (venta.id || '').replace(/^v_/, '').slice(0, 8).toUpperCase() || Date.now().toString().slice(-6);
+    const fecha = venta.fecha || getHidalgoDateStr();
+    const hora = venta.hora || (venta.createdAt ? new Date(venta.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : getHidalgoTimeStr());
+    const clientaName = (venta.clienta || '').trim() || 'Cliente Mostrador';
+    const clientaPhone = (venta.telefono || '').trim() || 'Sin teléfono';
+    const cleanPhone = clientaPhone.replace(/\D/g, '');
+    const totalCobrado = parseFloat(venta.totalCobrado) || 0;
+    const totalCobradoFormatted = formatCurrency(totalCobrado);
+
+    // Método y Status badges
+    let metodoBadge = `<span class="ticket-payment-badge badge-pagado">💵 Efectivo</span>`;
+    const mpLower = (venta.metodoPago || '').toLowerCase();
+    let desgloseHtml = '';
+    if (venta.desglosePago && (venta.metodoPago === 'Mixto' || (venta.desglosePago.efectivo > 0 && (venta.desglosePago.tarjeta > 0 || venta.desglosePago.transferencia > 0)))) {
+      const parts = [];
+      if (venta.desglosePago.efectivo > 0) parts.push(`💵 Efectivo: ${formatCurrency(venta.desglosePago.efectivo)}`);
+      if (venta.desglosePago.tarjeta > 0) parts.push(`💳 Tarjeta: ${formatCurrency(venta.desglosePago.tarjeta)}`);
+      if (venta.desglosePago.transferencia > 0) parts.push(`📱 Transferencia: ${formatCurrency(venta.desglosePago.transferencia)}`);
+      metodoBadge = `<span class="ticket-payment-badge badge-anticipo">🔀 Mixto</span>`;
+      desgloseHtml = `<div style="font-size:0.78rem; color:#64748b; margin-top:4px; font-weight:700;">${parts.join(' &bull; ')}</div>`;
+    } else if (mpLower.includes('tarj')) {
+      metodoBadge = `<span class="ticket-payment-badge" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe;">💳 Tarjeta</span>`;
+    } else if (mpLower.includes('transf')) {
+      metodoBadge = `<span class="ticket-payment-badge badge-anticipo">📱 Transferencia</span>`;
+    }
+
+    let statusBadge = `<span class="ticket-payment-badge badge-pagado">✅ Pagado Completo</span>`;
+    if (venta.statusPago === 'Anticipo') statusBadge = `<span class="ticket-payment-badge badge-anticipo">🟡 Anticipo</span>`;
+    if (venta.statusPago === 'Saldo pendiente') statusBadge = `<span class="ticket-payment-badge badge-pendiente">🔴 Saldo Pendiente</span>`;
+
+    // Logo src
+    const logoSrc = (typeof TOTAL_BEAUTY_LOGO_BASE64 !== 'undefined' && TOTAL_BEAUTY_LOGO_BASE64)
+      ? TOTAL_BEAUTY_LOGO_BASE64
+      : 'assets/logoheader.png';
+
+    // Generar tabla de servicios
+    let servicesRows = '';
+    if (Array.isArray(venta.servicios) && venta.servicios.length > 0) {
+      servicesRows = venta.servicios.map(s => `
+        <tr>
+          <td>
+            <div class="ticket-srv-name">${escapeHtml(s.servicio || 'Servicio')}</div>
+            <div class="ticket-srv-meta">🪞 ${escapeHtml(s.estacion || '-')} &bull; 💅 ${escapeHtml(s.especialista || '-')}</div>
+          </td>
+          <td class="ticket-srv-price">${formatCurrency(s.precio || 0)}</td>
+        </tr>
+      `).join('');
+    } else {
+      servicesRows = `
+        <tr>
+          <td>
+            <div class="ticket-srv-name">${escapeHtml(venta.servicio || 'Servicio')}</div>
+            <div class="ticket-srv-meta">🪞 ${escapeHtml(venta.estacion || '-')} &bull; 💅 ${escapeHtml(venta.especialista || '-')}</div>
+          </td>
+          <td class="ticket-srv-price">${totalCobradoFormatted}</td>
+        </tr>
+      `;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket de Compra #${folio} - Total Beauty</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b0f19;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 14px 60px 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Barra de acciones (no se imprime) */
+    .ticket-actions-bar {
+      width: 100%;
+      max-width: 440px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-action-primary-wa {
+      width: 100%;
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: #ffffff;
+      border: none;
+      padding: 15px 20px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+      transition: all 0.25s ease;
+      letter-spacing: 0.2px;
+      animation: pulseWa 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseWa {
+      0%, 100% { transform: scale(1); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45); }
+      50% { transform: scale(1.02); box-shadow: 0 8px 26px rgba(34, 197, 94, 0.65); }
+    }
+
+    .btn-action-primary-wa:hover {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      animation: none;
+      transform: translateY(-2px);
+    }
+
+    .ticket-sub-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-action-sec {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-action-sec:hover {
+      background: #334155;
+      color: #ffffff;
+      border-color: #d4af37;
+    }
+
+    .share-feedback-notice {
+      display: none;
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #166534;
+      font-size: 0.86rem;
+      line-height: 1.45;
+      text-align: left;
+      margin-top: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+
+    /* Contenedor del Ticket Imprimible / Capturable */
+    .tb-ticket-card {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 18px;
+      border: 2px solid #d4af37;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Header */
+    .ticket-header {
+      background: linear-gradient(180deg, #0b0f19 0%, #151d2f 100%);
+      color: #ffffff;
+      padding: 22px 18px 16px 18px;
+      text-align: center;
+      border-bottom: 3.5px solid #d4af37;
+    }
+
+    .ticket-logo {
+      height: 48px;
+      max-width: 200px;
+      object-fit: contain;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45));
+    }
+
+    .ticket-brand {
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      color: #ffffff;
+      text-transform: uppercase;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .ticket-subbrand {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #d4af37;
+      text-transform: uppercase;
+      margin: 3px 0 10px 0;
+    }
+
+    .ticket-badge-pill {
+      display: inline-block;
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid #d4af37;
+      color: #fef08a;
+      font-weight: 800;
+      font-size: 0.78rem;
+      padding: 4px 14px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Cuerpo */
+    .ticket-body {
+      padding: 18px 20px;
+      background: #ffffff;
+    }
+
+    /* Metadata */
+    .ticket-meta-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.84rem;
+    }
+
+    .ticket-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ticket-meta-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .ticket-meta-val {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .ticket-folio {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 800;
+      background: #0f172a;
+      color: #fef08a;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+
+    /* Títulos de sección */
+    .ticket-section-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ticket-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    /* Tabla de Servicios */
+    .ticket-services-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin-bottom: 16px;
+    }
+
+    .ticket-services-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 800;
+      padding: 8px 10px;
+      border-bottom: 1.5px solid #cbd5e1;
+      text-align: left;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+
+    .ticket-services-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #0f172a;
+    }
+
+    .ticket-srv-name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ticket-srv-meta {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .ticket-srv-price {
+      text-align: right;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+
+    /* Total Hero Banner */
+    .ticket-total-hero {
+      background: linear-gradient(135deg, #0b0f19 0%, #1e293b 100%);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      border: 1.5px solid #d4af37;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+    }
+
+    .ticket-total-label {
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #fef08a;
+    }
+
+    .ticket-total-amount {
+      font-size: 1.7rem;
+      font-weight: 900;
+      color: #4ade80;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Detalles de Pago */
+    .ticket-payment-details {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 0.84rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .ticket-payment-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ticket-payment-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .badge-pagado { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-anticipo { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .badge-pendiente { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    /* Footer con Google Maps */
+    .ticket-footer {
+      background: #fffdf5;
+      border-top: 1.5px dashed #d4af37;
+      padding: 16px 14px;
+      text-align: center;
+      border-radius: 0 0 16px 16px;
+    }
+
+    .ticket-footer-heart {
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+    }
+
+    .ticket-footer-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #78350f;
+      margin-bottom: 4px;
+    }
+
+    .ticket-footer-sub {
+      font-size: 0.78rem;
+      color: #64748b;
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+
+    .ticket-google-review-box {
+      background: #ffffff;
+      border: 1px solid #fef08a;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(212, 175, 55, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ticket-stars {
+      color: #f59e0b;
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+    }
+
+    .ticket-review-cta {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      text-decoration: underline;
+      word-break: break-all;
+    }
+
+    @media print {
+      body { background: #ffffff !important; padding: 0 !important; }
+      .ticket-actions-bar { display: none !important; }
+      .tb-ticket-card { box-shadow: none !important; border: 1px solid #ccc !important; max-width: 80mm !important; }
+    }
+  </style>
+
+  <!-- Librería gráfica html2canvas para generación de imagen -->
+  <script src="libs/html2pdf.bundle.min.js"><\/script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+</head>
+<body>
+
+  <!-- Barra de Acciones de Usuario -->
+  <div class="ticket-actions-bar">
+    <button type="button" id="btn-share-wa" class="btn-action-primary-wa" onclick="shareWhatsAppTicketImage()">
+      <span style="font-size:1.35rem;">📲</span>
+      <span>Compartir Ticket a WhatsApp de ${escapeHtml(clientaName)}</span>
+    </button>
+
+    <div class="ticket-sub-actions">
+      <button type="button" id="btn-download-img" class="btn-action-sec" onclick="downloadTicketImage()">
+        <span>📥</span> Descargar Imagen
+      </button>
+      <button type="button" class="btn-action-sec" onclick="window.print()">
+        <span>🖨️</span> Imprimir Ticket
+      </button>
+    </div>
+
+    <div id="share-feedback-notice" class="share-feedback-notice"></div>
+  </div>
+
+  <!-- Tarjeta Oficial del Ticket (Se capturará como imagen para WhatsApp) -->
+  <div class="tb-ticket-card" id="tb-ticket-card">
+    <!-- Header -->
+    <div class="ticket-header">
+      <img src="${logoSrc}" alt="Total Beauty" class="ticket-logo" onerror="this.style.display='none'">
+      <h2 class="ticket-brand">TOTAL BEAUTY</h2>
+      <div class="ticket-subbrand">SALÓN &bull; ACADEMY &bull; SPA</div>
+      <div class="ticket-badge-pill">COMPROBANTE DE COMPRA</div>
+    </div>
+
+    <!-- Body -->
+    <div class="ticket-body">
+      <!-- Meta -->
+      <div class="ticket-meta-box">
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">📅 Fecha y Hora:</span>
+          <span class="ticket-meta-val">${formatDateDisplay(fecha)} &bull; ${hora}</span>
+        </div>
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">🏷️ Folio:</span>
+          <span class="ticket-folio">#${folio}</span>
+        </div>
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">👤 Clienta:</span>
+          <span class="ticket-meta-val">${escapeHtml(clientaName)}</span>
+        </div>
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">📱 Teléfono:</span>
+          <span class="ticket-meta-val">${escapeHtml(clientaPhone)}</span>
+        </div>
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">🪞 Estación:</span>
+          <span class="ticket-meta-val">${escapeHtml(venta.estacion || '-')}</span>
+        </div>
+        <div class="ticket-meta-row">
+          <span class="ticket-meta-label">💅 Especialista:</span>
+          <span class="ticket-meta-val">${escapeHtml(venta.especialista || '-')}</span>
+        </div>
+      </div>
+
+      <!-- Detalle de Servicios -->
+      <div class="ticket-section-title"><span>✂️</span> Detalle del Servicio</div>
+      <table class="ticket-services-table">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th style="text-align:right;">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${servicesRows}
+        </tbody>
+      </table>
+
+      <!-- Banner de Total Hero -->
+      <div class="ticket-total-hero">
+        <span class="ticket-total-label">TOTAL COBRADO</span>
+        <span class="ticket-total-amount">${totalCobradoFormatted}</span>
+      </div>
+
+      <!-- Forma de Pago -->
+      <div class="ticket-payment-details">
+        <div class="ticket-payment-row">
+          <span class="ticket-meta-label">💳 Forma de Pago:</span>
+          <div>${metodoBadge}</div>
+        </div>
+        ${desgloseHtml}
+        <div class="ticket-payment-row" style="margin-top:2px;">
+          <span class="ticket-meta-label">📌 Estado del Pago:</span>
+          <div>${statusBadge}</div>
+        </div>
+        ${venta.notas ? `
+          <div style="margin-top:4px; font-size:0.78rem; color:#64748b; border-top:1px dashed #e2e8f0; padding-top:4px;">
+            💬 <strong>Notas:</strong> ${escapeHtml(venta.notas)}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+
+    <!-- Footer con Google Maps -->
+    <div class="ticket-footer">
+      <div class="ticket-footer-heart">💖✨</div>
+      <div class="ticket-footer-title">¡Muchas gracias por tu visita!</div>
+      <div class="ticket-footer-sub">Tu preferencia nos impulsa a seguir brindándote la mejor calidad y servicio.</div>
+      
+      <div class="ticket-google-review-box">
+        <div style="font-size:0.78rem; font-weight:800; color:#854d0e;">¿Nos regalas tu opinión en Google Maps?</div>
+        <div class="ticket-stars">★★★★★</div>
+        <a href="https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac" target="_blank" class="ticket-review-cta">
+          👉 maps.app.goo.gl/unQv8bQhD5uHivNc9
+        </a>
+      </div>
+
+      <div style="margin-top:12px; font-size:0.72rem; color:#94a3b8;">
+        TOTAL BEAUTY &bull; TICKET DE COMPRA VÁLIDO &bull; PACHUCA, HIDALGO
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function captureTicketCanvas() {
+      const ticketCard = document.getElementById('tb-ticket-card');
+      if (!ticketCard) return null;
+      const h2c = window.html2canvas || (window.html2pdf && window.html2pdf().html2canvas);
+      if (!h2c) {
+        alert('Cargando librería gráfica... por favor intente en un segundo.');
+        return null;
+      }
+      return await h2c(ticketCard, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollY: 0
+      });
+    }
+
+    async function shareWhatsAppTicketImage() {
+      const btn = document.getElementById('btn-share-wa');
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Generando Imagen en Alta Resolución...';
+      }
+
+      try {
+        const canvas = await captureTicketCanvas();
+        if (!canvas) throw new Error('No se pudo generar la imagen del ticket');
+
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        const folio = "${folio}";
+        const clientName = "${escapeJsString(clientaName)}";
+        const clientPhone = "${cleanPhone}";
+        const totalFormatted = "${totalCobradoFormatted}";
+        const reviewUrl = "https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac";
+
+        const fileName = \`Ticket-TotalBeauty-\${folio}.png\`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        const messageText = \`¡Hola, \${clientName}! 💖✨\n\nMuchas gracias por visitarnos hoy en *Total Beauty*. Te compartimos tu comprobante de compra *#\${folio}* por \${totalFormatted}.\n\n¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 \${reviewUrl}\nSi gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸\n\n¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌\`;
+
+        // 1. DISPOSITIVOS MÓVILES (Android / iOS): Compartir archivo directo vía Web Share API
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Comprobante de Compra - Total Beauty',
+            text: messageText
+          });
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>✅</span> ¡Ticket Compartido con Éxito!';
+          }
+          return;
+        }
+
+        // 2. DISPOSITIVOS DE ESCRITORIO (PC / Mac)
+        let copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.write) {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            copied = true;
+          }
+        } catch (cErr) {
+          console.warn('Portapapeles no soportado:', cErr);
+        }
+
+        // Descargar la imagen
+        const dlLink = document.createElement('a');
+        dlLink.download = fileName;
+        dlLink.href = URL.createObjectURL(blob);
+        dlLink.click();
+
+        // Abrir WhatsApp
+        let waNumber = clientPhone;
+        if (waNumber.length === 10) waNumber = '52' + waNumber;
+        else if (waNumber.length > 10 && !waNumber.startsWith('52')) waNumber = '52' + waNumber;
+
+        const waUrl = waNumber 
+          ? \`https://api.whatsapp.com/send?phone=\${waNumber}&text=\${encodeURIComponent(messageText)}\`
+          : \`https://api.whatsapp.com/send?text=\${encodeURIComponent(messageText)}\`;
+
+        window.open(waUrl, '_blank');
+
+        const notice = document.getElementById('share-feedback-notice');
+        if (notice) {
+          notice.style.display = 'block';
+          notice.innerHTML = \`
+            <strong>✅ ¡Imagen del ticket lista y descargada!</strong><br>
+            \${copied ? '📋 <em>La imagen fue copiada a tu portapapeles.</em> ' : ''}
+            Se abrió el chat de WhatsApp con <strong>\${clientName}</strong> (\${clientPhone || 'Clienta'}).<br>
+            \${copied ? 'Simplemente presiona <strong>Ctrl + V</strong> (o Pegar)' : 'Adjunta o arrastra la imagen descargada'} en la conversación para enviársela.
+          \`;
+        }
+
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>📲</span> Compartir por WhatsApp';
+        }
+
+      } catch (err) {
+        console.error('Error al compartir:', err);
+        alert('No se pudo compartir la imagen: ' + (err.message || err));
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+    }
+
+    async function downloadTicketImage() {
+      const btn = document.getElementById('btn-download-img');
+      if (btn) btn.disabled = true;
+      try {
+        const canvas = await captureTicketCanvas();
+        if (!canvas) return;
+        const dlLink = document.createElement('a');
+        dlLink.download = \`Ticket-TotalBeauty-\${"${folio}"}.png\`;
+        dlLink.href = canvas.toDataURL('image/png');
+        dlLink.click();
+      } catch (e) {
+        alert('Error al descargar: ' + e);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+  <\/script>
+</body>
+</html>`;
+  }
+
+  function openVentaTicketExternalWindow(venta, preOpenedWindow = null) {
+    if (!venta) return;
+
+    let targetWin = preOpenedWindow;
+    if (!targetWin || targetWin.closed) {
+      try {
+        targetWin = window.open('', '_blank');
+      } catch (e) {
+        console.warn('Fallo al abrir ventana:', e);
+      }
+    }
+
+    const htmlContent = generateVentaTicketHTML(venta);
+
+    if (targetWin && targetWin.document) {
+      try {
+        targetWin.document.open();
+        targetWin.document.write(htmlContent);
+        targetWin.document.close();
+        targetWin.focus();
+      } catch (wErr) {
+        console.warn('Error al escribir en targetWin:', wErr);
+      }
+    } else {
+      showToast('⚠️ Ventana emergente bloqueada por el navegador. Haga clic para abrir el ticket.', 'warning');
+      const backupBtn = document.createElement('div');
+      backupBtn.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:99999; background:#0b0f19; border:2px solid #d4af37; border-radius:14px; padding:16px 20px; box-shadow:0 12px 30px rgba(0,0,0,0.6); color:#fff; text-align:center;';
+      backupBtn.innerHTML = `
+        <div style="font-weight:800; color:#d4af37; margin-bottom:8px; font-size:1rem;">🧾 Ticket de Compra Listo</div>
+        <button type="button" style="background:linear-gradient(135deg,#d4af37,#aa771c); color:#000; font-weight:800; border:none; padding:10px 18px; border-radius:8px; cursor:pointer;" id="btn-manual-open-ticket">Abrir Ticket en Nueva Ventana</button>
+      `;
+      document.body.appendChild(backupBtn);
+      backupBtn.querySelector('#btn-manual-open-ticket')?.addEventListener('click', () => {
+        const w = window.open('', '_blank');
+        if (w) {
+          w.document.open();
+          w.document.write(htmlContent);
+          w.document.close();
+        }
+        backupBtn.remove();
+      });
+      setTimeout(() => backupBtn.remove(), 20000);
+    }
+  }
+
   async function renderVentas(fecha, isSilent = false) {
     const todayHidalgo = getHidalgoDateStr();
     const filterInput = document.getElementById('ventas_filtro_fecha');
@@ -1246,6 +2091,9 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
           </td>
           <td class="text-center" style="white-space:nowrap;">
             <div style="display:inline-flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-venta-ticket-action" data-id="${v.id}" title="Ver e imprimir ticket de compra en ventana externa" style="background:#0f172a; color:#d4af37; border:1px solid #d4af37; border-radius:6px; padding:5px 8px; font-weight:800; font-size:0.76rem; cursor:pointer;">
+                <span>🧾</span> Ticket
+              </button>
               <button type="button" class="btn-venta-wa-action" data-id="${v.id}" title="Enviar mensaje de agradecimiento y opinión por WhatsApp">
                 <span>💬</span> WhatsApp
               </button>
@@ -1254,8 +2102,13 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
           </td>
         `;
 
+        tr.querySelector('.btn-venta-ticket-action')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openVentaTicketExternalWindow(v);
+        });
+
         tr.addEventListener('click', (e) => {
-          if (e.target.closest('.btn-del-venta')) return;
+          if (e.target.closest('.btn-del-venta') || e.target.closest('.btn-venta-ticket-action')) return;
           openWhatsAppReview(v);
         });
 
@@ -1325,9 +2178,12 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
               <span class="venta-tag tag-hora">🕒 ${horaStr}</span>
             </div>
             ${v.notas ? `<div class="venta-card-notes">💬 ${escapeHtml(v.notas)}</div>` : ''}
-            <div class="venta-card-wa-wrap" style="margin-top:8px;">
+            <div class="venta-card-wa-wrap" style="margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <button type="button" class="btn-card-ticket-view" data-id="${v.id}" style="background:#0f172a; color:#d4af37; border:1px solid #d4af37; border-radius:8px; padding:8px 10px; font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+                <span>🧾</span> Ver Ticket
+              </button>
               <button type="button" class="btn-card-wa-review" data-id="${v.id}">
-                <span>💬</span> Enviar Agradecimiento & Opinión
+                <span>💬</span> WhatsApp
               </button>
             </div>
           </div>
@@ -1345,8 +2201,13 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
           </div>
         `;
 
+        card.querySelector('.btn-card-ticket-view')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openVentaTicketExternalWindow(v);
+        });
+
         card.addEventListener('click', (e) => {
-          if (e.target.closest('.btn-del-venta')) return;
+          if (e.target.closest('.btn-del-venta') || e.target.closest('.btn-card-ticket-view')) return;
           openWhatsAppReview(v);
         });
 
@@ -8525,9 +9386,23 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
         createdAt: new Date().toISOString()
       };
 
+      // 1. Abrir ventana emergente inmediatamente para garantizar que el navegador no la bloquee
+      let ticketWin = null;
+      try {
+        ticketWin = window.open('', '_blank');
+        if (ticketWin && ticketWin.document) {
+          ticketWin.document.open();
+          ticketWin.document.write(getTicketLoadingHTML(venta));
+          ticketWin.document.close();
+        }
+      } catch (winErr) {
+        console.warn('No se pudo abrir ventana de forma preliminar:', winErr);
+      }
+
+      // 2. Guardar venta en Firebase
       await TB_FIREBASE.saveVenta(venta);
       const servCountStr = currentTicketServicios.length > 1 ? ` (${currentTicketServicios.length} servicios)` : '';
-      showToast(`✅ Venta de ${formatCurrency(totalCobrado)} guardada en Firebase${servCountStr}`, 'success');
+      showToast(`✅ Venta guardada en Firebase. Asegurando registro (esperando 3 segundos)...`, 'info');
 
       logAuditMovement({
         modulo: 'Ventas',
@@ -8535,6 +9410,12 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
         descripcion: `Venta cobrada: ${venta.servicio} (${venta.estacion}) por $${totalCobrado.toFixed(2)} - Clienta: ${venta.clienta || 'Público Mostrador'} - Método: ${venta.metodoPago}`,
         payload: { fecha: venta.fecha, id: venta.id, venta }
       });
+
+      // 3. Esperar exactamente 3 segundos para asegurarse de que sí se guardó antes de mostrar el ticket final
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 4. Mostrar el ticket digital en la ventana externa listo para compartir por WhatsApp como imagen
+      openVentaTicketExternalWindow(venta, ticketWin);
 
       // Limpiar formulario y vaciar lista del ticket
       currentTicketServicios = [];
