@@ -989,6 +989,14 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       .replace(/\r/g, '');
   }
 
+    function getTicketWindowFeatures() {
+    const w = 480;
+    const h = 820;
+    const left = Math.max(0, Math.round((screen.width - w) / 2));
+    const top = Math.max(0, Math.round((screen.height - h) / 2));
+    return `width=${w},height=${h},top=${top},left=${left},toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`;
+  }
+
   function getTicketLoadingHTML(venta) {
     const clienta = venta?.clienta || 'Cliente';
     return `<!DOCTYPE html>
@@ -1186,6 +1194,38 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
       animation: none;
       transform: translateY(-2px);
+    }
+
+    .btn-action-secondary-wa {
+      width: 100%;
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1.5px solid #38bdf8;
+      padding: 12px 16px;
+      font-size: 0.94rem;
+      font-weight: 800;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action-secondary-wa:hover {
+      background: #1e293b;
+      color: #7dd3fc;
+      border-color: #7dd3fc;
+      transform: translateY(-2px);
+    }
+
+    .ticket-sharing-help {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 12px;
+      padding: 10px 14px;
+      text-align: left;
     }
 
     .ticket-sub-actions {
@@ -1531,9 +1571,16 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
 
   <!-- Barra de Acciones de Usuario -->
   <div class="ticket-actions-bar">
-    <button type="button" id="btn-share-wa" class="btn-action-primary-wa" onclick="shareWhatsAppTicketImage()">
-      <span style="font-size:1.35rem;">📲</span>
-      <span>Abrir Chat de WhatsApp y Enviar a ${escapeHtml(clientaName)}</span>
+    <!-- Botón 1: Enviar Imagen del Ticket a WhatsApp con archivo adjunto -->
+    <button type="button" id="btn-share-file-wa" class="btn-action-primary-wa" onclick="shareTicketAsImageFile()">
+      <span style="font-size:1.35rem;">🖼️</span>
+      <span>Enviar Imagen del Ticket a WhatsApp</span>
+    </button>
+
+    <!-- Botón 2: Abrir Chat Directo con el número de la clienta -->
+    <button type="button" id="btn-share-direct-wa" class="btn-action-secondary-wa" onclick="openDirectWhatsAppChat()">
+      <span style="font-size:1.2rem;">💬</span>
+      <span>Abrir Chat Directo con ${escapeHtml(clientaName)} (+52)</span>
     </button>
 
     <div class="ticket-sub-actions">
@@ -1543,6 +1590,15 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       <button type="button" class="btn-action-sec" onclick="window.print()">
         <span>🖨️</span> Imprimir Ticket
       </button>
+    </div>
+
+    <!-- Guía rápida para el usuario -->
+    <div class="ticket-sharing-help">
+      <div style="font-weight:800; color:#d4af37; margin-bottom:4px; font-size:0.8rem;">💡 ¿Cómo compartir el ticket con la clienta?</div>
+      <div style="font-size:0.75rem; color:#cbd5e1; line-height:1.45;">
+        • <strong>Para enviar la foto del ticket:</strong> Toca <strong>"🖼️ Enviar Imagen a WhatsApp"</strong> (abre WhatsApp con la foto del ticket adjunta).<br>
+        • <strong>Para abrir directo a su chat:</strong> Toca <strong>"💬 Abrir Chat Directo"</strong> y en WhatsApp solo presiona <strong>Ctrl + V</strong> (la foto ya está en tu portapapeles).
+      </div>
     </div>
 
     <div id="share-feedback-notice" class="share-feedback-notice"></div>
@@ -1663,113 +1719,182 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       });
     }
 
-    async function shareWhatsAppTicketImage() {
-      const btn = document.getElementById('btn-share-wa');
+    function getCleanWaData() {
+      var folio = ${folioSafeJs};
+      var clientName = ${clientaSafeJs};
+      var clientPhone = ${phoneSafeJs};
+      var totalFormatted = ${totalSafeJs};
+      var reviewUrl = "https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac";
+
+      var cleanDigits = (clientPhone || '').replace(/[^0-9]/g, '');
+      if (cleanDigits.length < 10) {
+        var inputPhone = prompt(
+          [
+            '📱 Número de WhatsApp para "' + clientName + '":',
+            '',
+            'No se registró un número a 10 dígitos.',
+            '',
+            'Por favor escriba el número a 10 dígitos de WhatsApp:'
+          ].join(String.fromCharCode(10)),
+          ''
+        );
+        if (inputPhone && inputPhone.trim()) {
+          cleanDigits = inputPhone.replace(/[^0-9]/g, '');
+        }
+      }
+
+      var waNumber = cleanDigits.length >= 10 ? '52' + cleanDigits.slice(-10) : '';
+
+      var messageText = [
+        '¡Hola, ' + clientName + '! 💖✨',
+        '',
+        'Muchas gracias por visitarnos hoy en *Total Beauty*. Te compartimos tu comprobante de compra *#' + folio + '* por ' + totalFormatted + '.',
+        '',
+        '¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 ' + reviewUrl,
+        'Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸',
+        '',
+        '¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌'
+      ].join(String.fromCharCode(10));
+
+      return {
+        folio: folio,
+        clientName: clientName,
+        waNumber: waNumber,
+        messageText: messageText
+      };
+    }
+
+    // BOTÓN 1: Compartir directamente el archivo de imagen del ticket en WhatsApp (abre WhatsApp con la foto adjunta)
+    async function shareTicketAsImageFile() {
+      const btn = document.getElementById('btn-share-file-wa');
       const originalHtml = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span>⏳</span> Abriendo Chat Directo de WhatsApp...';
+        btn.innerHTML = '<span>⏳</span> Preparando imagen del ticket...';
       }
 
       try {
-        var folio = ${folioSafeJs};
-        var clientName = ${clientaSafeJs};
-        var clientPhone = ${phoneSafeJs};
-        var totalFormatted = ${totalSafeJs};
-        var reviewUrl = "https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac";
+        const data = getCleanWaData();
+        const canvas = await captureTicketCanvas();
+        if (!canvas) throw new Error('No se pudo generar la imagen del ticket.');
 
-        // Asegurar que siempre tengamos un número a 10 dígitos para abrir el chat directamente
-        var cleanDigits = (clientPhone || '').replace(/[^0-9]/g, '');
-        if (cleanDigits.length < 10) {
-          var inputPhone = prompt(
-            [
-              '📱 Número de WhatsApp para "' + clientName + '":',
-              '',
-              'No se registró un número a 10 dígitos.',
-              '',
-              'Por favor escriba el número a 10 dígitos para abrir directamente el chat de WhatsApp:'
-            ].join(String.fromCharCode(10)),
-            ''
-          );
-          if (inputPhone && inputPhone.trim()) {
-            cleanDigits = inputPhone.replace(/[^0-9]/g, '');
+        const blob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+        const fileName = 'Ticket-TotalBeauty-' + data.folio + '.png';
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        // Intentar copiar al portapapeles siempre como respaldo
+        if (navigator.clipboard && navigator.clipboard.write) {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          } catch (e) {
+            console.warn('Clipboard fallback:', e);
           }
         }
 
-        if (cleanDigits.length < 10) {
-          alert('Se requiere un número telefónico a 10 dígitos para abrir el chat de WhatsApp de forma directa.');
+        // Si el dispositivo/navegador soporta compartir archivos directamente (Móviles / Tablets / Windows Share):
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
           if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
+            btn.innerHTML = '<span>📲</span> Abriendo WhatsApp con imagen...';
           }
+          await navigator.share({
+            files: [file],
+            title: 'Ticket Total Beauty #' + data.folio,
+            text: data.messageText
+          });
+          const notice = document.getElementById('share-feedback-notice');
+          if (notice) {
+            notice.style.display = 'block';
+            notice.innerHTML = '<strong>✅ ¡Imagen y mensaje compartidos con éxito!</strong>';
+          }
+        } else {
+          // En computadoras sin soporte de compartir archivo directo: descargar imagen y abrir chat directo
+          const dlLink = document.createElement('a');
+          dlLink.download = fileName;
+          dlLink.href = URL.createObjectURL(blob);
+          dlLink.click();
+
+          const waUrl = data.waNumber
+            ? 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(data.waNumber) + '&text=' + encodeURIComponent(data.messageText)
+            : 'https://api.whatsapp.com/send?text=' + encodeURIComponent(data.messageText);
+          window.open(waUrl, '_blank');
+
+          const notice = document.getElementById('share-feedback-notice');
+          if (notice) {
+            notice.style.display = 'block';
+            notice.innerHTML = '<strong>📋 ¡Imagen del ticket copiada al portapapeles y descargada!</strong><br>' +
+              'Se abrió el chat de WhatsApp. En WhatsApp solo presiona <strong>Ctrl + V</strong> (o Pegar) para adjuntar la foto del ticket y dale Enviar.';
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error al compartir imagen:', err);
+          alert('Detalle al compartir imagen: ' + (err.message || err));
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+    }
+
+    // BOTÓN 2: Abrir directamente el chat con el número registrado
+    async function openDirectWhatsAppChat() {
+      const btn = document.getElementById('btn-share-direct-wa');
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Abriendo Chat Directo...';
+      }
+
+      try {
+        const data = getCleanWaData();
+        if (!data.waNumber) {
+          alert('Se requiere un número telefónico a 10 dígitos para abrir el chat de WhatsApp de forma directa.');
           return;
         }
 
-        // Formato internacional oficial para WhatsApp México (52 + 10 dígitos)
-        var waNumber = '52' + cleanDigits.slice(-10);
-
-        var messageText = [
-          '¡Hola, ' + clientName + '! 💖✨',
-          '',
-          'Muchas gracias por visitarnos hoy en *Total Beauty*. Te compartimos tu comprobante de compra *#' + folio + '* por ' + totalFormatted + '.',
-          '',
-          '¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 ' + reviewUrl,
-          'Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸',
-          '',
-          '¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌'
-        ].join(String.fromCharCode(10));
-
-        // 1. ABRIR DIRECTAMENTE EL CHAT DE WHATSAPP CON EL NÚMERO Y MENSAJE PRECARGADO
-        var waUrl = 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(waNumber) + '&text=' + encodeURIComponent(messageText);
-        window.open(waUrl, '_blank');
-
-        // 2. Generar y descargar la imagen en segundo plano y copiarla al portapapeles
-        var copied = false;
+        // Generar imagen y copiarla al portapapeles en segundo plano para que el usuario solo presione Ctrl + V
+        let copied = false;
         try {
-          var canvas = await captureTicketCanvas();
+          const canvas = await captureTicketCanvas();
           if (canvas) {
-            var fileName = 'Ticket-TotalBeauty-' + folio + '.png';
-            var blob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+            const blob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+            const fileName = 'Ticket-TotalBeauty-' + data.folio + '.png';
 
-            if (navigator.clipboard && navigator.clipboard.write && blob) {
+            if (navigator.clipboard && navigator.clipboard.write) {
               try {
-                await navigator.clipboard.write([
-                  new ClipboardItem({ 'image/png': blob })
-                ]);
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
                 copied = true;
               } catch (clipErr) {
-                console.warn('Portapapeles no soportado o bloqueado:', clipErr);
+                console.warn('Portapapeles no disponible:', clipErr);
               }
             }
 
-            // Descargar archivo de imagen
-            var dlLink = document.createElement('a');
+            const dlLink = document.createElement('a');
             dlLink.download = fileName;
             dlLink.href = URL.createObjectURL(blob);
             dlLink.click();
           }
         } catch (imgErr) {
-          console.warn('Detalle al generar imagen en segundo plano:', imgErr);
+          console.warn('Detalle al generar imagen de respaldo:', imgErr);
         }
 
-        var notice = document.getElementById('share-feedback-notice');
+        const waUrl = 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(data.waNumber) + '&text=' + encodeURIComponent(data.messageText);
+        window.open(waUrl, '_blank');
+
+        const notice = document.getElementById('share-feedback-notice');
         if (notice) {
           notice.style.display = 'block';
-          notice.innerHTML = '<strong>✅ ¡Chat de WhatsApp abierto directamente con ' + clientName + ' (+' + waNumber + ')!</strong><br>' +
-            'El mensaje con tu enlace de Google Maps ya está listo en el cuadro de texto de WhatsApp.<br>' +
-            (copied ? '📋 <em>La imagen del ticket fue copiada a tu portapapeles (Ctrl + V para pegarla).</em><br>' : '') +
-            '📁 <em>La imagen del ticket se descargó en tu dispositivo para adjuntarla fácilmente.</em><br>' +
-            'Solo presiona <strong>Enviar</strong> en WhatsApp.';
+          notice.innerHTML = '<strong>✅ ¡Chat de WhatsApp abierto directamente con ' + data.clientName + ' (+' + data.waNumber + ')!</strong><br>' +
+            'El mensaje con tu enlace de Google Maps ya está listo en la barra de texto.<br>' +
+            (copied ? '📋 <em>La imagen del ticket fue COPIADA al portapapeles. Solo presiona <strong>Ctrl + V</strong> en WhatsApp para adjuntarla.</em><br>' : '') +
+            '📁 <em>La imagen también se descargó en tu dispositivo.</em>';
         }
-
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<span>📲</span> Abrir Chat de WhatsApp y Enviar';
-        }
-
       } catch (err) {
-        console.error('Error al abrir chat de WhatsApp:', err);
+        console.error('Error al abrir chat directo:', err);
         alert('No se pudo abrir el chat de WhatsApp: ' + (err.message || err));
+      } finally {
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = originalHtml;
@@ -1802,46 +1927,63 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
   function openVentaTicketExternalWindow(venta, preOpenedWindow = null) {
     if (!venta) return;
 
+    const htmlContent = generateVentaTicketHTML(venta);
+    const winFeatures = getTicketWindowFeatures();
+    const winName = 'TicketTotalBeauty_' + Date.now();
+
     let targetWin = preOpenedWindow;
     if (!targetWin || targetWin.closed) {
       try {
-        targetWin = window.open('', '_blank');
+        targetWin = window.open('about:blank', winName, winFeatures);
       } catch (e) {
-        console.warn('Fallo al abrir ventana:', e);
+        console.warn('Fallo al abrir ventana externa:', e);
       }
     }
-
-    const htmlContent = generateVentaTicketHTML(venta);
 
     if (targetWin && targetWin.document) {
       try {
         targetWin.document.open();
         targetWin.document.write(htmlContent);
         targetWin.document.close();
-        targetWin.focus();
+        if (targetWin.focus) targetWin.focus();
+        return;
       } catch (wErr) {
         console.warn('Error al escribir en targetWin:', wErr);
       }
-    } else {
-      showToast('⚠️ Ventana emergente bloqueada por el navegador. Haga clic para abrir el ticket.', 'warning');
-      const backupBtn = document.createElement('div');
-      backupBtn.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:99999; background:#0b0f19; border:2px solid #d4af37; border-radius:14px; padding:16px 20px; box-shadow:0 12px 30px rgba(0,0,0,0.6); color:#fff; text-align:center;';
-      backupBtn.innerHTML = `
-        <div style="font-weight:800; color:#d4af37; margin-bottom:8px; font-size:1rem;">🧾 Ticket de Compra Listo</div>
-        <button type="button" style="background:linear-gradient(135deg,#d4af37,#aa771c); color:#000; font-weight:800; border:none; padding:10px 18px; border-radius:8px; cursor:pointer;" id="btn-manual-open-ticket">Abrir Ticket en Nueva Ventana</button>
-      `;
-      document.body.appendChild(backupBtn);
-      backupBtn.querySelector('#btn-manual-open-ticket')?.addEventListener('click', () => {
-        const w = window.open('', '_blank');
-        if (w) {
-          w.document.open();
-          w.document.write(htmlContent);
-          w.document.close();
-        }
-        backupBtn.remove();
-      });
-      setTimeout(() => backupBtn.remove(), 20000);
     }
+
+    // Fallback con Blob URL si document.write fue bloqueado o restringido por el navegador
+    try {
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const bWin = window.open(blobUrl, winName, winFeatures);
+      if (bWin) {
+        if (bWin.focus) bWin.focus();
+        return;
+      }
+    } catch (bErr) {
+      console.warn('Fallo fallback blob:', bErr);
+    }
+
+    showToast('⚠️ Ventana emergente bloqueada por el navegador. Haga clic para abrir el ticket.', 'warning');
+    const backupBtn = document.createElement('div');
+    backupBtn.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:99999; background:#0b0f19; border:2px solid #d4af37; border-radius:14px; padding:16px 20px; box-shadow:0 12px 30px rgba(0,0,0,0.6); color:#fff; text-align:center;';
+    backupBtn.innerHTML = `
+      <div style="font-weight:800; color:#d4af37; margin-bottom:8px; font-size:1rem;">🧾 Ticket de Compra Listo</div>
+      <button type="button" style="background:linear-gradient(135deg,#d4af37,#aa771c); color:#000; font-weight:800; border:none; padding:10px 18px; border-radius:8px; cursor:pointer;" id="btn-manual-open-ticket">Abrir Ticket en Nueva Ventana</button>
+    `;
+    document.body.appendChild(backupBtn);
+    backupBtn.querySelector('#btn-manual-open-ticket')?.addEventListener('click', () => {
+      const w = window.open('about:blank', 'TicketTotalBeauty_' + Date.now(), winFeatures);
+      if (w) {
+        w.document.open();
+        w.document.write(htmlContent);
+        w.document.close();
+        if (w.focus) w.focus();
+      }
+      backupBtn.remove();
+    });
+    setTimeout(() => backupBtn.remove(), 25000);
   }
 
   async function renderVentas(fecha, isSilent = false) {
@@ -9412,7 +9554,8 @@ Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
       // 1. Abrir ventana emergente inmediatamente para garantizar que el navegador no la bloquee
       let ticketWin = null;
       try {
-        ticketWin = window.open('', '_blank');
+        const winFeatures = getTicketWindowFeatures();
+        ticketWin = window.open('about:blank', 'TicketTotalBeauty_' + Date.now(), winFeatures);
         if (ticketWin && ticketWin.document) {
           ticketWin.document.open();
           ticketWin.document.write(getTicketLoadingHTML(venta));
