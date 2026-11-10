@@ -7109,3 +7109,233 @@ input[readonly],
     border: none !important;
   }
 }
+
+
+/* ==========================================================================
+   SELECTOR PRINCIPAL INTUITIVO: REGISTRAR VENTA VS VER VENTAS DEL DÍA
+   ========================================================================== */
+.ventas-main-choice-banner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.ventas-choice-card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  font-family: inherit;
+}
+
+.ventas-choice-card:hover {
+  border-color: #d4af37;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.16);
+}
+
+.ventas-choice-card.active {
+  background: linear-gradient(135deg, #0b0f17 0%, #1a2333 100%);
+  border-color: #d4af37;
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.32);
+}
+
+.choice-card-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.45rem;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.ventas-choice-card:hover .choice-card-icon-wrap {
+  border-color: #d4af37;
+  background: #fffdf5;
+}
+
+.ventas-choice-card.active .choice-card-icon-wrap {
+  background: linear-gradient(135deg, #d4af37, #aa771c);
+  border-color: #fef08a;
+  color: #0b0f17;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+}
+
+.choice-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.choice-card-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  transition: color 0.2s ease;
+}
+
+.ventas-choice-card.active .choice-card-title {
+  color: #ffffff;
+}
+
+.choice-card-subtitle {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
+  transition: color 0.2s ease;
+}
+
+.ventas-choice-card.active .choice-card-subtitle {
+  color: #94a3b8;
+}
+
+.choice-count-pill {
+  font-size: 0.74rem;
+  font-weight: 800;
+  background: #fef9c3;
+  color: #854d0e;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fde047;
+}
+
+.ventas-choice-card.active .choice-count-pill {
+  background: rgba(212, 175, 55, 0.25);
+  color: #fef08a;
+  border-color: #d4af37;
+}
+
+.choice-card-badge {
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 5px 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border: 1px solid #e2e8f0;
+}
+
+.ventas-choice-card.active .choice-card-badge {
+  background: rgba(212, 175, 55, 0.2);
+  color: #fef08a;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+}
+
+/* Barra rápida inferior en el Wizard */
+.wizard-quick-switch-bar {
+  text-align: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* Banner de Tips de WhatsApp */
+.ventas-wa-tip-box {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.84rem;
+  color: #166534;
+  line-height: 1.4;
+}
+
+.ventas-wa-tip-box .wa-tip-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+/* Fila de tabla interactiva */
+.venta-table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.venta-table-row:hover {
+  background-color: #f0fdf4 !important;
+}
+
+.btn-venta-wa-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #22c55e;
+  color: #ffffff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+}
+
+.btn-venta-wa-action:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.45);
+}
+
+.btn-card-wa-review {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+  border: none;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  margin-top: 8px;
+}
+
+.btn-card-wa-review:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.45);
+}
+
+@media (max-width: 768px) {
+  .ventas-main-choice-banner {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .ventas-choice-card {
+    padding: 12px 14px !important;
+  }
+}

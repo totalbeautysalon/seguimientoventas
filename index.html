@@ -1261,7 +1261,36 @@
         </div>
 
 <!-- Formulario Dinámico Paso a Paso: Registro de Venta Guiado -->
-        <div class="ventas-wizard-card">
+        
+        <!-- Selector Principal Intuitivo: Registrar Nueva Venta vs Ver Ventas del Día -->
+        <div class="ventas-main-choice-banner" id="ventas-main-choice-banner">
+          <button type="button" class="ventas-choice-card active" id="btn-choice-nueva-venta" data-ventas-mode="nueva-venta">
+            <div class="choice-card-icon-wrap">
+              <span class="choice-card-icon">➕</span>
+            </div>
+            <div class="choice-card-text">
+              <div class="choice-card-title">Registrar Nueva Venta</div>
+              <div class="choice-card-subtitle">Formulario guiado paso a paso para cobrar y registrar</div>
+            </div>
+            <div class="choice-card-badge">Nuevo Cobro</div>
+          </button>
+
+          <button type="button" class="ventas-choice-card" id="btn-choice-ver-ventas" data-ventas-mode="ver-ventas">
+            <div class="choice-card-icon-wrap">
+              <span class="choice-card-icon">📋</span>
+            </div>
+            <div class="choice-card-text">
+              <div class="choice-card-title">
+                <span>Ver Ventas del Día</span>
+                <span class="choice-count-pill" id="choice-ventas-count-pill">0</span>
+              </div>
+              <div class="choice-card-subtitle">Consultar ventas registradas y enviar WhatsApp de reseña</div>
+            </div>
+            <div class="choice-card-badge" id="choice-ventas-total-badge">$0.00</div>
+          </button>
+        </div>
+
+        <div class="ventas-wizard-card" id="ventas-wizard-card">
           
           <!-- Stepper Indicator Header -->
           <div class="ventas-stepper-header">
@@ -1715,10 +1744,15 @@
             </div>
 
           </form>
+          <div class="wizard-quick-switch-bar">
+            <button type="button" class="btn btn-outline-dark btn-sm" id="btn-wizard-goto-list" style="font-weight:700; border-radius:8px; padding:6px 16px; cursor:pointer;">
+              <span>📋</span> Ver las Ventas Registradas de Hoy (<span id="wizard-link-count">0</span>)
+            </button>
+          </div>
         </div>
 
         <!-- Listado Visual de Ventas Registradas -->
-        <div class="form-section">
+        <div class="form-section" id="ventas-listado-section">
           <div class="section-header" style="flex-wrap:wrap; gap:12px;">
             <div class="section-title-wrap">
               <span class="section-badge" style="background:#0f172a; color:#fff;">🛍️</span>
@@ -1727,12 +1761,15 @@
                   <h2 class="section-title" style="margin:0;">Listado de Ventas Registradas</h2>
                   <span class="kpi-status-badge badge-cuadrada" id="ventas-badge-operaciones" style="font-size:0.78rem; padding:3px 10px;">0 Operaciones</span>
                 </div>
-                <span class="section-subtitle">Ventas en tiempo real sincronizadas con Firebase</span>
+                <span class="section-subtitle">Toca cualquier venta para enviar mensaje de agradecimiento y pedir opinión por WhatsApp 💖💬</span>
               </div>
             </div>
 
             <!-- Controles de Vista y Búsqueda -->
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-quick-new-sale" style="display:inline-flex; align-items:center; gap:6px; font-weight:800; background:linear-gradient(135deg, #d4af37, #b8860b); color:#0b0f17; border:none; padding:8px 14px; border-radius:8px; box-shadow:0 2px 8px rgba(212,175,55,0.3); cursor:pointer;">
+                <span>➕</span> Registrar Otra Venta
+              </button>
               <!-- Switch de Vista: Tabla o Tarjetas -->
               <div class="ventas-view-switcher">
                 <button type="button" class="btn-view-toggle active" id="btn-view-tabla" data-view="tabla" title="Ver en tabla detallada">
@@ -1750,6 +1787,13 @@
           </div>
 
           <div class="section-body" style="padding-top:12px;">
+            <!-- Tip Informativo de WhatsApp -->
+            <div class="ventas-wa-tip-box">
+              <span class="wa-tip-icon">💖</span>
+              <div class="wa-tip-text">
+                <strong>Agradecimiento & Reseña en Google Maps:</strong> Al dar clic en cualquier venta registrada o en el botón <strong>💬 WhatsApp</strong>, se abrirá WhatsApp con el mensaje personalizado para tu clienta agradeciéndole su visita y solicitando su opinión en Google Maps.
+              </div>
+            </div>
             <!-- Barra de Filtros y Búsqueda Rápida en la Lista -->
             <div class="ventas-list-toolbar">
               <div class="ventas-search-box">

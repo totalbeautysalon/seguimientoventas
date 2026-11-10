@@ -347,9 +347,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
       });
     }
 
-    // Al entrar a Registro de Ventas, sincronizar vista activa respetando preferencia guardada
+    // Al entrar a Registro de Ventas, sincronizar vista activa y selector principal
     if (modKey === 'ventas') {
       setVentasViewMode(currentVentasViewMode);
+      setVentasSectionMode(currentVentasSectionMode);
     }
 
     // Carga y actualización inmediata de datos de la sección
@@ -862,6 +863,119 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
   }
 
+  // Modo de sección: 'nueva-venta' (formulario guiado) vs 'ver-ventas' (listado del día)
+  let currentVentasSectionMode = (typeof localStorage !== 'undefined' && localStorage.getItem('tb_ventas_section_mode')) || 'nueva-venta';
+
+  function setVentasSectionMode(mode) {
+    if (mode !== 'nueva-venta' && mode !== 'ver-ventas') mode = 'nueva-venta';
+    currentVentasSectionMode = mode;
+    try {
+      localStorage.setItem('tb_ventas_section_mode', mode);
+    } catch (e) {}
+
+    const btnNueva = document.getElementById('btn-choice-nueva-venta');
+    const btnVer = document.getElementById('btn-choice-ver-ventas');
+    const wizardCard = document.getElementById('ventas-wizard-card');
+    const listadoSection = document.getElementById('ventas-listado-section');
+
+    if (btnNueva) btnNueva.classList.toggle('active', mode === 'nueva-venta');
+    if (btnVer) btnVer.classList.toggle('active', mode === 'ver-ventas');
+
+    if (mode === 'nueva-venta') {
+      if (wizardCard) {
+        wizardCard.style.display = 'block';
+        wizardCard.style.animation = 'fadeInStep 0.25s ease forwards';
+      }
+      if (listadoSection) listadoSection.style.display = 'none';
+    } else {
+      if (wizardCard) wizardCard.style.display = 'none';
+      if (listadoSection) {
+        listadoSection.style.display = 'block';
+        listadoSection.style.animation = 'fadeInStep 0.25s ease forwards';
+      }
+      const fecha = document.getElementById('ventas_filtro_fecha')?.value || getHidalgoDateStr();
+      renderVentasFilteredList(fecha);
+    }
+  }
+
+  // Apertura de WhatsApp con mensaje personalizado de agradecimiento y opinión en Google Maps
+  function openWhatsAppReview(venta) {
+    if (!venta) return;
+
+    // 1. Extraer nombre de la clienta
+    let clientaName = (venta.clienta || '').trim();
+    const isGeneric = !clientaName || /mostrador|p[uú]blico/i.test(clientaName);
+    
+    // Saludo amigable y personalizado
+    let saludo = '¡Hola! 💖✨';
+    if (!isGeneric) {
+      saludo = `¡Hola, ${clientaName}! 💖✨`;
+    }
+
+    // 2. Extraer servicio realizado
+    let servicioTexto = '';
+    const srv = (venta.servicio || '').trim();
+    if (srv && srv !== '-') {
+      servicioTexto = ` para tu servicio de *${srv}*`;
+    }
+
+    // 3. Redactar el mensaje oficial con enlace a Google Maps
+    const reviewUrl = 'https://maps.app.goo.gl/unQv8bQhD5uHivNc9?g_st=ac';
+    const mensaje = `${saludo}
+
+Muchas gracias por visitarnos hoy${servicioTexto}. Nos encantó atenderte.
+
+¿Nos ayudarías regalándonos tu opinión en Google Maps contándonos tu experiencia? 👉 ${reviewUrl}
+Si gustas, también puedes adjuntar una fotito de cómo quedó tu servicio. 📸
+
+¡Tu opinión significa muchísimo para nosotros y nos ayuda a seguir creciendo! ¡Que tengas un excelente día! 😊🙌`;
+
+    // 4. Gestión del número de teléfono a 10 dígitos
+    let rawPhone = (venta.telefono || '').toString().trim();
+    let cleanDigits = rawPhone.replace(/\D/g, '');
+
+    if (cleanDigits.length < 10) {
+      const promptLabel = !isGeneric ? ` de "${clientaName}"` : '';
+      const input = prompt(
+        `📱 WhatsApp Total Beauty\n\nLa clienta${promptLabel} no tiene registrado un número a 10 dígitos.\n\nEscriba el número a 10 dígitos de WhatsApp (o pulse Cancelar/Aceptar en blanco para abrir WhatsApp y seleccionar el contacto):`,
+        ''
+      );
+      if (input !== null && input.trim() !== '') {
+        const cleanInput = input.replace(/\D/g, '');
+        if (cleanInput.length >= 10) {
+          cleanDigits = cleanInput;
+          const tenDigits = cleanInput.slice(-10);
+          venta.telefono = tenDigits;
+          if (venta.id && venta.fecha) {
+            TB_FIREBASE.saveVenta(venta).catch(e => console.warn('Error al actualizar teléfono en Firebase:', e));
+            if (Array.isArray(currentVentasList)) {
+              const idx = currentVentasList.findIndex(x => x.id === venta.id);
+              if (idx !== -1) currentVentasList[idx].telefono = tenDigits;
+            }
+            renderVentasFilteredList(venta.fecha);
+          }
+        }
+      }
+    }
+
+    let finalNumber = '';
+    if (cleanDigits.length === 10) {
+      finalNumber = '52' + cleanDigits;
+    } else if (cleanDigits.length === 12 && cleanDigits.startsWith('52')) {
+      finalNumber = cleanDigits;
+    } else if (cleanDigits.length > 10) {
+      finalNumber = cleanDigits;
+    }
+
+    const encodedMsg = encodeURIComponent(mensaje);
+    const waUrl = finalNumber 
+      ? `https://api.whatsapp.com/send?phone=${finalNumber}&text=${encodedMsg}`
+      : `https://api.whatsapp.com/send?text=${encodedMsg}`;
+
+    showToast(`💬 Abriendo WhatsApp para ${!isGeneric ? clientaName : 'la clienta'}...`, 'info');
+    window.open(waUrl, '_blank');
+  }
+
   async function renderVentas(fecha, isSilent = false) {
     const todayHidalgo = getHidalgoDateStr();
     const filterInput = document.getElementById('ventas_filtro_fecha');
@@ -949,6 +1063,15 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     const opsBadge = document.getElementById('ventas-badge-operaciones');
     if (opsBadge) opsBadge.textContent = `${currentVentasList.length} Operaciones`;
+
+    const countPill = document.getElementById('choice-ventas-count-pill');
+    if (countPill) countPill.textContent = `${currentVentasList.length} ${currentVentasList.length === 1 ? 'venta' : 'ventas'}`;
+
+    const totalBadge = document.getElementById('choice-ventas-total-badge');
+    if (totalBadge) totalBadge.textContent = formatCurrency(totCobrado);
+
+    const wizLinkCount = document.getElementById('wizard-link-count');
+    if (wizLinkCount) wizLinkCount.textContent = currentVentasList.length;
 
     renderVentasFilteredList(fecha);
   }
@@ -1085,6 +1208,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
           metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
         }
 
+        tr.className = 'venta-table-row';
+        tr.dataset.id = v.id;
+        tr.title = 'Toca esta venta para abrir WhatsApp con agradecimiento y pedir opinión en Google Maps 💖💬';
+
         const avatar = getClientAvatar(v.clienta);
         const phone = formatPhoneLink(v.telefono);
         const clientName = v.clienta ? `<strong>${v.clienta}</strong>` : `<span style="color:var(--muted); font-style:italic;">Cliente Mostrador</span>`;
@@ -1117,10 +1244,21 @@ function getHidalgoIsoString(dateObj = new Date()) {
           <td class="text-right">
             <span style="font-weight:800; font-size:1.05rem; color:#15803d;">${formatCurrency(v.totalCobrado)}</span>
           </td>
-          <td class="text-center">
-            <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha || fecha}" title="Eliminar Venta" style="padding:4px 8px;">✕</button>
+          <td class="text-center" style="white-space:nowrap;">
+            <div style="display:inline-flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-venta-wa-action" data-id="${v.id}" title="Enviar mensaje de agradecimiento y opinión por WhatsApp">
+                <span>💬</span> WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm btn-del-venta" data-id="${v.id}" data-fecha="${v.fecha || fecha}" title="Eliminar Venta" style="padding:4px 8px;">✕</button>
+            </div>
           </td>
         `;
+
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-del-venta')) return;
+          openWhatsAppReview(v);
+        });
+
         tbody.appendChild(tr);
       });
     }
@@ -1155,6 +1293,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
           metodoBadge = `<span class="badge-metodo-pago metodo-transf">📱 Transferencia</span>`;
         }
 
+        card.className = 'venta-visual-card';
+        card.dataset.id = v.id;
+        card.style.cursor = 'pointer';
+        card.title = 'Toca esta tarjeta para abrir WhatsApp con agradecimiento y pedir opinión en Google Maps 💖💬';
+
         const avatar = getClientAvatar(v.clienta);
         const phone = formatPhoneLink(v.telefono);
         const clientName = v.clienta || 'Cliente Mostrador';
@@ -1182,6 +1325,11 @@ function getHidalgoIsoString(dateObj = new Date()) {
               <span class="venta-tag tag-hora">🕒 ${horaStr}</span>
             </div>
             ${v.notas ? `<div class="venta-card-notes">💬 ${escapeHtml(v.notas)}</div>` : ''}
+            <div class="venta-card-wa-wrap" style="margin-top:8px;">
+              <button type="button" class="btn-card-wa-review" data-id="${v.id}">
+                <span>💬</span> Enviar Agradecimiento & Opinión
+              </button>
+            </div>
           </div>
 
           <div class="venta-card-footer">
@@ -1196,6 +1344,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
             </button>
           </div>
         `;
+
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-del-venta')) return;
+          openWhatsAppReview(v);
+        });
+
         cardsContainer.appendChild(card);
       });
     }
@@ -6883,6 +7037,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     // Inicializar vista en Ventas respetando preferencia guardada
     setVentasViewMode(currentVentasViewMode);
+    setVentasSectionMode(currentVentasSectionMode);
 
     // Configurar Canvas de Firmas base
     sigCtxPrincipal = setupSignaturePad(sigPadPrincipal, () => { sigDataPrincipal = true; });
@@ -8413,6 +8568,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
       // Regresar al Paso 1 del wizard de ventas
       goToVentaStep(1);
+
+      // Cambiar de forma intuitiva al listado de ventas para ver el nuevo registro y enviar WhatsApp
+      setVentasSectionMode('ver-ventas');
+      showToast('✅ Venta registrada con éxito. Toca la venta en la lista para enviar el agradecimiento por WhatsApp.', 'success');
     });
 
     // -----------------------------------------------------------------------
@@ -8859,6 +9018,23 @@ function getHidalgoIsoString(dateObj = new Date()) {
         payload: { fecha: today },
         reversible: false
       });
+    });
+
+    // Eventos de selección de modo en Registro Diario de Ventas
+    document.getElementById('btn-choice-nueva-venta')?.addEventListener('click', () => {
+      setVentasSectionMode('nueva-venta');
+    });
+
+    document.getElementById('btn-choice-ver-ventas')?.addEventListener('click', () => {
+      setVentasSectionMode('ver-ventas');
+    });
+
+    document.getElementById('btn-wizard-goto-list')?.addEventListener('click', () => {
+      setVentasSectionMode('ver-ventas');
+    });
+
+    document.getElementById('btn-quick-new-sale')?.addEventListener('click', () => {
+      setVentasSectionMode('nueva-venta');
     });
 
     document.getElementById('btn-refresh-ventas')?.addEventListener('click', () => {
