@@ -78,6 +78,42 @@ function getHidalgoIsoString(dateObj = new Date()) {
   return getHidalgoDateTime(dateObj).isoLocal;
 }
 
+  // =========================================================================
+  // SISTEMA GLOBAL DE ANIMACIÓN Y CARGA LUXURY TOTAL BEAUTY
+  // =========================================================================
+  let globalLoaderTimeout = null;
+
+  function showGlobalLoader(title = 'Cargando...', subtitle = 'Sincronizando información...') {
+    const overlay = document.getElementById('tb-global-loader');
+    if (!overlay) return;
+    const titleEl = document.getElementById('tb-loader-title');
+    const subEl = document.getElementById('tb-loader-subtitle');
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) subEl.textContent = subtitle;
+
+    overlay.style.display = 'flex';
+    void overlay.offsetWidth;
+    overlay.classList.add('active');
+  }
+
+  function hideGlobalLoader(minDelayMs = 250) {
+    const overlay = document.getElementById('tb-global-loader');
+    if (!overlay) return;
+    clearTimeout(globalLoaderTimeout);
+    globalLoaderTimeout = setTimeout(() => {
+      overlay.classList.remove('active');
+      setTimeout(() => {
+        if (!overlay.classList.contains('active')) {
+          overlay.style.display = 'none';
+        }
+      }, 280);
+    }, minDelayMs);
+  }
+
+  window.showGlobalLoader = showGlobalLoader;
+  window.hideGlobalLoader = hideGlobalLoader;
+
+
 
   // --- ELEMENTOS Y CANVAS ---
   const formPrincipal = document.getElementById('form-arqueo-principal');
@@ -2670,19 +2706,10 @@ function getHidalgoIsoString(dateObj = new Date()) {
       return;
     }
 
-    // 2. Descargar PDF automáticamente (sin bloquear el guardado ni la limpieza)
-    let fileName = '';
-    try {
-      showToast('Generando y descargando PDF oficial...', 'info');
-      fileName = await exportPDF(isChica);
-    } catch (pdfErr) {
-      console.warn('Advertencia al generar PDF:', pdfErr);
-    }
-
-    // 3. Notificación explícita de REGISTRO GUARDADO requerida por el usuario
+    // 2. Notificación explícita de REGISTRO GUARDADO requerida por el usuario
     showToast('✅ Registro guardado. ' + (isChica ? 'Arqueo de Caja Chica' : ('Corte #' + (savedData?.corteNum || 1) + ' de Caja Principal')) + ' guardado con éxito.', 'success');
 
-    // 4. Limpiar los campos para nuevo corte
+    // 3. Limpiar los campos para nuevo corte
     if (isChica) {
       clearChicaForm();
     } else {
@@ -2694,29 +2721,428 @@ function getHidalgoIsoString(dateObj = new Date()) {
       recalculatePrincipal();
     }
     showToast('✨ Formulario listo para el siguiente corte de caja.', 'info');
+
+    // 4. Mostrar de inmediato el Ticket Digital ordenado listo para captura
+    openReportTicketViewer(savedData, isChica, saveResult?.key);
   }
 
+  
   // =========================================================================
-  // 5. MÓDULO HISTORIAL
+  // GENERADOR DE TICKETS OFICIALES PARA CAPTURA DE PANTALLA Y WHATSAPP
   // =========================================================================
+
+  function formatDenominationsSummary(conteo) {
+    if (!conteo) return '';
+    const b = conteo.billetes || {};
+    const m = conteo.monedas || {};
+
+    const denomsB = [
+      { k: '1,000', v: b['1000'] || b.b1000 || 0 },
+      { k: '500', v: b['500'] || b.b500 || 0 },
+      { k: '200', v: b['200'] || b.b200 || 0 },
+      { k: '100', v: b['100'] || b.b100 || 0 },
+      { k: '50', v: b['50'] || b.b50 || 0 },
+      { k: '20', v: b['20'] || b.b20 || 0 }
+    ].filter(x => parseInt(x.v, 10) > 0);
+
+    const denomsM = [
+      { k: '20', v: m['20'] || m.m20 || 0 },
+      { k: '10', v: m['10'] || m.m10 || 0 },
+      { k: '5', v: m['5'] || m.m5 || 0 },
+      { k: '2', v: m['2'] || m.m2 || 0 },
+      { k: '1', v: m['1'] || m.m1 || 0 },
+      { k: '0.50', v: m['0.5'] || m['0.50'] || m.m050 || 0 }
+    ].filter(x => parseInt(x.v, 10) > 0);
+
+    let parts = [];
+    if (denomsB.length > 0) {
+      parts.push(`<div><strong>Billetes:</strong> ` + denomsB.map(x => `${x.v} de $${x.k}`).join(' &bull; ') + `</div>`);
+    }
+    if (denomsM.length > 0) {
+      parts.push(`<div><strong>Monedas:</strong> ` + denomsM.map(x => `${x.v} de $${x.k}`).join(' &bull; ') + `</div>`);
+    }
+    return parts.join('');
+  }
+
+  function buildWhatsAppTicketSummary(item, isChica, key) {
+    if (!item) return '';
+    const fecha = item.header?.fecha || item.fecha || getHidalgoDateStr();
+    const hora = item.header?.hora || item.hora || '';
+    const responsable = item.header?.responsable || item.validacion?.responsable || item.responsable || 'Cajera';
+    const cNum = item.corteNum || 1;
+    const ticketId = key || item.corteId || item.id || 'N/A';
+
+    let txt = `🌸 *TOTAL BEAUTY SALON & ACADEMY* 🌸\n`;
+    if (isChica) {
+      const fIni = parseFloat(item.fondoInicial || 0);
+      const sal = parseFloat(item.totalSalidas || 0);
+      const cont = parseFloat(item.conteoTotal || 0);
+      const dif = parseFloat(item.diferencia ?? (cont - (fIni - sal))) || 0;
+      txt += `🧾 *ARQUEO DE CAJA CHICA*\n`;
+      txt += `📅 Fecha: ${fecha} ${hora ? ('(' + hora + ')') : ''}\n`;
+      txt += `👤 Responsable: ${responsable}\n`;
+      txt += `🏷️ Folio: ${ticketId}\n`;
+      txt += `---------------------------------\n`;
+      txt += `💰 Fondo Asignado: ${formatCurrency(fIni)}\n`;
+      txt += `📤 Salidas y Gastos: -${formatCurrency(sal)}\n`;
+      txt += `💵 Saldo Teórico: ${formatCurrency(fIni - sal)}\n`;
+      txt += `👁️ Efectivo Contado: ${formatCurrency(cont)}\n`;
+      txt += `⚖️ Diferencia: ${formatCurrency(dif)} ${Math.abs(dif) < 0.01 ? '✅ CUADRADA' : (dif > 0 ? '⚠️ SOBRANTE' : '❌ FALTANTE')}\n`;
+    } else {
+      const fIni = parseFloat(item.fondoInicial || 0);
+      const cobEfec = parseFloat(item.ingresos?.totales?.efectivo || 0);
+      const cobDig = parseFloat((item.ingresos?.totales?.transferencia || 0) + (item.ingresos?.totales?.tarjeta || 0));
+      const ent = parseFloat(item.resumen?.totalEntregado ?? item.resumenFinal?.totalEntregado ?? 0);
+      const esp = parseFloat(item.conciliacion?.efectivoEsperado || (fIni + cobEfec - ent));
+      const cont = parseFloat(item.conteo?.total || 0);
+      const dif = parseFloat(item.conciliacion?.diferencia ?? (cont - esp)) || 0;
+      const dest = item.destinoEfectivo || 'se_queda_en_caja';
+      let destTxt = 'Se queda en caja como fondo inicial';
+      if (dest === 'se_guarda_en_sobre') destTxt = `En sobre con folio ${item.folioSobre || 'N/A'}`;
+      if (dest === 'se_resguarda_otro') destTxt = `Resguardo en ${item.lugarResguardo || 'Otro'} (Folio ${item.folioResguardo || 'N/A'})`;
+
+      txt += `🧾 *CORTE DE CAJA #${cNum}*\n`;
+      txt += `📅 Fecha: ${fecha} ${hora ? ('(' + hora + ')') : ''}\n`;
+      txt += `👤 Responsable: ${responsable}\n`;
+      txt += `🏷️ Folio: ${ticketId}\n`;
+      txt += `---------------------------------\n`;
+      txt += `💰 Fondo Inicial: ${formatCurrency(fIni)}\n`;
+      txt += `💵 Cobros Efectivo: ${formatCurrency(cobEfec)}\n`;
+      if (cobDig > 0) txt += `💳 Cobros Transf/Tarjeta: ${formatCurrency(cobDig)}\n`;
+      if (ent > 0) txt += `📤 Entregas Realizadas: -${formatCurrency(ent)}\n`;
+      txt += `---------------------------------\n`;
+      txt += `🎯 Efectivo Esperado: ${formatCurrency(esp)}\n`;
+      txt += `👁️ Conteo Físico Real: ${formatCurrency(cont)}\n`;
+      txt += `⚖️ Diferencia: ${formatCurrency(dif)} ${Math.abs(dif) < 0.01 ? '✅ CUADRADA' : (dif > 0 ? '⚠️ SOBRANTE' : '❌ FALTANTE')}\n`;
+      txt += `---------------------------------\n`;
+      txt += `📍 Destino Efectivo: ${destTxt}\n`;
+    }
+    txt += `---------------------------------\n`;
+    txt += `_Total Beauty • Sistema Seguro de Caja_`;
+    return txt;
+  }
+
+  function renderTicketHTML(item, isChica, key) {
+    if (!item) return '<div style="color:#ffffff; text-align:center; padding:20px;">No hay información disponible</div>';
+
+    const fecha = item.header?.fecha || item.fecha || getHidalgoDateStr();
+    const hora = item.header?.hora || item.hora || '';
+    const responsable = item.header?.responsable || item.validacion?.responsable || item.responsable || 'Responsable de Caja';
+    const cNum = item.corteNum || 1;
+    const ticketId = key || item.corteId || item.id || `TB-${Date.now().toString(36).toUpperCase()}`;
+
+    let html = `
+    <div class="tb-ticket-container" id="printable-ticket-content">
+      <!-- Header -->
+      <div class="tb-ticket-header">
+        <img src="assets/logoheader.png" alt="Total Beauty" class="tb-ticket-logo" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+        <h2 class="tb-ticket-brand">TOTAL BEAUTY</h2>
+        <div class="tb-ticket-subbrand">SALÓN &bull; ACADEMY</div>
+        <div class="tb-ticket-pill-type">${isChica ? 'ARQUEO DE CAJA CHICA' : ('CORTE DE CAJA #' + cNum)}</div>
+      </div>
+
+      <!-- Body -->
+      <div class="tb-ticket-body">
+        <!-- Metadata -->
+        <div class="tb-ticket-meta">
+          <div class="tb-ticket-meta-row">
+            <span class="tb-ticket-meta-label">📅 Fecha y Hora:</span>
+            <span class="tb-ticket-meta-val">${formatDateDisplay(fecha)} ${hora ? ('&bull; ' + hora) : ''}</span>
+          </div>
+          <div class="tb-ticket-meta-row">
+            <span class="tb-ticket-meta-label">👤 Responsable:</span>
+            <span class="tb-ticket-meta-val">${escapeHtml(responsable)}</span>
+          </div>
+          <div class="tb-ticket-meta-row">
+            <span class="tb-ticket-meta-label">🏷️ Folio Corte:</span>
+            <span class="tb-ticket-folio-badge">${escapeHtml(ticketId)}</span>
+          </div>
+        </div>
+    `;
+
+    if (isChica) {
+      // CAJA CHICA TICKET
+      const fondoInicial = parseFloat(item.fondoInicial || item.conciliacion?.fondo || 0) || 0;
+      const totalSalidas = parseFloat(item.totalSalidas || item.conciliacion?.salidas || 0) || 0;
+      const saldoEsperado = parseFloat(item.saldoEsperado || item.conciliacion?.saldoEsperado || (fondoInicial - totalSalidas)) || 0;
+      const contado = parseFloat(item.conteoTotal || item.conciliacion?.contado || 0) || 0;
+      const dif = parseFloat(item.diferencia ?? item.conciliacion?.diferencia ?? (contado - saldoEsperado)) || 0;
+      const res = item.conciliacion?.resultado || (Math.abs(dif) < 0.01 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
+
+      let statusBadge = '';
+      if (res === 'cuadrada' || Math.abs(dif) < 0.01) {
+        statusBadge = '<div class="tb-ticket-status-badge tb-ticket-status-cuadrada">✅ CAJA CHICA CUADRADA ($0.00)</div>';
+      } else if (res === 'sobrante' || dif > 0) {
+        statusBadge = `<div class="tb-ticket-status-badge tb-ticket-status-sobrante">⚠️ SOBRANTE: +${formatCurrency(dif)}</div>`;
+      } else {
+        statusBadge = `<div class="tb-ticket-status-badge tb-ticket-status-faltante">❌ FALTANTE: -${formatCurrency(Math.abs(dif))}</div>`;
+      }
+
+      html += statusBadge;
+
+      // Resumen Financiero
+      html += `
+        <div class="tb-ticket-section-title"><span>💵</span> Conciliación de Caja Chica</div>
+        <div class="tb-ticket-row">
+          <span>Fondo Asignado Caja Chica:</span>
+          <span class="tb-ticket-amount">${formatCurrency(fondoInicial)}</span>
+        </div>
+        <div class="tb-ticket-row" style="color:#b91c1c;">
+          <span>(-) Total Salidas y Gastos:</span>
+          <span class="tb-ticket-amount">-${formatCurrency(totalSalidas)}</span>
+        </div>
+        <div class="tb-ticket-row bold" style="border-top:1px dashed #cbd5e1; padding-top:6px;">
+          <span>(=) Saldo Teórico en Caja:</span>
+          <span class="tb-ticket-amount">${formatCurrency(saldoEsperado)}</span>
+        </div>
+        <div class="tb-ticket-row bold total-highlight">
+          <span>(👁️) Efectivo Físico Contado:</span>
+          <span class="tb-ticket-amount" style="color:#15803d;">${formatCurrency(contado)}</span>
+        </div>
+        <div class="tb-ticket-row bold">
+          <span>Diferencia Final:</span>
+          <span class="tb-ticket-amount" style="color:${Math.abs(dif) < 0.01 ? '#15803d' : '#b91c1c'};">${formatCurrency(dif)}</span>
+        </div>
+        <hr class="tb-ticket-divider">
+      `;
+
+      // Detalle de Salidas (si las hay)
+      const salidas = item.salidas || [];
+      if (salidas.length > 0) {
+        html += `<div class="tb-ticket-section-title"><span>🧾</span> Salidas Registradas (${salidas.length})</div>`;
+        html += `<table class="tb-ticket-table"><thead><tr><th>Concepto</th><th style="text-align:right;">Monto</th></tr></thead><tbody>`;
+        salidas.forEach((s) => {
+          html += `<tr>
+            <td>
+              <div style="font-weight:700;">${escapeHtml(s.concepto || 'Gasto')}</div>
+              <div style="font-size:0.72rem; color:#64748b;">${s.comprobante ? escapeHtml(s.comprobante) : ''} ${s.folio ? ('[' + escapeHtml(s.folio) + ']') : ''}</div>
+            </td>
+            <td style="text-align:right; font-weight:700; color:#b91c1c;">${formatCurrency(s.importe || 0)}</td>
+          </tr>`;
+        });
+        html += `</tbody></table><hr class="tb-ticket-divider">`;
+      }
+
+      // Detalle Conteo Físico
+      const denoms = formatDenominationsSummary(item.conteo);
+      if (denoms) {
+        html += `<div class="tb-ticket-section-title"><span>🪙</span> Conteo Físico Desglosado</div>
+        <div style="font-size:0.78rem; background:#f8fafc; padding:8px 10px; border-radius:8px; line-height:1.45; border:1px solid #e2e8f0; margin-bottom:12px;">
+          ${denoms}
+        </div>`;
+      }
+
+    } else {
+      // CAJA PRINCIPAL TICKET
+      const fondoInicial = parseFloat(item.fondoInicial || item.conciliacion?.fondoInicial || item.conciliacion?.fondo || 0) || 0;
+      const cobrosEfectivo = parseFloat(item.ingresos?.totales?.efectivo || item.conciliacion?.ingresosEfectivo || item.resumen?.cobrosEfectivo || 0) || 0;
+      const cobrosTransf = parseFloat(item.ingresos?.totales?.transferencia || item.conciliacion?.ingresosTransferencia || 0) || 0;
+      const cobrosTarjeta = parseFloat(item.ingresos?.totales?.tarjeta || item.conciliacion?.ingresosTarjeta || 0) || 0;
+      const cobrosTotal = parseFloat(item.ingresos?.totales?.granTotal || item.resumen?.totalIngresos || (cobrosEfectivo + cobrosTransf + cobrosTarjeta)) || 0;
+      
+      const entregas = parseFloat(item.resumen?.totalEntregado ?? item.resumenFinal?.totalEntregado ?? item.conciliacion?.entregas ?? item.conciliacion?.retiros ?? 0) || 0;
+      const esperado = parseFloat(item.conciliacion?.efectivoEsperado || (fondoInicial + cobrosEfectivo - entregas)) || 0;
+      const contado = parseFloat(item.conteo?.total || item.conciliacion?.contado || 0) || 0;
+      const dif = parseFloat(item.conciliacion?.diferencia ?? (contado - esperado)) || 0;
+      const res = item.conciliacion?.resultado || (Math.abs(dif) < 0.01 ? 'cuadrada' : (dif > 0 ? 'sobrante' : 'faltante'));
+
+      let statusBadge = '';
+      if (res === 'cuadrada' || Math.abs(dif) < 0.01) {
+        statusBadge = '<div class="tb-ticket-status-badge tb-ticket-status-cuadrada">✅ CAJA CUADRADA ($0.00)</div>';
+      } else if (res === 'sobrante' || dif > 0) {
+        statusBadge = `<div class="tb-ticket-status-badge tb-ticket-status-sobrante">⚠️ SOBRANTE: +${formatCurrency(dif)}</div>`;
+      } else {
+        statusBadge = `<div class="tb-ticket-status-badge tb-ticket-status-faltante">❌ FALTANTE: -${formatCurrency(Math.abs(dif))}</div>`;
+      }
+
+      html += statusBadge;
+
+      // Conciliación de Efectivo
+      html += `
+        <div class="tb-ticket-section-title"><span>💵</span> Conciliación de Efectivo</div>
+        <div class="tb-ticket-row">
+          <span>Fondo Inicial en Caja:</span>
+          <span class="tb-ticket-amount">${formatCurrency(fondoInicial)}</span>
+        </div>
+        <div class="tb-ticket-row" style="color:#15803d;">
+          <span>(+) Cobros Efectivo en Corte:</span>
+          <span class="tb-ticket-amount">+${formatCurrency(cobrosEfectivo)}</span>
+        </div>
+      `;
+      if (entregas > 0.005) {
+        html += `
+        <div class="tb-ticket-row" style="color:#b91c1c;">
+          <span>(-) Entregas Realizadas:</span>
+          <span class="tb-ticket-amount">-${formatCurrency(entregas)}</span>
+        </div>
+        `;
+      }
+      html += `
+        <div class="tb-ticket-row bold" style="border-top:1px dashed #cbd5e1; padding-top:6px;">
+          <span>(=) Efectivo Esperado en Caja:</span>
+          <span class="tb-ticket-amount">${formatCurrency(esperado)}</span>
+        </div>
+        <div class="tb-ticket-row bold total-highlight">
+          <span>(👁️) Conteo Físico Real:</span>
+          <span class="tb-ticket-amount" style="color:#15803d;">${formatCurrency(contado)}</span>
+        </div>
+        <div class="tb-ticket-row bold">
+          <span>Diferencia de Caja:</span>
+          <span class="tb-ticket-amount" style="color:${Math.abs(dif) < 0.01 ? '#15803d' : '#b91c1c'};">${formatCurrency(dif)}</span>
+        </div>
+        <hr class="tb-ticket-divider">
+      `;
+
+      // Destino del Dinero
+      const dest = item.destinoEfectivo || item.validacion?.destinoEfectivo || 'se_queda_en_caja';
+      const montoQueda = parseFloat(item.montoQuedaEnCaja || contado) || 0;
+      const montoEntregaDest = parseFloat(item.montoEntregado || item.validacion?.importeEntregado || 0) || 0;
+
+      if (dest === 'se_guarda_en_sobre') {
+        html += `
+          <div class="tb-ticket-destino-box tb-ticket-destino-sobre">
+            <div style="font-weight:800; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+              <span>✉️</span> Destino: Se Guarda en Sobre
+            </div>
+            <div style="margin-top:4px;">
+              Folio Sobre: <strong class="tb-ticket-folio-badge">${escapeHtml(item.folioSobre || 'N/A')}</strong>
+              &bull; Importe: <strong>${formatCurrency(montoEntregaDest || contado)}</strong>
+            </div>
+            <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">El efectivo sale de caja para resguardo en sobre oficial.</div>
+          </div>
+        `;
+      } else if (dest === 'se_resguarda_otro') {
+        html += `
+          <div class="tb-ticket-destino-box tb-ticket-destino-resguardo">
+            <div style="font-weight:800; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+              <span>🏦</span> Destino: Resguardo Externo
+            </div>
+            <div style="margin-top:4px;">
+              Lugar: <strong>${escapeHtml(item.lugarResguardo || 'Especificado')}</strong> &bull; Folio: <strong class="tb-ticket-folio-badge">${escapeHtml(item.folioResguardo || 'N/A')}</strong>
+            </div>
+            <div>Importe: <strong>${formatCurrency(montoEntregaDest || contado)}</strong></div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="tb-ticket-destino-box tb-ticket-destino-caja">
+            <div style="font-weight:800; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+              <span>💵</span> Destino: Se Queda en Caja
+            </div>
+            <div style="margin-top:4px;">
+              Importe Base que Permanece: <strong>${formatCurrency(montoQueda)}</strong>
+            </div>
+            <div style="font-size:0.75rem; color:#166534; margin-top:2px;">Pasa íntegramente como Fondo Inicial para el siguiente turno o día.</div>
+          </div>
+        `;
+      }
+
+      // Detalle de Conteo Billetes y Monedas
+      const denoms = formatDenominationsSummary(item.conteo);
+      if (denoms) {
+        html += `
+          <div class="tb-ticket-section-title"><span>🪙</span> Conteo Físico Desglosado</div>
+          <div style="font-size:0.78rem; background:#f8fafc; padding:8px 10px; border-radius:8px; line-height:1.45; border:1px solid #e2e8f0; margin-bottom:12px;">
+            ${denoms}
+          </div>
+        `;
+      }
+
+      // Resumen Global de Cobros (Efectivo, Tarjeta, Transferencia)
+      html += `
+        <div class="tb-ticket-section-title"><span>💳</span> Resumen Global de Cobros</div>
+        <div class="tb-ticket-row">
+          <span>Cobros Efectivo:</span>
+          <span class="tb-ticket-amount">${formatCurrency(cobrosEfectivo)}</span>
+        </div>
+        <div class="tb-ticket-row">
+          <span>Cobros Transferencia:</span>
+          <span class="tb-ticket-amount">${formatCurrency(cobrosTransf)}</span>
+        </div>
+        <div class="tb-ticket-row">
+          <span>Cobros Tarjeta:</span>
+          <span class="tb-ticket-amount">${formatCurrency(cobrosTarjeta)}</span>
+        </div>
+        <div class="tb-ticket-row bold" style="background:#f8fafc; padding:6px 8px; border-radius:6px; margin-top:4px;">
+          <span>Total Ventas Cobradas en Corte:</span>
+          <span class="tb-ticket-amount" style="color:#0f172a;">${formatCurrency(cobrosTotal)}</span>
+        </div>
+        <hr class="tb-ticket-divider">
+      `;
+
+      // Desglose por Concepto
+      const srvTot = parseFloat(item.ingresos?.desglose?.servicios || item.resumen?.serviciosTotal || 0) || 0;
+      const curTot = parseFloat(item.ingresos?.desglose?.cursos || item.resumen?.cursosTotal || 0) || 0;
+      const prdTot = parseFloat(item.ingresos?.desglose?.productos || item.resumen?.productosTotal || 0) || 0;
+
+      if (srvTot > 0 || curTot > 0 || prdTot > 0) {
+        html += `
+          <div class="tb-ticket-section-title"><span>🏷️</span> Ventas por Categoría</div>
+          <div class="tb-ticket-row"><span>Servicios del Salón:</span><span class="tb-ticket-amount">${formatCurrency(srvTot)}</span></div>
+          <div class="tb-ticket-row"><span>Cursos y Academia:</span><span class="tb-ticket-amount">${formatCurrency(curTot)}</span></div>
+          <div class="tb-ticket-row"><span>Venta de Productos:</span><span class="tb-ticket-amount">${formatCurrency(prdTot)}</span></div>
+          <hr class="tb-ticket-divider">
+        `;
+      }
+    }
+
+    // Observaciones o notas
+    const obs = item.validacion?.observacion || item.observaciones || item.conciliacion?.explicacion;
+    if (obs && obs.trim()) {
+      html += `
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; margin-bottom:12px; font-size:0.78rem;">
+          <strong style="color:#92400e;">Observaciones / Justificación:</strong>
+          <div style="color:#78350f; margin-top:3px;">${escapeHtml(obs)}</div>
+        </div>
+      `;
+    }
+
+    // Firma del Responsable
+    const firmaImg = item.validacion?.firmaBase64 || item.firmaBase64;
+    html += `
+      <div class="tb-ticket-signature-wrap">
+        ${firmaImg ? `<img src="${firmaImg}" class="tb-ticket-signature-img" alt="Firma Responsable">` : '<div style="height:35px; border-bottom:1px solid #cbd5e1; width:150px; margin:0 auto 4px auto;"></div>'}
+        <div class="tb-ticket-signature-name">${escapeHtml(responsable)}</div>
+        <div class="tb-ticket-signature-sub">Firma de Responsabilidad y Conformidad</div>
+      </div>
+    `;
+
+    // Footer del Ticket
+    html += `
+      </div>
+      <div class="tb-ticket-footer">
+        <div><strong>TOTAL BEAUTY SALON &amp; ACADEMY</strong></div>
+        <div>Corte sincronizado y protegido en Firebase Realtime Database</div>
+        <div style="margin-top:4px; font-size:0.68rem; color:#94a3b8;">Tecnología Antigravity &bull; Comprobante Oficial de Caja</div>
+      </div>
+    </div>
+    `;
+
+    return html;
+  }
+
+
   // =========================================================================
-  // CONTROLADOR DEL VISOR DE REPORTES PDF Y DESCARGA OFICIAL
+  // 5. MÓDULO HISTORIAL (CON TICKET DIGITAL ORDENADO PARA CAPTURA)
   // =========================================================================
   let activeViewingReport = null;
 
-  function openReportPdfViewer(item, isChica, key) {
+  function openReportTicketViewer(item, isChica, key) {
     if (!item) {
-      showToast('No se encontraron datos del reporte', 'warning');
+      showToast('No se encontraron datos del comprobante', 'warning');
       return;
     }
     const fecha = item.header?.fecha || item.fecha || 'Sin fecha';
     const resp = item.header?.responsable || item.validacion?.responsable || 'Sin asignar';
     const tipoLabel = isChica ? 'Caja Chica' : 'Caja Principal';
+    const cNum = item.corteNum || 1;
+
+    activeViewingReport = { item, isChica, key };
 
     logAuditMovement({
       modulo: 'Historial Arqueo',
-      accion: 'VISUALIZAR_PDF',
-      descripcion: `Visualización de reporte oficial PDF: ${tipoLabel} (${fecha}) por ${resp}`,
+      accion: 'VISUALIZAR_TICKET',
+      descripcion: `Visualización de ticket oficial: ${tipoLabel} (${fecha}) por ${resp}`,
       payload: { key, isChica, fecha, responsable: resp },
       reversible: false
     });
@@ -2727,43 +3153,14 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const modal = document.getElementById('modal-view-pdf-report');
 
     if (modalTitle) {
-      modalTitle.innerHTML = `<span>📄</span> Reporte Oficial: Arqueo Diario de ${tipoLabel}`;
+      modalTitle.innerHTML = `<span>🧾</span> Ticket Oficial: ${isChica ? 'Caja Chica' : ('Corte #' + cNum)}`;
     }
     if (modalSub) {
-      modalSub.innerHTML = `📅 Fecha: <strong>${fecha}</strong> &bull; 👤 Responsable: <strong>${resp}</strong> &bull; 🏷️ Folio: <span style="font-family:monospace;">${key || 'N/A'}</span>`;
+      modalSub.innerHTML = `📅 <strong>${fecha}</strong> &bull; 👤 <strong>${resp}</strong>`;
     }
 
-    // Poblar la plantilla correspondiente y obtener nombre de archivo
-    const fileName = isChica ? populateChicaPrintable(item) : populatePrincipalPrintable(item);
-    activeViewingReport = { item, isChica, key, fileName };
-
-    // Clonar el reporte poblado en el contenedor de vista previa
-    const sourceEl = document.getElementById(isChica ? 'printable-report-chica' : 'printable-report');
-    if (sourceEl && previewContainer) {
-      previewContainer.innerHTML = '';
-      const clone = sourceEl.cloneNode(true);
-      clone.id = isChica ? 'viewer-clone-chica' : 'viewer-clone-principal';
-      clone.style.display = 'block';
-
-      // Permitir ver tickets si existen
-      clone.querySelectorAll('.btn-preview-ticket').forEach(btn => {
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          const b64 = btn.dataset.evidencia;
-          if (b64) {
-            const modalFoto = document.getElementById('modal-ver-foto');
-            const imgFull = document.getElementById('img-ver-foto-full');
-            const tit = document.getElementById('ver-foto-titulo');
-            const meta = document.getElementById('ver-foto-meta');
-            if (imgFull) imgFull.src = b64;
-            if (tit) tit.textContent = 'Comprobante / Ticket de Salida';
-            if (meta) meta.textContent = `Arqueo Caja Chica: ${fecha}`;
-            if (modalFoto) modalFoto.style.display = 'flex';
-          }
-        });
-      });
-
-      previewContainer.appendChild(clone);
+    if (previewContainer) {
+      previewContainer.innerHTML = renderTicketHTML(item, isChica, key);
     }
 
     if (modal) {
@@ -2772,6 +3169,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
       if (body) body.scrollTop = 0;
     }
   }
+
+  // Compatibilidad con invocaciones existentes
+  const openReportPdfViewer = openReportTicketViewer;
 
   function closeReportPdfModal() {
     const modal = document.getElementById('modal-view-pdf-report');
@@ -2855,13 +3255,21 @@ function getHidalgoIsoString(dateObj = new Date()) {
   async function loadHistorial(filterDate = null) {
     const container = document.getElementById('history-grid-container');
     const emptyState = document.getElementById('historial-empty-state');
-    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--muted);">Cargando de Firebase...</div>';
+    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px;"><div class="tb-inline-spinner">Cargando reportes de Firebase...</div></div>';
 
+    showGlobalLoader('Cargando Reportes...', 'Consultando historial en Firebase Cloud...');
     let list = {};
-    if (currentHistTipo === 'principal') {
-      list = await TB_FIREBASE.getArqueosList();
-    } else {
-      list = await TB_FIREBASE.getArqueosChicaList();
+    try {
+      if (currentHistTipo === 'principal') {
+        list = await TB_FIREBASE.getArqueosList();
+      } else {
+        list = await TB_FIREBASE.getArqueosChicaList();
+      }
+    } catch (err) {
+      console.error('Error al cargar historial:', err);
+      showToast('Error al consultar historial de Firebase', 'error');
+    } finally {
+      hideGlobalLoader(250);
     }
 
     const keys = Object.keys(list).sort().reverse();
@@ -2882,7 +3290,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       card.style.cursor = 'pointer';
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.title = 'Haga clic para ver y descargar el PDF oficial completo de este arqueo';
+      card.title = 'Haga clic para ver el ticket digital de este arqueo';
 
       const resBadgeClass = item.conciliacion?.resultado === 'cuadrada' ? 'badge-cuadrada' :
                             (item.conciliacion?.resultado === 'sobrante' ? 'badge-sobrante' : 'badge-faltante');
@@ -2920,7 +3328,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
           <div class="history-card-action" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:0.75rem; color:#64748b; font-family:monospace;">🔑 ${k}</span>
             <span class="btn btn-sm btn-firebase" style="padding:4px 12px; font-size:0.8rem; pointer-events:none; display:inline-flex; align-items:center; gap:5px;">
-              <span>📄</span> Ver PDF Oficial
+              <span>🧾</span> Ver Ticket Digital
             </span>
           </div>
         `;
@@ -2942,7 +3350,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
           <div class="history-card-action" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:0.75rem; color:#64748b; font-family:monospace;">🔑 ${k}</span>
             <span class="btn btn-sm btn-firebase" style="padding:4px 12px; font-size:0.8rem; pointer-events:none; display:inline-flex; align-items:center; gap:5px;">
-              <span>📄</span> Ver PDF Oficial
+              <span>🧾</span> Ver Ticket Digital
             </span>
           </div>
         `;
@@ -4243,36 +4651,73 @@ function getHidalgoIsoString(dateObj = new Date()) {
   }
 
   function openIngresosPdfViewer() {
-    const fileName = populateIngresosPrintable();
     const fIn = document.getElementById('rep_ingresos_fecha');
     const fecha = fIn?.value || getHidalgoDateStr();
     const userEmail = TB_FIREBASE.getCurrentUser()?.email || 'Administración Total Beauty';
+    const totIng = document.getElementById('kpi-ingreso-total')?.textContent || '$0.00';
+    const efecTot = document.getElementById('kpi-ingreso-efectivo')?.textContent || '$0.00';
+    const transfTot = document.getElementById('kpi-ingreso-transferencia')?.textContent || '$0.00';
+    const tarjTot = document.getElementById('kpi-ingreso-tarjeta')?.textContent || '$0.00';
+    const srvTot = document.getElementById('kpi-ingreso-servicios')?.textContent || '$0.00';
+    const curTot = document.getElementById('kpi-ingreso-cursos')?.textContent || '$0.00';
+    const prdTot = document.getElementById('kpi-ingreso-productos')?.textContent || '$0.00';
+
+    const item = {
+      isIngresos: true,
+      fecha,
+      responsable: userEmail,
+      ingresos: {
+        totales: { granTotal: totIng, efectivo: efecTot, transferencia: transfTot, tarjeta: tarjTot }
+      }
+    };
+    activeViewingReport = { isIngresos: true, isChica: false, item, key: 'ING-' + fecha };
 
     const modalTitle = document.getElementById('pdf-modal-title');
     const modalSub = document.getElementById('pdf-modal-subtitle');
     const previewContainer = document.getElementById('pdf-preview-container');
     const modal = document.getElementById('modal-view-pdf-report');
 
-    if (modalTitle) modalTitle.innerHTML = '<span>📄</span> Reporte Oficial: Ingresos Diarios y Academia';
-    if (modalSub) modalSub.innerHTML = `📅 Fecha: <strong>${formatDateDisplay(fecha)}</strong> &bull; 👤 Generó: <strong>${userEmail}</strong> &bull; 🏷️ Total: <strong>${document.getElementById('kpi-ingreso-total')?.textContent || '$0.00'}</strong>`;
+    if (modalTitle) modalTitle.innerHTML = '<span>🧾</span> Ticket: Ingresos Diarios';
+    if (modalSub) modalSub.innerHTML = `📅 <strong>${formatDateDisplay(fecha)}</strong> &bull; Total: <strong>${totIng}</strong>`;
 
-    activeViewingReport = { isIngresos: true, isChica: false, item: null, fileName, fecha };
-
-    logAuditMovement({
-      modulo: 'Reporte Ingresos',
-      accion: 'VISUALIZAR_PDF',
-      descripcion: `Visualización de reporte oficial PDF: Ingresos Diarios y Academia (${fecha}) por ${userEmail}`,
-      payload: { fileName, fecha },
-      reversible: false
-    });
-
-    const sourceEl = document.getElementById('printable-report-ingresos');
-    if (sourceEl && previewContainer) {
-      previewContainer.innerHTML = '';
-      const clone = sourceEl.cloneNode(true);
-      clone.id = 'viewer-clone-ingresos';
-      clone.style.display = 'block';
-      previewContainer.appendChild(clone);
+    if (previewContainer) {
+      previewContainer.innerHTML = `
+        <div class="tb-ticket-container" id="printable-ticket-content">
+          <div class="tb-ticket-header">
+            <img src="assets/logoheader.png" alt="Total Beauty" class="tb-ticket-logo" onerror="this.src=TOTAL_BEAUTY_LOGO_BASE64">
+            <h2 class="tb-ticket-brand">TOTAL BEAUTY</h2>
+            <div class="tb-ticket-subbrand">SALÓN &bull; ACADEMY</div>
+            <div class="tb-ticket-pill-type">REPORTE DIARIO DE INGRESOS</div>
+          </div>
+          <div class="tb-ticket-body">
+            <div class="tb-ticket-meta">
+              <div class="tb-ticket-meta-row"><span class="tb-ticket-meta-label">📅 Fecha:</span><span class="tb-ticket-meta-val">${formatDateDisplay(fecha)}</span></div>
+              <div class="tb-ticket-meta-row"><span class="tb-ticket-meta-label">👤 Generó:</span><span class="tb-ticket-meta-val">${escapeHtml(userEmail)}</span></div>
+              <div class="tb-ticket-meta-row"><span class="tb-ticket-meta-label">🏷️ Clave:</span><span class="tb-ticket-folio-badge">ING-${fecha}</span></div>
+            </div>
+            <div class="tb-ticket-status-badge tb-ticket-status-cuadrada">
+              💰 GRAN TOTAL INGRESOS: ${totIng}
+            </div>
+            <div class="tb-ticket-section-title"><span>💳</span> Por Método de Pago</div>
+            <div class="tb-ticket-row"><span>Efectivo:</span><span class="tb-ticket-amount">${efecTot}</span></div>
+            <div class="tb-ticket-row"><span>Transferencias:</span><span class="tb-ticket-amount">${transfTot}</span></div>
+            <div class="tb-ticket-row"><span>Tarjetas:</span><span class="tb-ticket-amount">${tarjTot}</span></div>
+            <hr class="tb-ticket-divider">
+            <div class="tb-ticket-section-title"><span>🏷️</span> Por Unidad de Negocio</div>
+            <div class="tb-ticket-row"><span>Servicios del Salón:</span><span class="tb-ticket-amount">${srvTot}</span></div>
+            <div class="tb-ticket-row"><span>Cursos y Academia:</span><span class="tb-ticket-amount">${curTot}</span></div>
+            <div class="tb-ticket-row"><span>Venta de Productos:</span><span class="tb-ticket-amount">${prdTot}</span></div>
+            <hr class="tb-ticket-divider">
+            <div style="font-size:0.75rem; color:#64748b; text-align:center; padding:4px 0;">
+              Total Beauty Portal Oficial &bull; Reporte en tiempo real
+            </div>
+          </div>
+          <div class="tb-ticket-footer">
+            <div><strong>TOTAL BEAUTY SALON &amp; ACADEMY</strong></div>
+            <div>Sistema Administrativo Sincronizado en Firebase</div>
+          </div>
+        </div>
+      `;
     }
 
     if (modal) {
@@ -6876,7 +7321,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
           </div>
           <div style="display:flex; justify-content:flex-end;">
             <button type="button" class="btn btn-firebase btn-sm btn-view-corte-pdf" style="font-size:0.78rem; padding:4px 10px; font-weight:700;">
-              📄 Ver PDF Oficial
+              🧾 Ver Ticket
             </button>
           </div>
         `;
@@ -7061,6 +7506,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         return;
       }
 
+      showGlobalLoader('Registrando Entrega...', 'Descontando de caja y guardando comprobante...');
       showToast('Guardando entrega de dinero...', 'info');
       const curUser = TB_FIREBASE.getCurrentUser();
       const hDate = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
@@ -7253,8 +7699,25 @@ function getHidalgoIsoString(dateObj = new Date()) {
       if (e.target === modalViewPdf) closeReportPdfModal();
     });
     document.getElementById('btn-close-pdf-modal')?.addEventListener('click', closeReportPdfModal);
-    document.getElementById('btn-download-modal-pdf')?.addEventListener('click', downloadPdfFromViewer);
-    document.getElementById('btn-print-modal-pdf')?.addEventListener('click', printPdfFromViewer);
+    document.getElementById('btn-copy-ticket-whatsapp')?.addEventListener('click', () => {
+      if (!activeViewingReport?.item) return;
+      const txt = buildWhatsAppTicketSummary(activeViewingReport.item, activeViewingReport.isChica, activeViewingReport.key);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(() => {
+          showToast('📋 ¡Resumen copiado! Listo para pegar en WhatsApp', 'success');
+        }).catch(() => {
+          showToast('No se pudo copiar automáticamente al portapapeles', 'warning');
+        });
+      } else {
+        showToast('📋 Portapapeles no soportado en este dispositivo', 'warning');
+      }
+    });
+    document.getElementById('btn-download-modal-pdf')?.addEventListener('click', () => {
+      showToast('Función PDF eliminada. Use la opción de Captura o WhatsApp.', 'info');
+    });
+    document.getElementById('btn-print-modal-pdf')?.addEventListener('click', () => {
+      window.print();
+    });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && modalViewPdf && modalViewPdf.style.display !== 'none') {
         closeReportPdfModal();
@@ -9982,6 +10445,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
 
     async function onLoginSuccess(user, isFreshLogin = false) {
+      showGlobalLoader('Iniciando Sesión...', 'Validando credenciales y permisos...');
       const email = (user.email || '').toLowerCase().trim();
 
       // 1. CARGA INMEDIATA DE ROLES Y PERMISOS DESDE MEMORIA / LOCALSTORAGE
@@ -10041,6 +10505,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       const savedMod = localStorage.getItem('tb_active_module');
 
       if (isFreshLogin) {
+        hideGlobalLoader(300);
         openModuleLauncher();
       } else {
         let targetMod = savedMod;
@@ -10203,14 +10668,16 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     // Botones para abrir y cerrar el Menú de Selección de Módulos
     document.getElementById('btn-open-module-launcher')?.addEventListener('click', () => {
-      openModuleLauncher();
+      hideGlobalLoader(300);
+        openModuleLauncher();
     });
 
     document.getElementById('sidebar-launcher-link')?.addEventListener('click', (e) => {
       e.preventDefault();
       document.getElementById('app-sidebar')?.classList.remove('open');
       document.getElementById('sidebar-backdrop')?.classList.remove('active');
-      openModuleLauncher();
+      hideGlobalLoader(300);
+        openModuleLauncher();
     });
 
     document.getElementById('btn-close-launcher')?.addEventListener('click', () => {
