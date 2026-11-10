@@ -1426,11 +1426,14 @@ function getHidalgoIsoString(dateObj = new Date()) {
     }
 
     // Conciliación Caja Principal:
-    // Efectivo esperado = (Fondo inicial + Ingresos en efectivo) - Entregas realizadas en este corte
+    // fCaja representa el fondo neto actual en caja física (ya descontadas las entregas realizadas)
     const today = (document.getElementById('header_fecha')?.value || getHidalgoDateStr());
     const entregasCorte = getEntregasDelCorte(today);
     const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
 
+    // En la tabla de conciliación, mostrar la base con la que inició el corte antes de las entregas
+    const fondoInicialAntesEntregas = fCaja + totalEntregadoCorte;
+    setDisplay('concil_fondo_inicial', fondoInicialAntesEntregas);
     setDisplay('concil_ingresos_efectivo', totEfec);
     setDisplay('concil_total_entregas', totalEntregadoCorte);
     setDisplay('concil_efectivo_contado', totalContado);
@@ -1440,7 +1443,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       lblBadgeEnt.textContent = '(-) ' + entregasCorte.length + (entregasCorte.length === 1 ? ' entrega' : ' entregas');
     }
 
-    const esperado = Math.max(0, (fCaja + totEfec) - totalEntregadoCorte);
+    const esperado = Math.max(0, fCaja + totEfec);
     setDisplay('concil_efectivo_esperado', esperado);
 
     const diferencia = totalContado - esperado;
@@ -4836,19 +4839,23 @@ function getHidalgoIsoString(dateObj = new Date()) {
     },
     'Encargado de Caja': {
       nombre: 'Encargado de Caja',
-      modulos: ['arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'mi-meta', 'ingresos']
+      modulos: ['arqueo-principal', 'arqueo-chica', 'historial', 'ventas', 'mi-meta']
     },
     'Recepción y Ventas': {
       nombre: 'Recepción y Ventas',
-      modulos: ['ventas', 'mi-meta', 'ingresos', 'interesadas']
+      modulos: ['ventas', 'mi-meta', 'interesadas']
     },
     'Ventas y Crecimiento': {
       nombre: 'Ventas y Crecimiento',
       modulos: ['ventas', 'mi-meta', 'balancescore', 'interesadas', 'campana']
     },
+    'Especialista': {
+      nombre: 'Especialista',
+      modulos: ['ventas', 'mi-meta']
+    },
     'Personalizado': {
       nombre: 'Personalizado',
-      modulos: ['mi-meta']
+      modulos: ['ventas', 'mi-meta']
     }
   };
 
@@ -5788,19 +5795,22 @@ function getHidalgoIsoString(dateObj = new Date()) {
     try {
       controlCajaData = await TB_FIREBASE.getControlCaja();
       
-      // Si el fondo base nunca ha sido definido o es 0, consultar el último corte global cerrado
-      const valFondo = parseFloat(controlCajaData.fondoBase);
-      if (isNaN(valFondo) || valFondo === 0) {
+      // Si el fondo base nunca ha sido definido en Firebase ni LocalStorage (null o undefined), consultar el último corte global cerrado
+      if (controlCajaData.fondoBase === undefined || controlCajaData.fondoBase === null || isNaN(controlCajaData.fondoBase)) {
         const lastCorte = await TB_FIREBASE.getUltimoCorteGlobal();
         if (lastCorte) {
           const dest = lastCorte.destinoEfectivo || lastCorte.validacion?.destinoEfectivo;
           if (dest === 'se_queda_en_caja' || !dest) {
             const monto = parseFloat(lastCorte.montoQuedaEnCaja || lastCorte.conteo?.total || lastCorte.conciliacion?.contado || 0) || 0;
-            if (monto > 0) {
-              controlCajaData.fondoBase = monto;
-              await TB_FIREBASE.saveFondoBaseCaja(monto);
-            }
+            controlCajaData.fondoBase = monto;
+            await TB_FIREBASE.saveFondoBaseCaja(monto);
+          } else {
+            controlCajaData.fondoBase = 0;
+            await TB_FIREBASE.saveFondoBaseCaja(0);
           }
+        } else {
+          controlCajaData.fondoBase = 0;
+          await TB_FIREBASE.saveFondoBaseCaja(0);
         }
       }
 
@@ -5859,7 +5869,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     const cfgBase = (typeof controlCajaData.fondoBase === 'number' && !isNaN(controlCajaData.fondoBase)) ? controlCajaData.fondoBase : base;
 
-    if (inp && (!inp.value || inp.dataset.loaded !== 'true' || document.activeElement !== inp)) {
+    if (inp && (!inp.dataset.loaded || document.activeElement !== inp)) {
       inp.value = (typeof cfgBase === 'number' && !isNaN(cfgBase)) ? cfgBase.toFixed(2) : '0.00';
       inp.dataset.loaded = 'true';
     }
@@ -6309,7 +6319,28 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
       case 'ALTA_ARQUEO_PRINCIPAL':
         if (payload.arqueoKey) {
-          await TB_FIREBASE.deleteArqueo('principal', payload.arqueoKey);
+          const delRes = await TB_FIREBASE.deleteArqueo('principal', payload.arqueoKey);
+          const arqueoEliminado = delRes?.item || payload.data || {};
+          const fArqueo = arqueoEliminado.header?.fecha || arqueoEliminado.fecha || payload.fecha || getHidalgoDateStr();
+
+          // Restaurar el fondo base al valor previo a este corte
+          let fondoRestaurar = 0;
+          if (arqueoEliminado.fondoInicial !== undefined && arqueoEliminado.fondoInicial !== null && !isNaN(arqueoEliminado.fondoInicial)) {
+            fondoRestaurar = parseFloat(arqueoEliminado.fondoInicial) || 0;
+          } else {
+            const lastGlobal = await TB_FIREBASE.getUltimoCorteGlobal();
+            if (lastGlobal && lastGlobal.destinoEfectivo === 'se_queda_en_caja') {
+              fondoRestaurar = parseFloat(lastGlobal.montoQuedaEnCaja || lastGlobal.conteo?.total || 0) || 0;
+            }
+          }
+          await TB_FIREBASE.saveFondoBaseCaja(fondoRestaurar);
+          controlCajaData.fondoBase = fondoRestaurar;
+
+          // Sincronizar ventas del día y liberar las ventas que estaban contempladas en este corte
+          await syncVentasToCajaPrincipal(fArqueo, false);
+          await loadControlCajaData();
+          renderControlCajaFondo();
+          recalculatePrincipal();
           loadHistorial();
         }
         break;
@@ -6317,7 +6348,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
       case 'ALTA_ARQUEO_CHICA':
         if (payload.arqueoKey) {
           await TB_FIREBASE.deleteArqueo('chica', payload.arqueoKey);
+          await loadControlCajaData();
           loadHistorial();
+          recalculateChica();
         }
         break;
 
@@ -6968,10 +7001,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       if (dispEl) {
         const fBase = parseVal('f_inicial_caja');
         const vEfec = parseVal('ing_total_efectivo');
-        const today = document.getElementById('header_fecha')?.value || getHidalgoDateStr();
-        const entregasCorte = getEntregasDelCorte(today);
-        const totalEntregadoCorte = entregasCorte.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
-        const disp = Math.max(0, (fBase + vEfec) - totalEntregadoCorte);
+        const disp = Math.max(0, fBase + vEfec);
         dispEl.textContent = formatCurrency(disp);
       }
 
@@ -7054,15 +7084,24 @@ function getHidalgoIsoString(dateObj = new Date()) {
       controlCajaData.entregas[entrega.id] = entrega;
 
       await TB_FIREBASE.saveEntregaDinero(entrega);
+
+      // Descontar inmediatamente del Fondo Base en Firebase y memoria
+      const fondoActual = (typeof controlCajaData.fondoBase === 'number' && !isNaN(controlCajaData.fondoBase))
+        ? controlCajaData.fondoBase
+        : (parseFloat(document.getElementById('f_inicial_caja')?.value) || 0);
+      const nuevoFondo = Math.max(0, fondoActual - cantidad);
+      await TB_FIREBASE.saveFondoBaseCaja(nuevoFondo);
+      controlCajaData.fondoBase = nuevoFondo;
+
       logAuditMovement({
         modulo: 'Arqueo Principal',
         accion: 'ENTREGA_DINERO',
-        descripcion: 'Entrega de dinero en efectivo: $' + cantidad.toFixed(2) + ' a "' + recibe + '" por "' + concepto + '"',
-        payload: { entrega }
+        descripcion: 'Entrega de dinero en efectivo: $' + cantidad.toFixed(2) + ' a "' + recibe + '" por "' + concepto + '" - Nuevo fondo en caja: $' + nuevoFondo.toFixed(2),
+        payload: { entrega, fondoRestante: nuevoFondo }
       });
 
       document.getElementById('modal-entrega-dinero').style.display = 'none';
-      showToast('✅ Entrega de $' + cantidad.toFixed(2) + ' registrada y descontada de la caja', 'success');
+      showToast('✅ Entrega de $' + cantidad.toFixed(2) + ' registrada. Total en caja restante: $' + nuevoFondo.toFixed(2), 'success');
 
       renderControlCajaFondo();
       recalculatePrincipal();
@@ -7130,20 +7169,28 @@ function getHidalgoIsoString(dateObj = new Date()) {
         if (!autorizado) return;
 
         if (confirm('¿Está seguro de eliminar este registro de entrega de dinero? El importe volverá al fondo disponible de caja.')) {
+          const entregaItem = controlCajaData.entregas ? controlCajaData.entregas[id] : null;
+          const cantDevolver = entregaItem ? (parseFloat(entregaItem.cantidad) || 0) : 0;
+
           TB_FIREBASE.deleteEntregaDinero(id).then(async () => {
             if (controlCajaData.entregas && controlCajaData.entregas[id]) {
               delete controlCajaData.entregas[id];
+            }
+            if (cantDevolver > 0) {
+              const nuevoFondo = (parseFloat(controlCajaData.fondoBase) || 0) + cantDevolver;
+              await TB_FIREBASE.saveFondoBaseCaja(nuevoFondo);
+              controlCajaData.fondoBase = nuevoFondo;
             }
             await loadControlCajaData();
             renderControlCajaFondo();
             recalculatePrincipal();
             document.getElementById('btn-ver-entregas-hoy')?.click();
-            showToast('Entrega eliminada', 'info');
+            showToast('Entrega eliminada y $' + cantDevolver.toFixed(2) + ' devueltos a caja', 'info');
             logAuditMovement({
               modulo: 'Caja Principal',
               accion: 'ELIMINAR_ENTREGA_DINERO',
-              descripcion: `Eliminación de entrega de dinero: ID ${id}`,
-              payload: { id },
+              descripcion: `Eliminación de entrega de dinero: ID ${id} ($${cantDevolver.toFixed(2)}) reintegrado a caja`,
+              payload: { id, cantidad: cantDevolver },
               reversible: false
             });
           });
@@ -9162,7 +9209,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     const userCfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
     if (!userCfg) {
-      return ['ventas', 'mi-meta', 'ingresos', 'interesadas'].includes(modKey);
+      return ['ventas', 'mi-meta'].includes(modKey);
     }
     if (userCfg.isAdmin || userCfg.rol === 'Administrador') return true;
     return Array.isArray(userCfg.modulos) && userCfg.modulos.includes(modKey);
@@ -9187,9 +9234,9 @@ function getHidalgoIsoString(dateObj = new Date()) {
 
     const cfg = (roles || []).find(u => (u.email || '').toLowerCase().trim() === email);
     let allowed = [];
-    if (!cfg) allowed = ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
+    if (!cfg) allowed = ['ventas', 'mi-meta'];
     else if (cfg.isAdmin || cfg.rol === 'Administrador') allowed = [...ALL_MODULE_KEYS];
-    else allowed = Array.isArray(cfg.modulos) ? [...cfg.modulos] : ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
+    else allowed = Array.isArray(cfg.modulos) ? [...cfg.modulos] : ['ventas', 'mi-meta'];
 
     if (!allowed.includes('mi-meta')) {
       allowed.push('mi-meta');
@@ -9221,7 +9268,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
         nombre: isFran ? 'Francisco (Admin Principal)' : email.split('@')[0],
         rol: isFran ? 'Administrador' : 'Recepción y Ventas',
         isAdmin: isFran,
-        modulos: isFran ? [...ALL_MODULE_KEYS] : ['ventas', 'mi-meta', 'ingresos', 'interesadas'],
+        modulos: isFran ? [...ALL_MODULE_KEYS] : ['ventas', 'mi-meta', 'interesadas'],
         fechaAlta: new Date().toISOString(),
         ultimoAcceso: new Date().toISOString()
       };
@@ -9244,12 +9291,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
     const email = (userEmail || TB_FIREBASE.getCurrentUser()?.email || '').toLowerCase().trim();
     if (!email) {
       document.querySelectorAll('.sidebar-menu li').forEach(li => {
-        li.style.display = '';
-        li.classList.remove('menu-item-hidden');
+        li.style.display = 'none';
+        li.classList.add('menu-item-hidden');
       });
       document.querySelectorAll('.sidebar-menu-category').forEach(catLi => {
-        catLi.style.display = '';
-        catLi.classList.remove('category-hidden');
+        catLi.style.display = 'none';
+        catLi.classList.add('category-hidden');
       });
       return;
     }
@@ -9276,7 +9323,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
       } else if (userCfg && Array.isArray(userCfg.modulos)) {
         allowed = [...userCfg.modulos];
       } else {
-        allowed = ['ventas', 'mi-meta', 'ingresos', 'interesadas'];
+        allowed = ['ventas', 'mi-meta'];
       }
     }
 
@@ -9937,7 +9984,7 @@ function getHidalgoIsoString(dateObj = new Date()) {
     async function onLoginSuccess(user, isFreshLogin = false) {
       const email = (user.email || '').toLowerCase().trim();
 
-      // 1. CARGA INMEDIATA Y SINCRÓNICA DE ROLES Y PERMISOS DESDE MEMORIA / LOCALSTORAGE
+      // 1. CARGA INMEDIATA DE ROLES Y PERMISOS DESDE MEMORIA / LOCALSTORAGE
       if (!Array.isArray(catUsuariosRoles) || catUsuariosRoles.length === 0) {
         try {
           const cached = localStorage.getItem('tb_cat_usuarios_roles');
@@ -9948,8 +9995,12 @@ function getHidalgoIsoString(dateObj = new Date()) {
         } catch (e) {}
       }
 
-      // 2. APLICAR PERMISOS DE FORMA INMEDIATA AL DOM (0 milisegundos)
-      applyUserPermissions(email);
+      // Si los roles no están en memoria o no incluyen al usuario actual, sincronizar antes de abrir el portal
+      if (!Array.isArray(catUsuariosRoles) || catUsuariosRoles.length === 0 || !catUsuariosRoles.some(u => (u.email || '').toLowerCase().trim() === email)) {
+        await syncAndApplyUserPermissions(email);
+      } else {
+        applyUserPermissions(email);
+      }
 
       // 3. ACTUALIZAR INSIGNIAS Y DATOS DEL HEADER
       if (topbarUserBadge) topbarUserBadge.style.display = 'inline-flex';

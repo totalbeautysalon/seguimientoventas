@@ -1918,52 +1918,74 @@ const TB_FIREBASE = (function () {
 
 
   async function deleteArqueo(tipo, key) {
-
     if (tipo === 'chica') {
-
       const local = JSON.parse(localStorage.getItem('tb_arqueos_chica_history') || '{}');
-
-      delete local[key];
-
-      localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(local));
-
-      try {
-
-        await fetch(getDbUrl(`arqueos_caja_chica/${key}`), { method: 'DELETE' });
-
-      } catch (e) {}
-
-    } else {
-
-      const local = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
       const item = local[key];
-
       delete local[key];
+      localStorage.setItem('tb_arqueos_chica_history', JSON.stringify(local));
+      try {
+        await fetch(getDbUrl(`arqueos_caja_chica/${key}`), { method: 'DELETE' });
+      } catch (e) {}
+      return { success: true, item };
+    } else {
+      const local = JSON.parse(localStorage.getItem('tb_arqueos_history') || '{}');
+      let item = local[key] || null;
 
-      localStorage.setItem('tb_arqueos_history', JSON.stringify(local));
-
-      if (item && item.corteId) {
-        const f = item.header?.fecha || item.fecha || getHidalgoDateStr();
-        const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
-        if (localCortes[f] && localCortes[f][item.corteId]) {
-          delete localCortes[f][item.corteId];
-          localStorage.setItem('tb_cortes_db', JSON.stringify(localCortes));
-        }
+      // Si no estaba en localStorage, recuperar los datos desde Firebase antes de borrar
+      if (!item) {
         try {
-          await fetch(getDbUrl(`cortes_caja/${f}/${item.corteId}`), { method: 'DELETE' });
+          const res = await fetch(getDbUrl(`arqueos_caja/${key}`));
+          if (res.ok) item = await res.json();
         } catch (e) {}
       }
 
+      delete local[key];
+      localStorage.setItem('tb_arqueos_history', JSON.stringify(local));
+
+      // Eliminar de cortes_caja (local y Firebase)
+      const f = item?.header?.fecha || item?.fecha || key.split('_')[0];
+      const corteId = item?.corteId;
+      if (f) {
+        const localCortes = JSON.parse(localStorage.getItem('tb_cortes_db') || '{}');
+        if (localCortes[f]) {
+          if (corteId && localCortes[f][corteId]) {
+            delete localCortes[f][corteId];
+          } else {
+            Object.keys(localCortes[f]).forEach(cId => {
+              if (localCortes[f][cId]?.key === key) delete localCortes[f][cId];
+            });
+          }
+          localStorage.setItem('tb_cortes_db', JSON.stringify(localCortes));
+        }
+
+        if (corteId) {
+          try {
+            await fetch(getDbUrl(`cortes_caja/${f}/${corteId}`), { method: 'DELETE' });
+          } catch (e) {}
+        } else {
+          try {
+            const resCortes = await fetch(getDbUrl(`cortes_caja/${f}`));
+            if (resCortes.ok) {
+              const cloudCortes = await resCortes.json();
+              if (cloudCortes && typeof cloudCortes === 'object') {
+                for (const [cId, cVal] of Object.entries(cloudCortes)) {
+                  if (cVal?.key === key || cVal?.corteNum === item?.corteNum) {
+                    await fetch(getDbUrl(`cortes_caja/${f}/${cId}`), { method: 'DELETE' });
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Eliminar de arqueos_caja
       try {
-
         await fetch(getDbUrl(`arqueos_caja/${key}`), { method: 'DELETE' });
-
       } catch (e) {}
 
+      return { success: true, item };
     }
-
-    return { success: true };
-
   }
 
 
